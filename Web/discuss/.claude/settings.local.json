@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_serena_serena__list_dir",
+      "Bash(mix compile:*)",
+      "Bash(mix local.hex:*)",
+      "Bash(mix deps.get:*)",
+      "Bash(mix ecto.create:*)",
+      "Bash(mix ecto.migrate:*)",
+      "Bash(mix test)",
+      "Bash(where:*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

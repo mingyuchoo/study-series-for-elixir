@@ -1,0 +1,36 @@
+<div class="mx-auto max-w-sm mt-10">
+  <div class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
+    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">로그인</h2>
+
+    <%= if @error_message do %>
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <span class="block sm:inline"><%= @error_message %></span>
+      </div>
+    <% end %>
+
+    <.simple_form :let={f} for={%{}} as={:user} action={~p"/users/log_in"}>
+      <.input field={f[:email]} type="email" label="이메일" required />
+      <.input field={f[:password]} type="password" label="비밀번호" required />
+
+      <div class="flex items-center justify-between mt-4">
+        <label class="flex items-center">
+          <input type="checkbox" name="user[remember_me]" value="true" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+          <span class="ml-2 text-sm text-gray-600">로그인 유지</span>
+        </label>
+      </div>
+
+      <:actions>
+        <.button phx-disable-with="로그인 중..." class="w-full bg-indigo-600 hover:bg-indigo-700">
+          로그인
+        </.button>
+      </:actions>
+    </.simple_form>
+
+    <p class="text-center text-sm text-gray-600 mt-4">
+      계정이 없으신가요?
+      <.link navigate={~p"/users/register"} class="font-semibold text-indigo-600 hover:text-indigo-500">
+        회원가입
+      </.link>
+    </p>
+  </div>
+</div>

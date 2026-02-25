@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "phoenix-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "mix", "phx.server"],
+      "port": 4000
+    }
+  ]
+}
