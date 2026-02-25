@@ -5,6 +5,6 @@ defmodule Auth.GuardianPipelineMaybe do
     error_handler: Auth.GuardianErrorHandler
 
   plug(Guardian.Plug.VerifySession)
-  plug(Guardian.Plug.VerifyHeader, realm: "Bearer")
+  plug(Guardian.Plug.VerifyHeader, scheme: "Bearer")
   plug(Guardian.Plug.LoadResource, allow_blank: true)
 end

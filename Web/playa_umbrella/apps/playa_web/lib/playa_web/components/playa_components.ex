@@ -28,7 +28,7 @@ defmodule PlayaWeb.PlayaComponents do
         @class
       ]}
     >
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </button>
     """
   end

@@ -1,0 +1,276 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* This file is for your main application CSS */
+
+/* Alert 스타일은 DaisyUI가 제공하므로 별도 정의하지 않습니다. */
+
+.invalid-feedback {
+  color: #a94442;
+  display: block;
+  margin: -1rem 0 2rem;
+}
+
+/* LiveView specific classes for your customizations */
+.phx-no-feedback.invalid-feedback,
+.phx-no-feedback .invalid-feedback {
+  display: none;
+}
+
+.phx-click-loading {
+  opacity: 0.5;
+  transition: opacity 1s ease-out;
+}
+
+.phx-loading {
+  cursor: wait;
+}
+
+/* phx-modal 스타일은 DaisyUI modal 컴포넌트로 대체되었습니다. */
+
+.fade-in-scale {
+  animation: 0.2s ease-in 0s normal forwards 1 fade-in-scale-keys;
+}
+
+.fade-out-scale {
+  animation: 0.2s ease-out 0s normal forwards 1 fade-out-scale-keys;
+}
+
+.fade-in {
+  animation: 0.2s ease-out 0s normal forwards 1 fade-in-keys;
+}
+.fade-out {
+  animation: 0.2s ease-out 0s normal forwards 1 fade-out-keys;
+}
+
+@keyframes fade-in-scale-keys {
+  0% {
+    scale: 0.95;
+    opacity: 0;
+  }
+  100% {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out-scale-keys {
+  0% {
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    scale: 0.95;
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-keys {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out-keys {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ========================================
+   Markdown Rendering Styles (Monochrome)
+   ======================================== */
+
+/* Prose customization for chat messages - DaisyUI 테마 변수 사용 */
+.prose {
+  --tw-prose-body: oklch(var(--bc) / 0.8);
+  --tw-prose-headings: oklch(var(--bc));
+  --tw-prose-links: oklch(var(--bc));
+  --tw-prose-bold: oklch(var(--bc));
+  --tw-prose-code: oklch(var(--bc) / 0.8);
+  --tw-prose-pre-bg: oklch(var(--n));
+  --tw-prose-pre-code: oklch(var(--nc));
+}
+
+/* Code blocks */
+.prose pre {
+  @apply rounded-lg overflow-x-auto my-3;
+  background: oklch(var(--n));
+  border: 1px solid oklch(var(--bc) / 0.15);
+}
+
+.prose pre code {
+  @apply text-sm leading-relaxed;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  color: oklch(var(--nc));
+}
+
+/* Inline code */
+.prose code:not(pre code) {
+  @apply px-1.5 py-0.5 rounded font-medium;
+  background: oklch(var(--b3));
+  color: oklch(var(--bc));
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: none;
+}
+
+/* Headings */
+.prose h1 {
+  @apply text-xl font-bold mt-6 mb-3 pb-2;
+  color: oklch(var(--bc));
+  border-bottom: 1px solid oklch(var(--bc) / 0.15);
+}
+
+.prose h2 {
+  @apply text-lg font-semibold mt-5 mb-2;
+  color: oklch(var(--bc) / 0.9);
+}
+
+.prose h3 {
+  @apply text-base font-semibold mt-4 mb-2;
+  color: oklch(var(--bc) / 0.8);
+}
+
+/* Lists */
+.prose ul {
+  @apply my-2 ml-4;
+  list-style-type: none;
+}
+
+.prose ul > li {
+  @apply relative pl-5 my-1;
+}
+
+.prose ul > li::before {
+  content: '—';
+  @apply absolute left-0 font-normal;
+  color: oklch(var(--bc) / 0.4);
+}
+
+.prose ol {
+  @apply my-2 ml-4;
+  counter-reset: item;
+  list-style-type: none;
+}
+
+.prose ol > li {
+  @apply relative pl-7 my-1;
+  counter-increment: item;
+}
+
+.prose ol > li::before {
+  content: counter(item);
+  @apply absolute left-0 flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full;
+  background: oklch(var(--n));
+  color: oklch(var(--nc));
+}
+
+/* Blockquotes */
+.prose blockquote {
+  @apply my-3 pl-4 py-2 rounded-r-lg italic;
+  border-left: 4px solid oklch(var(--bc) / 0.2);
+  background: oklch(var(--b2));
+  quotes: none;
+}
+
+.prose blockquote p {
+  @apply m-0;
+  color: oklch(var(--bc) / 0.7);
+}
+
+/* Tables */
+.prose table {
+  @apply w-full my-3 border-collapse rounded-lg overflow-hidden;
+}
+
+.prose thead {
+  background: oklch(var(--b2));
+}
+
+.prose th {
+  @apply px-4 py-2 text-left text-sm font-semibold;
+  color: oklch(var(--bc));
+  border-bottom: 2px solid oklch(var(--bc) / 0.15);
+}
+
+.prose td {
+  @apply px-4 py-2 text-sm;
+  color: oklch(var(--bc) / 0.7);
+  border-bottom: 1px solid oklch(var(--bc) / 0.08);
+}
+
+.prose tbody tr:hover {
+  background: oklch(var(--b2));
+}
+
+/* Links */
+.prose a {
+  @apply font-medium no-underline transition-colors;
+  color: oklch(var(--bc));
+  text-decoration: underline;
+  text-decoration-color: oklch(var(--bc) / 0.2);
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: oklch(var(--bc));
+  text-decoration-color: oklch(var(--bc) / 0.5);
+}
+
+/* Horizontal rules */
+.prose hr {
+  @apply my-4 border-0 h-px;
+  background: oklch(var(--bc) / 0.15);
+}
+
+/* Strong/Bold */
+.prose strong {
+  @apply font-bold;
+  color: oklch(var(--bc));
+}
+
+/* Emphasis/Italic */
+.prose em {
+  @apply italic;
+  color: oklch(var(--bc) / 0.7);
+}
+
+/* Paragraphs */
+.prose p {
+  @apply my-2 leading-relaxed;
+}
+
+/* Images */
+.prose img {
+  @apply rounded-lg my-3;
+}
+
+/* Task lists (checkboxes) */
+.prose ul.contains-task-list {
+  @apply list-none pl-0;
+}
+
+.prose ul.contains-task-list li {
+  @apply pl-0;
+}
+
+.prose ul.contains-task-list li::before {
+  content: none;
+}
+
+.prose input[type="checkbox"] {
+  @apply mr-2 rounded;
+  border-color: oklch(var(--bc) / 0.2);
+}

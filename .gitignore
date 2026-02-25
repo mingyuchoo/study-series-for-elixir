@@ -32,6 +32,10 @@ erl_crash.dump
 npm-debug.log
 /assets/node_modules/
 
+# Database
+*.db
+*.db-*
+
 # Others
 *.tar
 /config/*.secret.exs
@@ -39,5 +43,6 @@ npm-debug.log
 .elixir-tools/
 
 # Envrc
+.env
 .envrc
 .envrc.local

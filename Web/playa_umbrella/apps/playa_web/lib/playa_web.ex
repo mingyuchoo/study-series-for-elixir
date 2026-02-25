@@ -43,7 +43,7 @@ defmodule PlayaWeb do
         layouts: [html: PlayaWeb.Layouts]
 
       import Plug.Conn
-      import PlayaWeb.Gettext
+      use Gettext, backend: PlayaWeb.Gettext
 
       unquote(verified_routes())
     end
@@ -85,7 +85,7 @@ defmodule PlayaWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import PlayaWeb.CoreComponents
-      import PlayaWeb.Gettext
+      use Gettext, backend: PlayaWeb.Gettext
 
       # NOTE:
       # Playa UI components

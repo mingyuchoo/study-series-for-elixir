@@ -9,11 +9,18 @@ defmodule Playa.MixProject do
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.16",
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ]
     ]
   end
 
@@ -37,13 +44,14 @@ defmodule Playa.MixProject do
   defp deps do
     [
       {:bcrypt_elixir, "~> 3.0"},
-      {:dns_cluster, "~> 0.1.1"},
+      {:dns_cluster, "~> 0.1"},
       {:phoenix_pubsub, "~> 2.1"},
-      {:ecto_sql, "~> 3.10"},
-      {:postgrex, ">= 0.0.0"},
+      {:ecto_sql, "~> 3.13"},
+      {:postgrex, "~> 0.21"},
       {:jason, "~> 1.2"},
-      {:swoosh, "~> 1.5"},
-      {:finch, "~> 0.13"}
+      {:swoosh, "~> 1.19"},
+      {:finch, "~> 0.20"},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 

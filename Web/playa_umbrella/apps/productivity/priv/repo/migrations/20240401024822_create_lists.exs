@@ -6,9 +6,14 @@ defmodule Productivity.Repo.Migrations.CreateLists do
       add :title, :string
       add :item_count, :integer, null: false, default: 0
 
-      add :user_id, references(:users, prefix: :playa, on_delete: :nilify_all), null: true
+      # Note: Cross-schema foreign key constraint removed for Umbrella app compatibility
+      # User validation is handled at the application level in the List changeset
+      add :user_id, :integer, null: true
 
       timestamps(type: :utc_datetime)
     end
+
+    # Create index for faster lookups
+    create index(:lists, [:user_id], prefix: :productivity)
   end
 end

@@ -18,6 +18,6 @@ defmodule Playa.Accounts.Role do
     role
     |> cast(attrs, [:name, :description, :user_count])
     |> validate_required([:name, :description])
-    |> unique_constraint(:name, name: "role_name_index")
+    |> unique_constraint(:name, name: "roles_name_index")
   end
 end

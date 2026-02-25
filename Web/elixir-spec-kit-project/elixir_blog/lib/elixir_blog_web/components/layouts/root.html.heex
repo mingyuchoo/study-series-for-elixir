@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="Elixir 블로그" suffix=" · Phoenix LiveView">
+      {assigns[:page_title]}
+    </.live_title>
+
+    <%!-- SEO Meta Tags --%>
+    <meta
+      name="description"
+      content={
+        assigns[:meta_description] ||
+          "Phoenix LiveView로 만든 Elixir 기술 블로그. Elixir, Phoenix, 그리고 함수형 프로그래밍에 대한 글을 공유합니다."
+      }
+    />
+    <meta
+      name="keywords"
+      content="Elixir, Phoenix, LiveView, 함수형 프로그래밍, Elixir 블로그"
+    />
+    <meta name="author" content="Elixir 블로그" />
+
+    <%!-- Open Graph Meta Tags --%>
+    <meta property="og:title" content={assigns[:page_title] || "Elixir 블로그"} />
+    <meta
+      property="og:description"
+      content={assigns[:meta_description] || "Phoenix LiveView로 만든 Elixir 기술 블로그"}
+    />
+    <meta property="og:type" content={assigns[:og_type] || "website"} />
+    <meta property="og:image" content={assigns[:og_image] || ~p"/images/default-og-image.png"} />
+    <meta property="og:url" content={assigns[:canonical_url] || "http://localhost:4000"} />
+
+    <%!-- Twitter Card Meta Tags --%>
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={assigns[:page_title] || "Elixir 블로그"} />
+    <meta
+      name="twitter:description"
+      content={assigns[:meta_description] || "Phoenix LiveView로 만든 Elixir 기술 블로그"}
+    />
+    <meta name="twitter:image" content={assigns[:og_image] || ~p"/images/default-og-image.png"} />
+
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <script>
+      (() => {
+        const setTheme = (theme) => {
+          if (theme === "system") {
+            localStorage.removeItem("phx:theme");
+            document.documentElement.removeAttribute("data-theme");
+          } else {
+            localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", theme);
+          }
+        };
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setTheme(localStorage.getItem("phx:theme") || "system");
+        }
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+        
+        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+      })();
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

@@ -14,12 +14,12 @@
   rows={@streams.users}
   row_click={fn {_id, user} -> JS.navigate(~p"/accounts/users/#{user.id}") end}
 >
-  <:col :let={{_id, user}} label="ID">#<%= user.id %></:col>
-  <:col :let={{_id, user}} label="Email"><%= user.email %></:col>
+  <:col :let={{_id, user}} label="ID">#{user.id}</:col>
+  <:col :let={{_id, user}} label="Email">{user.email}</:col>
   <:col :let={{_id, user}} label="Nickname">
-    <%= user.nickname || Phoenix.HTML.raw("<em>no nickname</em>") %>
+    {user.nickname || Phoenix.HTML.raw("<em>no nickname</em>")}
   </:col>
-  <:col :let={{_id, user}} label="Roles"><%= Enum.count(user.roles) %></:col>
+  <:col :let={{_id, user}} label="Roles">{Enum.count(user.roles)}</:col>
   <:action :let={{_id, user}}>
     <div class="sr-only">
       <.link navigate={~p"/accounts/users/#{user.id}"}>

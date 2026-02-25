@@ -24,6 +24,7 @@ defmodule Productivity.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Productivity.DataCase
+      import Playa.TestHelpers
     end
   end
 
@@ -36,23 +37,20 @@ defmodule Productivity.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Productivity.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
-  end
+    # Productivity and Playa repos use the same database but different schemas
+    # We need to start owners for both repos to support cross-schema references
+    productivity_pid =
+      Ecto.Adapters.SQL.Sandbox.start_owner!(Productivity.Repo, shared: not tags[:async])
 
-  @doc """
-  A helper that transforms changeset errors into a map of messages.
+    playa_pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Playa.Repo, shared: not tags[:async])
 
-      assert {:error, changeset} = Accounts.create_user(%{password: "short"})
-      assert "password is too short" in errors_on(changeset).password
-      assert %{password: ["password is too short"]} = errors_on(changeset)
+    # Allow both repos to share the same connection for cross-schema references
+    Ecto.Adapters.SQL.Sandbox.allow(Productivity.Repo, productivity_pid, self())
+    Ecto.Adapters.SQL.Sandbox.allow(Playa.Repo, playa_pid, self())
 
-  """
-  def errors_on(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
+    on_exit(fn ->
+      Ecto.Adapters.SQL.Sandbox.stop_owner(productivity_pid)
+      Ecto.Adapters.SQL.Sandbox.stop_owner(playa_pid)
     end)
   end
 end

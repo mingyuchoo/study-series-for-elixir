@@ -46,6 +46,8 @@ config :playa_web, PlayaWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
+  # WARNING: This is a development-only secret key and MUST NOT be used in production
+  # For production, use SECRET_KEY_BASE environment variable (see config/runtime.exs)
   secret_key_base: "aWnG5QBxL9EAEcV2qwsIpJUXYGLqw08dGIOQ623965amWTeBDH32csDkkbABJbd2",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:playa_web, ~w(--sourcemap=inline --watch)]},
@@ -103,3 +105,10 @@ config :swoosh, :api_client, false
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
+
+# Guardian secret key for development
+# WARNING: This is a development-only key and MUST NOT be used in production
+# For production, use GUARDIAN_SECRET_KEY environment variable (see config/runtime.exs)
+# Generate a production secret with: mix guardian.gen.secret
+config :auth, Auth.Guardian,
+  secret_key: "OHRhduufN4PKSEzclxgbPXgQhd4VsYr3HtJ6M9hfpmH7DLwToqYKi+/rT+5RbnyO"

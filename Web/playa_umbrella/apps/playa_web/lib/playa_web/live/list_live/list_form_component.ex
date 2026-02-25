@@ -9,7 +9,7 @@ defmodule PlayaWeb.ListLive.ListFormComponent do
     ~H"""
     <div>
       <.header>
-        <%= @title %>
+        {@title}
         <:subtitle>Use list to grouping items with a common theme.</:subtitle>
       </.header>
 
@@ -22,25 +22,25 @@ defmodule PlayaWeb.ListLive.ListFormComponent do
       >
         <.label>ID</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          #<%= @list.id %>
+          #{@list.id}
         </span>
         <.input field={@form[:title]} type="text" label="Title" placeholder="New list title" />
         <.label>Total items</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          <%= @list.item_count %> EA
+          {@list.item_count} EA
         </span>
         <.label>Inserted at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          <%= (@list.inserted_at && Timex.format!(@list.inserted_at, "%F %T", :strftime)) || "NEW" %>
+          {(@list.inserted_at && Timex.format!(@list.inserted_at, "%F %T", :strftime)) || "NEW"}
         </span>
         <.label>Updated at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          <%= (@list.updated_at && Timex.format!(@list.updated_at, "%F %T", :strftime)) || "NEW" %>
+          {(@list.updated_at && Timex.format!(@list.updated_at, "%F %T", :strftime)) || "NEW"}
         </span>
         <.label>Owned by</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          <%= (@list.user_id && (@list.user.nickname || @list.user.id)) ||
-            (@scope.current_user.nickname || @scope.current_user_id) %>
+          {(@list.user_id && (@list.user.nickname || @list.user.id)) ||
+            (@scope.current_user.nickname || @scope.current_user_id)}
         </span>
         <:actions>
           <.button phx-disable-with="Saving..."><.icon name="hero-check" />Save</.button>

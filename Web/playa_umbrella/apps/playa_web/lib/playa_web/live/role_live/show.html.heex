@@ -1,7 +1,7 @@
 <.back navigate={~p"/accounts/roles"}>Back to roles</.back>
 
 <.header>
-  Role #<%= @role.id %>
+  Role #{@role.id}
   <:subtitle>This is a role record from your database.</:subtitle>
   <:actions>
     <.link patch={~p"/accounts/roles/#{@role.id}/show/edit"} phx-click={JS.push_focus()}>
@@ -15,12 +15,12 @@
 </.header>
 
 <.list>
-  <:item title="ID">#<%= @role.name %></:item>
-  <:item title="Name"><%= @role.name %></:item>
-  <:item title="Description"><%= @role.description %></:item>
-  <:item title="User Count"><%= @role.user_count %></:item>
-  <:item title="Inserted at"><%= Timex.format!(@role.inserted_at, "%F %T", :strftime) %></:item>
-  <:item title="Updated at"><%= Timex.format!(@role.updated_at, "%F %T", :strftime) %></:item>
+  <:item title="ID">#{@role.name}</:item>
+  <:item title="Name">{@role.name}</:item>
+  <:item title="Description">{@role.description}</:item>
+  <:item title="User Count">{@role.user_count}</:item>
+  <:item title="Inserted at">{Timex.format!(@role.inserted_at, "%F %T", :strftime)}</:item>
+  <:item title="Updated at">{Timex.format!(@role.updated_at, "%F %T", :strftime)}</:item>
 </.list>
 <!-- begin Users -->
 <div class="pt-20">
@@ -32,9 +32,9 @@
     rows={@streams.users}
     row_click={fn {_id, user} -> JS.navigate(~p"/accounts/users/#{user.id}") end}
   >
-    <:col :let={{_id, user}} label="ID">#<%= user.id %></:col>
-    <:col :let={{_id, user}} label="Email"><%= user.email %></:col>
-    <:col :let={{_id, user}} label="Nickname"><%= user.nickname || "No nickname" %></:col>
+    <:col :let={{_id, user}} label="ID">#{user.id}</:col>
+    <:col :let={{_id, user}} label="Email">{user.email}</:col>
+    <:col :let={{_id, user}} label="Nickname">{user.nickname || "No nickname"}</:col>
   </.table>
 </div>
 <!-- end Users -->

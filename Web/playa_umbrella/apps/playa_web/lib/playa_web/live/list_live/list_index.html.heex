@@ -12,12 +12,12 @@
   rows={@streams.lists}
   row_click={fn {_id, list} -> JS.navigate(~p"/works/lists/#{list.id}") end}
 >
-  <:col :let={{_id, list}} label="ID">#<%= list.id %></:col>
-  <:col :let={{_id, list}} label="Title"><%= list.title %></:col>
-  <:col :let={{_id, list}} label="Total items"><%= list.item_count %></:col>
+  <:col :let={{_id, list}} label="ID">#{list.id}</:col>
+  <:col :let={{_id, list}} label="Title">{list.title}</:col>
+  <:col :let={{_id, list}} label="Total items">{list.item_count}</:col>
   <:col :let={{_id, list}} label="User">
     <.link navigate={~p"/accounts/users/#{list.user.id}"} class="underline">
-      <%= list.user.nickname || "##{list.user.id}" %>
+      {list.user.nickname || "##{list.user.id}"}
     </.link>
   </:col>
   <:action :let={{_id, list}}>

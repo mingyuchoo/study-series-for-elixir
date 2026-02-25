@@ -39,9 +39,13 @@ defmodule PlayaWeb.UserLive.Show do
   end
 
   @impl true
-  def handle_event("validate_role", %{"role_user" => _role_user_param}, socket) do
-    # FIXME: dbg(role_user_param)
-    {:noreply, socket}
+  def handle_event("validate_role", %{"role_user" => role_user_param}, socket) do
+    changeset =
+      %Accounts.RoleUser{}
+      |> Accounts.RoleUser.changeset(role_user_param)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :role_form, to_form(changeset))}
   end
 
   @impl true
@@ -63,6 +67,7 @@ defmodule PlayaWeb.UserLive.Show do
   @impl true
   def handle_event("delete_role", %{"role_id" => role_id, "user_id" => user_id}, socket) do
     role_user = Accounts.get_role_user(role_id, user_id)
+    role = Accounts.get_role!(role_id)
     {:ok, _} = role_user |> Accounts.delete_role_user()
 
     {:noreply,
@@ -71,6 +76,7 @@ defmodule PlayaWeb.UserLive.Show do
        :remain_roles,
        role_user.user_id
        |> Accounts.list_remain_roles_by_user_id()
-     )}
+     )
+     |> stream_delete(:my_roles, role)}
   end
 end

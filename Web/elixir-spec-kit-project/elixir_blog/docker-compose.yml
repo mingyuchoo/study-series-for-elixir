@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Development service
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: elixir_blog:dev
+    container_name: elixir_blog_dev
+    command: mix phx.server
+    environment:
+      - MIX_ENV=dev
+      - DATABASE_PATH=/app/elixir_blog_dev.db
+      - PHX_HOST=localhost
+      - PORT=4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/app
+      - /app/deps
+      - /app/_build
+      - ./elixir_blog_dev.db:/app/elixir_blog_dev.db
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    networks:
+      - elixir_blog_network
+
+  # Production service
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: elixir_blog:prod
+    container_name: elixir_blog_prod
+    environment:
+      - MIX_ENV=prod
+      - DATABASE_PATH=/app/data/elixir_blog.db
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:-}
+      - PHX_HOST=${PHX_HOST:-localhost}
+      - PORT=4000
+      - PHX_SERVER=true
+    ports:
+      - "4000:4000"
+    volumes:
+      - elixir_blog_data:/app/data
+      - ./priv/posts:/app/priv/posts:ro
+      - ./priv/static/images:/app/priv/static/images:ro
+    restart: unless-stopped
+    networks:
+      - elixir_blog_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  elixir_blog_data:
+    driver: local
+
+networks:
+  elixir_blog_network:
+    driver: bridge

@@ -1,7 +1,7 @@
 <.back navigate={~p"/accounts/users"}>Back to users</.back>
 
 <.header>
-  User #<%= @user.id %>
+  User #{@user.id}
   <:subtitle>This is a user record from your database.</:subtitle>
   <:actions>
     <.link patch={~p"/accounts/users/#{@user.id}/show/edit"} phx-click={JS.push_focus()}>
@@ -15,14 +15,14 @@
 </.header>
 
 <.list>
-  <:item title="ID">#<%= @user.id %></:item>
-  <:item title="Email"><%= @user.email %></:item>
+  <:item title="ID">#{@user.id}</:item>
+  <:item title="Email">{@user.email}</:item>
   <:item title="Nickname">
-    <%= @user.nickname || Phoenix.HTML.raw("<em>no nickname</em>") %>
+    {@user.nickname || Phoenix.HTML.raw("<em>no nickname</em>")}
   </:item>
-  <:item title="Inserted ad"><%= Timex.format!(@user.inserted_at, "%F %T", :strftime) %></:item>
-  <:item title="Updated at"><%= Timex.format!(@user.updated_at, "%F %T", :strftime) %></:item>
-  <:item title="Roles"><%= Enum.count(@user.roles) %></:item>
+  <:item title="Inserted ad">{Timex.format!(@user.inserted_at, "%F %T", :strftime)}</:item>
+  <:item title="Updated at">{Timex.format!(@user.updated_at, "%F %T", :strftime)}</:item>
+  <:item title="Roles">{Enum.count(@user.roles)}</:item>
 </.list>
 <!-- begin Roles -->
 <div class="pt-20">
@@ -48,9 +48,9 @@
     rows={@streams.my_roles}
     row_click={fn {_id, role} -> JS.navigate(~p"/accounts/roles/#{role.id}") end}
   >
-    <:col :let={{_id, role}} label="ID">#<%= role.id %></:col>
-    <:col :let={{_id, role}} label="Name"><%= role.name %></:col>
-    <:col :let={{_id, role}} label="Description"><%= role.description %></:col>
+    <:col :let={{_id, role}} label="ID">#{role.id}</:col>
+    <:col :let={{_id, role}} label="Name">{role.name}</:col>
+    <:col :let={{_id, role}} label="Description">{role.description}</:col>
     <:action :let={{id, role}}>
       <.link
         phx-click={

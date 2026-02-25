@@ -10,7 +10,7 @@
 
 ### Using `asdf` in Ubuntu
 
-Please install ASDF from https://asdf-vm.com/guide/getting-started.html
+Please install ASDF from <https://asdf-vm.com/guide/getting-started.html>
 
 ```bash
 sudo apt install -y libssl-dev automake autoconf libncurses-dev dirmngr gpg curl gawk libzstd-dev inotify-tools
@@ -89,9 +89,7 @@ docker build -t myapp:latest .
 docker run -it -e {ENV_VAR=VALUE} -p {extern-port}:{inner-port} {image}:{tag} bash
 ```
 
-
 ## Learn More
 
 - <https://elixir-lang.org/install.html>
 - <https://www.phoenixframework.org/>
-

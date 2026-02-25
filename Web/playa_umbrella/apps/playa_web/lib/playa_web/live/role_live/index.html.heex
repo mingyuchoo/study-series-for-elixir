@@ -14,10 +14,10 @@
   rows={@streams.roles}
   row_click={fn {_id, role} -> JS.navigate(~p"/accounts/roles/#{role.id}") end}
 >
-  <:col :let={{_id, role}} label="ID">#<%= role.id %></:col>
-  <:col :let={{_id, role}} label="Name"><%= role.name %></:col>
-  <:col :let={{_id, role}} label="Description"><%= role.description %></:col>
-  <:col :let={{_id, role}} label="Count"><%= role.user_count || 0 %></:col>
+  <:col :let={{_id, role}} label="ID">#{role.id}</:col>
+  <:col :let={{_id, role}} label="Name">{role.name}</:col>
+  <:col :let={{_id, role}} label="Description">{role.description}</:col>
+  <:col :let={{_id, role}} label="Count">{role.user_count || 0}</:col>
   <:action :let={{_id, role}}>
     <div class="sr-only">
       <.link navigate={~p"/accounts/roles/#{role.id}"}>

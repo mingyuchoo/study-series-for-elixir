@@ -1,0 +1,64 @@
+## Korean translations for Elixir Blog
+msgid ""
+msgstr ""
+"Language: ko\n"
+
+# Homepage
+msgid "elixir_blog"
+msgstr "Elixir 블로그"
+
+msgid "home"
+msgstr "홈"
+
+msgid "categories"
+msgstr "카테고리"
+
+msgid "popular_posts"
+msgstr "인기 포스트"
+
+msgid "latest_posts"
+msgstr "최신 포스트"
+
+msgid "read_more"
+msgstr "읽어보기"
+
+msgid "reading_time"
+msgstr "%{minutes}분 읽기"
+
+# Subscription
+msgid "subscribe_title"
+msgstr "최신 글을 이메일로 받아보세요"
+
+msgid "subscribe_description"
+msgstr "새로운 기술 블로그 포스트가 올라올 때마다 알림을 받으세요."
+
+msgid "email_placeholder"
+msgstr "이메일 주소를 입력하세요"
+
+msgid "subscribe_button"
+msgstr "구독하기"
+
+msgid "subscription_success"
+msgstr "구독이 완료되었습니다! 감사합니다."
+
+msgid "subscription_duplicate"
+msgstr "이미 구독하신 이메일입니다."
+
+msgid "subscription_error"
+msgstr "오류가 발생했습니다. 다시 시도해주세요."
+
+# Footer
+msgid "footer_description"
+msgstr "Elixir와 Phoenix에 대한 Elixir 기술 블로그입니다."
+
+msgid "links"
+msgstr "링크"
+
+msgid "information"
+msgstr "정보"
+
+msgid "all_rights_reserved"
+msgstr "© %{year} Elixir 블로그. All rights reserved."
+
+msgid "built_with_phoenix"
+msgstr "Built with Phoenix LiveView"

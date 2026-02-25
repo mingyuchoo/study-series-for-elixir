@@ -9,7 +9,7 @@ config :playa_web, PlayaWeb.Endpoint,
   # IMPORTANT:
   # 웹소켓 접속 체크에 사용되며 한 개의 IP로만 설정할 수 있음
   # Public IP 또는 Private IP 중 선택 입력
-  url: [host: "125.180.50.132", port: 4000],
+  # url 설정은 runtime.exs에서 PHX_HOST 환경 변수로 관리됩니다
   cache_static_manifest: "priv/static/cache_manifest.json",
   # IMPORTANT: 릴리스 빌드할 때 반드시 설정해야 함
   server: true

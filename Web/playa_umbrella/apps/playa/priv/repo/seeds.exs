@@ -11,6 +11,8 @@
 # and so on) as they will fail if something goes wrong.
 
 alias Playa.Accounts
+alias Playa.Accounts.Role
+alias Playa.Repo
 
 # Roles
 [
@@ -22,7 +24,16 @@ alias Playa.Accounts
   %{name: "Admin", description: "Administrator"}
 ]
 |> Enum.each(fn attr ->
-  {:ok, _role} = Accounts.create_role(attr)
+  case Repo.get_by(Role, name: attr.name) do
+    nil ->
+      case Accounts.create_role(attr) do
+        {:ok, _role} -> :ok
+        {:error, changeset} -> raise "Failed to create role: #{inspect(changeset)}"
+      end
+
+    _role ->
+      :ok
+  end
 end)
 
 # Users
@@ -30,6 +41,17 @@ end)
   %{email: "ghost@email.com", password: "qwe123QWE!@#", nickname: "Ghost", role_id: 1}
 ]
 |> Enum.each(fn attr ->
-  {:ok, user} = Accounts.register_user(attr)
-  Enum.map(user.roles, fn role -> Accounts.increase_user_count(role) end)
+  case Accounts.get_user_by_email(attr.email) do
+    nil ->
+      case Accounts.register_user(attr) do
+        {:ok, user} ->
+          Enum.map(user.roles, fn role -> Accounts.increase_user_count(role) end)
+
+        {:error, changeset} ->
+          raise "Failed to register user: #{inspect(changeset)}"
+      end
+
+    _user ->
+      :ok
+  end
 end)

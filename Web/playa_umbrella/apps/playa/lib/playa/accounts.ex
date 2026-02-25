@@ -1,680 +1,183 @@
 defmodule Playa.Accounts do
   @moduledoc """
   The Accounts context.
+
+  이 모듈은 계정 관련 기능에 대한 공개 API를 제공하는 facade입니다.
+  실제 구현은 다음 하위 모듈에 위임됩니다:
+
+  - `Playa.Accounts.Users` - 사용자 관리
+  - `Playa.Accounts.Sessions` - 세션 및 인증 토큰
+  - `Playa.Accounts.Roles` - 역할 관리
+  - `Playa.Accounts.RoleAssignments` - 역할-사용자 관계
   """
 
-  import Ecto.Query, warn: false
-  alias Playa.Repo
-
-  alias Playa.Accounts.{Role, User, RoleUser, UserToken, UserNotifier}
+  alias Playa.Accounts.{Users, Sessions, Roles, RoleAssignments}
 
   # ---------------------------------------------------------------------------
-
-  ## Database getters
-
-  @doc """
-  Gets a user by email.
-
-  ## Examples
-
-      iex> get_user_by_email("foo@example.com")
-      %User{}
-
-      iex> get_user_by_email("unknown@example.com")
-      nil
-
-  """
-  def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
-    |> Repo.preload(:roles)
-  end
-
-  @doc """
-  Gets a user by email and password.
-
-  ## Examples
-
-      iex> get_user_by_email_and_password("foo@example.com", "correct_password")
-      %User{}
-
-      iex> get_user_by_email_and_password("foo@example.com", "invalid_password")
-      nil
-
-  """
-  def get_user_by_email_and_password(email, password)
-      when is_binary(email) and is_binary(password) do
-    user = Repo.get_by(User, email: email)
-    if User.valid_password?(user, password), do: user
-  end
-
-  @doc """
-  Gets a single user.
-
-  Raises `Ecto.NoResultsError` if the User does not exist.
-
-  ## Examples
-
-      iex> get_user!(123)
-      %User{}
-
-      iex> get_user!(456)
-      ** (Ecto.NoResultsError)
-
-  """
-  def get_user!(id) do
-    # NOTE:
-    # 연관 데이터가 있어 preload 함
-    Repo.get!(User, id)
-    |> Repo.preload(:roles)
-  end
-
-  ## User registration
-
-  @doc """
-  Registers a user.
-  # NOTE:
-  사용자를 생성한 뒤 연관된 데이터를 preload하지 않으면
-  방금 생성한 사용자에 연관된 데이터가 없어
-  목록에 생성한 사용자를 보여주고자 할 때 오류가 발생함
-  ## Examples
-
-      iex> register_user(%{field: value})
-      {:ok, %User{}}
-
-      iex> register_user(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def register_user(attrs) do
-    %User{}
-    |> User.registration_changeset(attrs)
-    |> Repo.insert()
-    # IMPORTANT:
-    |> case do
-      {:ok, user} -> {:ok, Repo.preload(user, :roles)}
-      {:error, changeset} -> {:error, changeset}
-    end
-  end
-
-  def is_admin?(%User{} = user) do
-    Enum.any?(user.roles, fn role -> role.name == "Admin" end)
-  end
-
-  @doc """
-  Returns an `%Ecto.Changeset{}` for tracking user changes.
-
-  ## Examples
-
-      iex> change_user_registration(user)
-      %Ecto.Changeset{data: %User{}}
-
-  """
-  def change_user_registration(%User{} = user, attrs \\ %{}) do
-    user
-    |> Repo.preload(:roles)
-    |> User.registration_changeset(attrs, hash_password: false, validate_email: false)
-  end
-
-  ## Settings
-
-  @doc """
-  Returns an `%Ecto.Changeset{}` for changing the user email.
-
-  ## Examples
-
-      iex> change_user_email(user)
-      %Ecto.Changeset{data: %User{}}
-
-  """
-  def change_user_email(user, attrs \\ %{}) do
-    User.email_changeset(user, attrs, validate_email: false)
-  end
-
-  def change_user_nickname(user, attrs \\ %{}) do
-    User.nickname_changeset(user, attrs)
-  end
-
-  @doc """
-  Emulates that the email will change without actually changing
-  it in the database.
-
-  ## Examples
-
-      iex> apply_user_email(user, "valid password", %{email: ...})
-      {:ok, %User{}}
-
-      iex> apply_user_email(user, "invalid password", %{email: ...})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def apply_user_email(user, password, attrs) do
-    user
-    |> User.email_changeset(attrs)
-    |> User.validate_current_password(password)
-    |> Ecto.Changeset.apply_action(:update)
-  end
-
-  @doc """
-  Updates the user email using the given token.
-
-  If the token matches, the user email is updated and the token is deleted.
-  The confirmed_at date is also updated to the current time.
-  """
-  def update_user_email(user, token) do
-    context = "change:#{user.email}"
-
-    with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
-         %UserToken{sent_to: email} <- Repo.one(query),
-         {:ok, _} <- Repo.transaction(user_email_multi(user, email, context)) do
-      :ok
-    else
-      _ -> :error
-    end
-  end
-
-  defp user_email_multi(user, email, context) do
-    changeset =
-      user
-      |> User.email_changeset(%{email: email})
-      |> User.confirm_changeset()
-
-    Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, changeset)
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, [context]))
-  end
-
-  @doc ~S"""
-  Delivers the update email instructions to the given user.
-
-  ## Examples
-
-      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm_email/#{&1})")
-      {:ok, %{to: ..., body: ...}}
-
-  """
-  def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
-      when is_function(update_email_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
-
-    Repo.insert!(user_token)
-    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
-  end
-
-  @doc """
-  Returns an `%Ecto.Changeset{}` for changing the user password.
-
-  ## Examples
-
-      iex> change_user_password(user)
-      %Ecto.Changeset{data: %User{}}
-
-  """
-  def change_user_password(user, attrs \\ %{}) do
-    User.password_changeset(user, attrs, hash_password: false)
-  end
-
-  @doc """
-  Updates the user password.
-
-  ## Examples
-
-      iex> update_user_password(user, "valid password", %{password: ...})
-      {:ok, %User{}}
-
-      iex> update_user_password(user, "invalid password", %{password: ...})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def update_user_password(user, password, attrs) do
-    changeset =
-      user
-      |> User.password_changeset(attrs)
-      |> User.validate_current_password(password)
-
-    Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, changeset)
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{user: user}} -> {:ok, user}
-      {:error, :user, changeset, _} -> {:error, changeset}
-    end
-  end
-
-  ## Session
-
-  @doc """
-  Generates a session token.
-  """
-  def generate_user_session_token(user) do
-    {token, user_token} = UserToken.build_session_token(user)
-    Repo.insert!(user_token)
-    token
-  end
-
-  @doc """
-  Gets the user with the given signed token.
-  """
-  def get_user_by_session_token(token) do
-    {:ok, query} = UserToken.verify_session_token_query(token)
-    Repo.one(query)
-  end
-
-  @doc """
-  Deletes the signed token with the given context.
-  """
-  def delete_user_session_token(token) do
-    Repo.delete_all(UserToken.by_token_and_context_query(token, "session"))
-    :ok
-  end
-
-  ## Confirmation
-
-  @doc ~S"""
-  Delivers the confirmation email instructions to the given user.
-
-  ## Examples
-
-      iex> deliver_user_confirmation_instructions(user, &url(~p"/users/confirm/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
-
-      iex> deliver_user_confirmation_instructions(confirmed_user, &url(~p"/users/confirm/#{&1}"))
-      {:error, :already_confirmed}
-
-  """
-  def deliver_user_confirmation_instructions(%User{} = user, confirmation_url_fun)
-      when is_function(confirmation_url_fun, 1) do
-    if user.confirmed_at do
-      {:error, :already_confirmed}
-    else
-      {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
-      Repo.insert!(user_token)
-      UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
-    end
-  end
-
-  @doc """
-  Confirms a user by the given token.
-
-  If the token matches, the user account is marked as confirmed
-  and the token is deleted.
-  """
-  def confirm_user(token) do
-    with {:ok, query} <- UserToken.verify_email_token_query(token, "confirm"),
-         %User{} = user <- Repo.one(query),
-         {:ok, %{user: user}} <- Repo.transaction(confirm_user_multi(user)) do
-      {:ok, user}
-    else
-      _ -> :error
-    end
-  end
-
-  defp confirm_user_multi(user) do
-    Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, User.confirm_changeset(user))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, ["confirm"]))
-  end
-
-  ## Reset password
-
-  @doc ~S"""
-  Delivers the reset password email to the given user.
-
-  ## Examples
-
-      iex> deliver_user_reset_password_instructions(user, &url(~p"/users/reset_password/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
-
-  """
-  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
-      when is_function(reset_password_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "reset_password")
-    Repo.insert!(user_token)
-    UserNotifier.deliver_reset_password_instructions(user, reset_password_url_fun.(encoded_token))
-  end
-
-  @doc """
-  Gets the user by reset password token.
-
-  ## Examples
-
-      iex> get_user_by_reset_password_token("validtoken")
-      %User{}
-
-      iex> get_user_by_reset_password_token("invalidtoken")
-      nil
-
-  """
-  def get_user_by_reset_password_token(token) do
-    with {:ok, query} <- UserToken.verify_email_token_query(token, "reset_password"),
-         %User{} = user <- Repo.one(query) do
-      user
-    else
-      _ -> nil
-    end
-  end
-
-  @doc """
-  Resets the user password.
-
-  ## Examples
-
-      iex> reset_user_password(user, %{password: "new long password", password_confirmation: "new long password"})
-      {:ok, %User{}}
-
-      iex> reset_user_password(user, %{password: "valid", password_confirmation: "not the same"})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def reset_user_password(user, attrs) do
-    Ecto.Multi.new()
-    |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{user: user}} -> {:ok, user}
-      {:error, :user, changeset, _} -> {:error, changeset}
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # User
+  # Users - 사용자 관리
   # ---------------------------------------------------------------------------
 
-  def list_users do
-    User
-    |> select([u], u)
-    |> order_by([u], asc: u.id)
-    |> preload(:roles)
-    |> Repo.all()
-  end
+  @doc "이메일로 사용자 조회"
+  defdelegate get_user_by_email(email), to: Users, as: :get_by_email
 
-  def list_users_by_role_id(role_id) do
-    User
-    |> select([u], u)
-    |> join(:inner, [u], ru in RoleUser, on: ru.user_id == u.id)
-    |> join(:inner, [u, ru], r in Role, on: ru.role_id == r.id and r.id == ^role_id)
-    |> order_by([u], asc: u.id)
-    |> Repo.all()
-  end
+  @doc "이메일과 비밀번호로 사용자 인증"
+  defdelegate get_user_by_email_and_password(email, password),
+    to: Users,
+    as: :get_by_email_and_password
 
-  def create_user(attrs \\ %{}) do
-    %User{}
-    |> User.registration_changeset(attrs)
-    |> Repo.insert()
-    # IMPORTANT:
-    |> case do
-      {:ok, user} -> {:ok, Repo.preload(user, :roles)}
-      {:error, changeset} -> {:error, changeset}
-    end
-  end
+  @doc "ID로 사용자 조회"
+  defdelegate get_user!(id), to: Users, as: :get!
 
-  def update_user(%User{} = user, attrs) do
-    user
-    |> User.registration_changeset(attrs)
-    |> Repo.update()
-    |> case do
-      {:ok, user} ->
-        user = Repo.preload(user, :roles)
-        {:ok, user}
+  @doc "모든 사용자 목록"
+  defdelegate list_users(), to: Users, as: :list
 
-      {:error, changeset} ->
-        {:error, changeset}
-    end
-  end
+  @doc "특정 역할의 사용자 목록"
+  defdelegate list_users_by_role_id(role_id), to: Users, as: :list_by_role_id
 
-  def update_user_nickname(%User{} = user, attrs) do
-    user
-    |> User.nickname_changeset(attrs)
-    |> Repo.update()
-    |> case do
-      {:ok, user} ->
-        user = Repo.preload(user, :roles)
-        {:ok, user}
+  @doc "사용자 등록"
+  defdelegate register_user(attrs), to: Users, as: :register
 
-      {:error, changeset} ->
-        {:error, changeset}
-    end
-  end
+  @doc "사용자 생성"
+  defdelegate create_user(attrs \\ %{}), to: Users, as: :create
 
-  def increase_user_count(%Role{} = role) do
-    role
-    |> Repo.preload(:users)
-    |> Role.changeset(%{user_count: role.user_count + 1})
-    |> Repo.update()
-  end
+  @doc "사용자 정보 업데이트"
+  defdelegate update_user(user, attrs), to: Users, as: :update
 
-  def decrease_user_count(%Role{} = role) do
-    new_user_count = max(role.user_count - 1, 0)
+  @doc "사용자 닉네임 업데이트"
+  defdelegate update_user_nickname(user, attrs), to: Users, as: :update_nickname
 
-    role
-    |> Repo.preload(:users)
-    |> Role.changeset(%{user_count: new_user_count})
-    |> Repo.update()
-  end
+  @doc "사용자 이메일 변경"
+  defdelegate apply_user_email(user, password, attrs), to: Users, as: :apply_email_change
 
-  def delete_user(%User{} = user) do
-    Repo.delete(user)
-  end
+  @doc "사용자 삭제"
+  defdelegate delete_user(user), to: Users, as: :delete
 
-  def change_user(%User{} = user, attrs \\ %{}) do
-    User.registration_changeset(user, attrs)
-  end
+  @doc "사용자가 관리자인지 확인"
+  defdelegate is_admin?(user), to: Users, as: :admin?
 
-  # ----------------------------------------------------------------------------
-  # Role
-  # ----------------------------------------------------------------------------
+  @doc "사용자 등록 changeset"
+  defdelegate change_user_registration(user, attrs \\ %{}), to: Users, as: :change_registration
 
-  @doc """
-  Returns the list of roles.
+  @doc "사용자 이메일 changeset"
+  defdelegate change_user_email(user, attrs \\ %{}), to: Users, as: :change_email
 
-  ## Examples
+  @doc "사용자 닉네임 changeset"
+  defdelegate change_user_nickname(user, attrs \\ %{}), to: Users, as: :change_nickname
 
-      iex> list_roles()
-      [%Role{}, ...]
+  @doc "사용자 changeset"
+  defdelegate change_user(user, attrs \\ %{}), to: Users, as: :change
 
-  """
-  def list_roles do
-    Role
-    |> select([r], r)
-    |> order_by([r], asc: r.id)
-    |> preload(:users)
-    |> Repo.all()
-  end
+  # ---------------------------------------------------------------------------
+  # Sessions - 세션 및 인증
+  # ---------------------------------------------------------------------------
 
-  def list_roles_by_user_id(user_id) do
-    Role
-    |> select([r], r)
-    |> join(:inner, [r], ru in RoleUser, on: ru.role_id == r.id)
-    |> join(:inner, [r, ru], u in User, on: ru.user_id == u.id and u.id == ^user_id)
-    |> order_by([r], asc: r.id)
-    |> preload([:users])
-    |> Repo.all()
-  end
+  @doc "세션 토큰 생성"
+  defdelegate generate_user_session_token(user), to: Sessions, as: :generate_token
 
-  def list_remain_roles_by_user_id(user_id) do
-    from(r in Role,
-      as: :role,
-      where:
-        not exists(
-          from(ru in RoleUser,
-            where: ru.user_id == ^user_id and ru.role_id == parent_as(:role).id
-          )
-        ),
-      preload: [:users]
-    )
-    |> Repo.all()
-  end
+  @doc "세션 토큰으로 사용자 조회"
+  defdelegate get_user_by_session_token(token), to: Sessions, as: :get_user_by_token
 
-  @doc """
-  Gets a single role.
+  @doc "세션 토큰 삭제"
+  defdelegate delete_user_session_token(token), to: Sessions, as: :delete_token
 
-  Raises `Ecto.NoResultsError` if the Role does not exist.
+  @doc "이메일 확인 지시사항 전송"
+  defdelegate deliver_user_confirmation_instructions(user, confirmation_url_fun),
+    to: Sessions,
+    as: :deliver_confirmation_instructions
 
-  ## Examples
+  @doc "사용자 확인"
+  defdelegate confirm_user(token), to: Sessions
 
-      iex> get_role!(123)
-      %Role{}
+  @doc "이메일 업데이트 지시사항 전송"
+  defdelegate deliver_user_update_email_instructions(user, current_email, update_email_url_fun),
+    to: Sessions,
+    as: :deliver_update_email_instructions
 
-      iex> get_role!(456)
-      ** (Ecto.NoResultsError)
+  @doc "사용자 이메일 업데이트"
+  defdelegate update_user_email(user, token), to: Sessions
 
-  """
-  def get_role!(id) do
-    Role
-    |> select([r], r)
-    |> where([r], r.id == ^id)
-    |> preload(:users)
-    |> Repo.one!()
-  end
+  @doc "비밀번호 재설정 지시사항 전송"
+  defdelegate deliver_user_reset_password_instructions(user, reset_password_url_fun),
+    to: Sessions,
+    as: :deliver_reset_password_instructions
 
-  def get_default_role(role_name) do
-    Role
-    |> select([r], r)
-    |> where([r], r.name == ^role_name)
-    |> preload(:users)
-    |> Repo.one!()
-  end
+  @doc "비밀번호 재설정 토큰으로 사용자 조회"
+  defdelegate get_user_by_reset_password_token(token), to: Sessions
 
-  @doc """
-  Creates a role.
+  @doc "비밀번호 재설정"
+  defdelegate reset_user_password(user, attrs), to: Sessions
 
-  ## Examples
+  @doc "비밀번호 changeset"
+  defdelegate change_user_password(user, attrs \\ %{}), to: Sessions, as: :change_password
 
-      iex> create_role(%{field: value})
-      {:ok, %Role{}}
+  @doc "비밀번호 업데이트"
+  defdelegate update_user_password(user, password, attrs), to: Sessions
 
-      iex> create_role(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
+  # ---------------------------------------------------------------------------
+  # Roles - 역할 관리
+  # ---------------------------------------------------------------------------
 
-  """
-  def create_role(attrs \\ %{}) do
-    %Role{}
-    |> Role.changeset(attrs)
-    |> Repo.insert()
-    # IMPORTANT:
-    |> case do
-      {:ok, role} -> {:ok, Repo.preload(role, :users)}
-      {:error, changeset} -> {:error, changeset}
-    end
-  end
+  @doc "모든 역할 목록"
+  defdelegate list_roles(), to: Roles, as: :list
 
-  @doc """
-  Updates a role.
+  @doc "특정 사용자의 역할 목록"
+  defdelegate list_roles_by_user_id(user_id), to: Roles, as: :list_by_user_id
 
-  ## Examples
+  @doc "특정 사용자가 가지지 않은 역할 목록"
+  defdelegate list_remain_roles_by_user_id(user_id), to: Roles, as: :list_remaining_by_user_id
 
-      iex> update_role(role, %{field: new_value})
-      {:ok, %Role{}}
+  @doc "ID로 역할 조회"
+  defdelegate get_role!(id), to: Roles, as: :get!
 
-      iex> update_role(role, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
+  @doc "기본 역할 조회"
+  defdelegate get_default_role(role_name), to: Roles, as: :get_default
 
-  """
-  def update_role(%Role{} = role, attrs) do
-    role
-    |> Repo.preload(:users)
-    |> Role.changeset(attrs)
-    |> Repo.update()
-  end
+  @doc "역할 생성"
+  defdelegate create_role(attrs \\ %{}), to: Roles, as: :create
 
-  @doc """
-  Deletes a role.
+  @doc "역할 업데이트"
+  defdelegate update_role(role, attrs), to: Roles, as: :update
 
-  ## Examples
+  @doc "역할 삭제"
+  defdelegate delete_role(role), to: Roles, as: :delete
 
-      iex> delete_role(role)
-      {:ok, %Role{}}
+  @doc "역할 changeset"
+  defdelegate change_role(role, attrs \\ %{}), to: Roles, as: :change
 
-      iex> delete_role(role)
-      {:error, %Ecto.Changeset{}}
+  @doc "역할의 사용자 카운트 증가"
+  defdelegate increase_user_count(role), to: Roles
 
-  """
-  def delete_role(%Role{} = role) do
-    role
-    |> Repo.preload(:users)
-    |> Repo.delete()
-  end
+  @doc "역할의 사용자 카운트 감소"
+  defdelegate decrease_user_count(role), to: Roles
 
-  @doc """
-  Returns an `%Ecto.Changeset{}` for tracking role changes.
+  # ---------------------------------------------------------------------------
+  # RoleAssignments - 역할-사용자 관계
+  # ---------------------------------------------------------------------------
 
-  ## Examples
+  @doc "모든 역할-사용자 관계 목록"
+  defdelegate list_role_user(), to: RoleAssignments, as: :list
 
-      iex> change_role(role)
-      %Ecto.Changeset{data: %Role{}}
+  @doc "특정 사용자의 역할 할당 목록"
+  defdelegate list_role_user_by_user_id(user_id), to: RoleAssignments, as: :list_by_user_id
 
-  """
-  def change_role(%Role{} = role, attrs \\ %{}) do
-    role
-    |> Repo.preload(:users)
-    |> Role.changeset(attrs)
-  end
+  @doc "특정 사용자가 할당받지 않은 역할 목록"
+  defdelegate list_role_user_not_user_id(user_id), to: RoleAssignments, as: :list_unassigned_roles
 
-  # ----------------------------------------------------------------------------
-  # RoleUser
-  # ----------------------------------------------------------------------------
+  @doc "역할-사용자 관계 조회 (예외 발생)"
+  defdelegate get_role_user!(role_id, user_id), to: RoleAssignments, as: :get!
 
-  def list_role_user do
-    RoleUser
-    |> select([ru], ru)
-    |> order_by([ru], asc: ru.id)
-    |> Repo.all()
-  end
+  @doc "역할-사용자 관계 조회"
+  defdelegate get_role_user(role_id, user_id), to: RoleAssignments, as: :get
 
-  def list_role_user_by_user_id(user_id) do
-    RoleUser
-    |> select([ru], ru)
-    |> where([ru], ru.user_id == ^user_id)
-    |> order_by([ru], asc: ru.id)
-    |> Repo.all()
-  end
+  @doc "역할-사용자 관계 생성"
+  defdelegate create_role_user(attrs \\ %{}), to: RoleAssignments, as: :create
 
-  def list_role_user_not_user_id(user_id) do
-    Role
-    |> select([r], r)
-    |> join(:left, [r], ru in RoleUser, on: r.id == ru.role_id and ru.user_id == ^user_id)
-    |> where([r, ru], is_nil(ru.role_id))
-    |> order_by([r], asc: r.id)
-    |> Repo.all()
-  end
+  @doc "역할-사용자 관계 업데이트"
+  defdelegate update_role_user(role_user, attrs), to: RoleAssignments, as: :update
 
-  def get_role_user!(role_id, user_id) do
-    RoleUser
-    |> select([ru], ru)
-    |> where([ru], ru.role_id == ^role_id and ru.user_id == ^user_id)
-    |> Repo.one!()
-  end
+  @doc "역할-사용자 관계 삭제"
+  defdelegate delete_role_user(role_user), to: RoleAssignments, as: :delete
 
-  def get_role_user(role_id, user_id) do
-    RoleUser
-    |> select([ru], ru)
-    |> where([ru], ru.role_id == ^role_id and ru.user_id == ^user_id)
-    |> Repo.one()
-  end
-
-  def create_role_user(attrs \\ %{}) do
-    %RoleUser{}
-    |> RoleUser.changeset(attrs)
-    |> Repo.insert()
-    |> case do
-      {:ok, role_user} -> {:ok, role_user}
-      {:error, changeset} -> {:error, changeset}
-    end
-  end
-
-  def update_role_user(%RoleUser{} = role_user, attrs) do
-    role_user
-    |> RoleUser.changeset(attrs)
-    |> Repo.update()
-  end
-
-  def delete_role_user(%RoleUser{} = role_user) do
-    role_user
-    |> Repo.delete()
-  end
-
-  def change_role_user(%RoleUser{} = role_user, attrs \\ %{}) do
-    RoleUser.changeset(role_user, attrs)
-  end
+  @doc "역할-사용자 changeset"
+  defdelegate change_role_user(role_user, attrs \\ %{}), to: RoleAssignments, as: :change
 end

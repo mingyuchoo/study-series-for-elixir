@@ -9,7 +9,7 @@ defmodule PlayaWeb.ListLive.ItemFormComponent do
     ~H"""
     <div>
       <.header>
-        <%= @title %> for <%= @list.title %>
+        {@title} for {@list.title}
         <:subtitle>Create item to implement and apply it to your life.</:subtitle>
       </.header>
 
@@ -23,7 +23,7 @@ defmodule PlayaWeb.ListLive.ItemFormComponent do
         <!-- NOTE: list_id 는 넘어온 list.id 로 미리 지정해 놓음 -->
         <.label>ID</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          #<%= @item.id %>
+          #{@item.id}
         </span>
         <.input field={@form[:list_id]} type="hidden" value={@list.id} />
         <.input field={@form[:title]} type="text" label="Title" placeholder="New item title" />
@@ -40,18 +40,18 @@ defmodule PlayaWeb.ListLive.ItemFormComponent do
         />
         <.label>Inserted at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          <%= (@item.inserted_at && Timex.format!(@item.inserted_at, "%F %T", :strftime)) || "NEW" %>
+          {(@item.inserted_at && Timex.format!(@item.inserted_at, "%F %T", :strftime)) || "NEW"}
         </span>
         <.label>Updated at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          <%= (@item.updated_at && Timex.format!(@item.updated_at, "%F %T", :strftime)) || "NEW" %>
+          {(@item.updated_at && Timex.format!(@item.updated_at, "%F %T", :strftime)) || "NEW"}
         </span>
         <.label>Owned by</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
           <%= if @item.user.__struct__ == Ecto.Association.NotLoaded do %>
-            <%= @scope.current_user.nickname || "##{@scope.current_user.id}" %>
+            {@scope.current_user.nickname || "##{@scope.current_user.id}"}
           <% else %>
-            <%= @item.user.nickname || "##{@item.user.id}" %>
+            {@item.user.nickname || "##{@item.user.id}"}
           <% end %>
         </span>
         <:actions>

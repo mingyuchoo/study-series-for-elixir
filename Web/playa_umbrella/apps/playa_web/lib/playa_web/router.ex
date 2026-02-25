@@ -87,7 +87,6 @@ defmodule PlayaWeb.Router do
       live("/works/lists/:list_id/show/edit", ListLive.ListShow, :list_edit)
       live("/works/lists/:list_id/items/new", ListLive.ListShow, :item_new)
       live("/works/lists/:list_id/items/:item_id/edit", ListLive.ListShow, :item_edit)
-      live("/works/lists/:list_id/items/:item_id/show/edit", ListLive.ItemShow, :item_edit)
 
       live("/accounts/roles", RoleLive.Index, :index)
       live("/accounts/roles/new", RoleLive.Index, :new)

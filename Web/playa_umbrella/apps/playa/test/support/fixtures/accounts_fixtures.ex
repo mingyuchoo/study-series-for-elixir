@@ -28,4 +28,33 @@ defmodule Playa.AccountsFixtures do
     [_, token | _] = String.split(captured_email.text_body, "[TOKEN]")
     token
   end
+
+  def unique_role_name, do: "Role#{System.unique_integer()}"
+
+  def valid_role_attributes(attrs \\ %{}) do
+    Enum.into(attrs, %{
+      name: unique_role_name(),
+      description: "Test role description",
+      user_count: 0
+    })
+  end
+
+  def role_fixture(attrs \\ %{}) do
+    {:ok, role} =
+      attrs
+      |> valid_role_attributes()
+      |> Playa.Accounts.create_role()
+
+    role
+  end
+
+  def role_user_fixture(role_id, user_id) do
+    {:ok, role_user} =
+      Playa.Accounts.create_role_user(%{
+        role_id: role_id,
+        user_id: user_id
+      })
+
+    role_user
+  end
 end

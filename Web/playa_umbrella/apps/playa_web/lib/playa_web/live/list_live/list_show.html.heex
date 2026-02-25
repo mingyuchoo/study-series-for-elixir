@@ -1,7 +1,7 @@
 <.back navigate={~p"/works/lists"}>Back to my lists</.back>
 
 <.header>
-  My #<%= @list.id %> list
+  My #{@list.id} list
   <:subtitle>This is a list record from your database.</:subtitle>
   <:actions>
     <.link patch={~p"/works/lists/#{@list.id}/show/edit"} phx-click={JS.push_focus()}>
@@ -17,21 +17,21 @@
 </.header>
 
 <.list>
-  <:item title="ID">#<%= @list.id %></:item>
-  <:item title="Title"><%= @list.title %></:item>
-  <:item title="Total items"><%= @list.item_count %> item(s)</:item>
+  <:item title="ID">#{@list.id}</:item>
+  <:item title="Title">{@list.title}</:item>
+  <:item title="Total items">{@list.item_count} item(s)</:item>
   <:item title="Created by">
     <.link navigate={~p"/accounts/users/#{@list.user.id}"} class="underline">
-      <%= @list.user.nickname || "##{@list.user.id}" %>
+      {@list.user.nickname || "##{@list.user.id}"}
     </.link>
   </:item>
-  <:item title="Inserted at"><%= Timex.format!(@list.inserted_at, "%F %T", :strftime) %></:item>
-  <:item title="Updated at"><%= Timex.format!(@list.updated_at, "%F %T", :strftime) %></:item>
+  <:item title="Inserted at">{Timex.format!(@list.inserted_at, "%F %T", :strftime)}</:item>
+  <:item title="Updated at">{Timex.format!(@list.updated_at, "%F %T", :strftime)}</:item>
 </.list>
 <!-- Items by list_id -->
 <div class="pt-20">
   <.header level="h2">
-    Items in <%= @list.title %>
+    Items in {@list.title}
     <:actions>
       <.link patch={~p"/works/lists/#{@list.id}/items/new"}>
         <.button><.icon name="hero-plus" /></.button>
@@ -47,7 +47,7 @@
     }
   >
     <!-- 취소선 적용 -->
-    <:col :let={{_id, item}} label="ID">#<%= item.id %></:col>
+    <:col :let={{_id, item}} label="ID">#{item.id}</:col>
     <:col :let={{_id, item}} label="Title">
       <span class={
         case item.status do
@@ -56,13 +56,13 @@
           :done -> "font-light line-through"
         end
       }>
-        <%= item.title %>
+        {item.title}
       </span>
     </:col>
-    <:col :let={{_id, item}} label="Status"><%= item.status %></:col>
+    <:col :let={{_id, item}} label="Status">{item.status}</:col>
     <:col :let={{_id, item}} label="User">
       <.link navigate={~p"/accounts/users/#{item.user.id}"} class="underline">
-        <%= item.user.nickname %>
+        {item.user.nickname}
       </.link>
     </:col>
     <:action :let={{_id, item}}>

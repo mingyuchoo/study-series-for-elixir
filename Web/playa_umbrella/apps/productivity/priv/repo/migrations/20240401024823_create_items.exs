@@ -7,12 +7,15 @@ defmodule Productivity.Repo.Migrations.CreateItems do
       add :description, :string, null: true
       add :status, :string
 
-      add :user_id, references(:users, prefix: :playa, on_delete: :nilify_all), null: true
+      # Note: Cross-schema foreign key constraint removed for Umbrella app compatibility
+      # User validation is handled at the application level in the Item changeset
+      add :user_id, :integer, null: true
       add :list_id, references(:lists, on_delete: :delete_all)
 
       timestamps(type: :utc_datetime)
     end
 
     create index(:items, [:list_id], prefix: :productivity)
+    create index(:items, [:user_id], prefix: :productivity)
   end
 end

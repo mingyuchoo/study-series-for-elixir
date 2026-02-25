@@ -63,3 +63,8 @@ config :swoosh, :api_client, false
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+# Guardian secret key for testing
+# This is a test-only key and should NOT be used in production
+config :auth, Auth.Guardian,
+  secret_key: "test_secret_key_for_guardian_in_test_environment_do_not_use_in_production"

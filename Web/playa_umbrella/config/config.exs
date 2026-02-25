@@ -97,7 +97,6 @@ config :phoenix, :json_library, Jason
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
 
-# Configure your authentication
-config :auth, Auth.Guardian,
-  issuer: "auth",
-  secret_key: "OHRhduufN4PKSEzclxgbPXgQhd4VsYr3HtJ6M9hfpmH7DLwToqYKi+/rT+5RbnyO"
+# Guardian authentication configuration
+# The secret_key is configured in each environment file (dev.exs, test.exs, runtime.exs)
+config :auth, Auth.Guardian, issuer: "auth"
