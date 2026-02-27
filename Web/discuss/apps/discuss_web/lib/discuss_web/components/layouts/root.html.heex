@@ -34,7 +34,9 @@
             <ul tabindex="0" class="menu menu-sm dropdown-content bg-primary rounded-box z-[1] mt-3 w-52 p-2 shadow">
               <li><a href="/" class="text-primary-content">홈</a></li>
               <%= if assigns[:current_user] do %>
-                <li><a href={~p"/admin/users"} class="text-primary-content">관리자</a></li>
+                <%= if assigns[:is_admin] do %>
+                  <li><a href={~p"/admin/users"} class="text-primary-content">관리자</a></li>
+                <% end %>
                 <li>
                   <.link href={~p"/users/log_out"} method="delete" class="text-primary-content">
                     로그아웃
@@ -58,9 +60,11 @@
             <span class="text-primary-content/70 text-sm mr-4">
               <%= @current_user.email %>
             </span>
-            <a href={~p"/admin/users"} class="btn btn-ghost btn-sm text-primary-content">
-              관리자
-            </a>
+            <%= if assigns[:is_admin] do %>
+              <a href={~p"/admin/users"} class="btn btn-ghost btn-sm text-primary-content">
+                관리자
+              </a>
+            <% end %>
             <.link
               href={~p"/users/log_out"}
               method="delete"

@@ -67,7 +67,12 @@ defmodule DiscussWeb.UserAuth do
   def fetch_current_user(conn, _opts) do
     {user_token, conn} = ensure_user_token(conn)
     user = user_token && Accounts.get_user_by_session_token(user_token)
-    assign(conn, :current_user, user)
+    admin = user && Discuss.Admin.get_user_by_auth_user_id(user.id)
+    is_admin = admin != nil && admin.role == "admin"
+
+    conn
+    |> assign(:current_user, user)
+    |> assign(:is_admin, is_admin)
   end
 
   defp ensure_user_token(conn) do
