@@ -1,23 +1,25 @@
 <div class="mx-auto max-w-sm mt-10">
-  <div class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
-    <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">이메일 인증 재발송</h2>
-    <p class="text-sm text-center text-gray-600 mb-6">
-      가입하신 이메일 주소를 입력하시면 인증 링크를 다시 보내드립니다.
-    </p>
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title justify-center text-2xl mb-2">이메일 인증 재발송</h2>
+      <p class="text-sm text-center text-base-content/60 mb-4">
+        가입하신 이메일 주소를 입력하시면 인증 링크를 다시 보내드립니다.
+      </p>
 
-    <.simple_form :let={f} for={%{}} as={:user} action={~p"/users/confirm"}>
-      <.input field={f[:email]} type="email" label="이메일" required />
-      <:actions>
-        <.button class="w-full bg-indigo-600 hover:bg-indigo-700">
-          인증 링크 재발송
-        </.button>
-      </:actions>
-    </.simple_form>
+      <.simple_form :let={f} for={%{}} as={:user} action={~p"/users/confirm"}>
+        <.input field={f[:email]} type="email" label="이메일" required />
+        <:actions>
+          <.button class="w-full">
+            인증 링크 재발송
+          </.button>
+        </:actions>
+      </.simple_form>
 
-    <p class="text-center text-sm text-gray-600 mt-4">
-      <.link navigate={~p"/users/log_in"} class="font-semibold text-indigo-600 hover:text-indigo-500">
-        로그인으로 돌아가기
-      </.link>
-    </p>
+      <p class="text-center text-sm text-base-content/60 mt-4">
+        <.link navigate={~p"/users/log_in"} class="link link-primary font-semibold">
+          로그인으로 돌아가기
+        </.link>
+      </p>
+    </div>
   </div>
 </div>

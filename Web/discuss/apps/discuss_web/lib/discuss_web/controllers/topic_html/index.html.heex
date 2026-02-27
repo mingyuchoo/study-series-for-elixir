@@ -1,13 +1,13 @@
 <div class="px-4 sm:px-6 lg:px-8">
   <div class="sm:flex sm:items-center">
     <div class="sm:flex-auto">
-      <h1 class="text-2xl font-semibold text-gray-900">토픽 목록</h1>
-      <p class="mt-2 text-sm text-gray-700">
+      <h1 class="text-2xl font-semibold text-base-content">토픽 목록</h1>
+      <p class="mt-2 text-sm text-base-content/70">
         모든 토픽의 목록입니다. 토픽을 추가, 수정, 삭제할 수 있습니다.
       </p>
     </div>
     <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-      <a href="/topics/new" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto">
+      <a href="/topics/new" class="btn btn-primary btn-sm">
         <i class="material-icons">add</i>
         토픽 추가
       </a>
@@ -23,126 +23,122 @@
           name="search"
           value={@search}
           placeholder="토픽 제목 또는 본문 검색..."
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+          class="input input-bordered w-full input-sm"
         />
       </div>
-      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+      <label class="label cursor-pointer gap-2">
         <input
           type="checkbox"
           name="my_topics"
           value="true"
           checked={@my_topics}
-          class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+          class="checkbox checkbox-primary checkbox-sm"
         />
-        내 토픽만
+        <span class="label-text">내 토픽만</span>
       </label>
-      <button type="submit" class="inline-flex items-center rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 border border-gray-300">
+      <button type="submit" class="btn btn-ghost btn-sm border border-base-300">
         <i class="material-icons">search</i>
         검색
       </button>
-      <a href={~p"/topics"} class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-300">
+      <a href={~p"/topics"} class="btn btn-ghost btn-sm border border-base-300">
         초기화
       </a>
     </form>
   </div>
 
-  <div class="mt-6 flex flex-col">
-    <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-      <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-          <%= if Enum.empty?(@topics) do %>
-            <div class="bg-white px-6 py-12 text-center">
-              <div class="rounded-full bg-gray-100 p-3 inline-block">
-                <i class="material-icons text-gray-400 text-3xl">topic</i>
-              </div>
-              <h3 class="mt-2 text-sm font-medium text-gray-900">현재 등록된 토픽이 없습니다</h3>
-              <p class="mt-1 text-sm text-gray-500">첫 번째 토픽을 만들어보세요.</p>
-              <div class="mt-6">
-                <a href="/topics/new" class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                  <i class="material-icons">add</i>
-                  첫 번째 토픽 만들기
-                </a>
-              </div>
-            </div>
-          <% else %>
-            <table class="min-w-full divide-y divide-gray-300">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">토픽</th>
-                  <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right">
-                    <span class="sr-only">작업</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200 bg-white">
-                <%= for topic <- @topics do %>
-                  <tr>
-                    <td class="py-4 pl-4 pr-3 text-sm sm:pl-6">
-                      <div class="font-medium text-gray-900"><%= topic.title %></div>
-                      <%= if topic.body && topic.body != "" do %>
-                        <div class="mt-1 text-gray-500 text-xs truncate max-w-md">
-                          <%= Discuss.Markdown.excerpt(topic.body, 100) %>
-                        </div>
-                      <% end %>
-                    </td>
-                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <div class="flex justify-end space-x-2">
-                        <a href={~p"/topics/#{topic.id}"} class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-sm font-medium text-blue-700 hover:bg-blue-100" title="상세보기">
-                          <i class="material-icons">visibility</i>
-                          <span class="hidden sm:inline">상세</span>
-                        </a>
-                        <%= if topic.auth_user_id == @current_user.id do %>
-                          <a href={~p"/topics/#{topic.id}/edit"} class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-sm font-medium text-yellow-700 hover:bg-yellow-100" title="수정">
-                            <i class="material-icons">edit</i>
-                            <span class="hidden sm:inline">수정</span>
-                          </a>
-                          <a href="#" onclick={"event.preventDefault(); document.getElementById('delete-form-#{topic.id}').submit();"} class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-100" title="삭제">
-                            <i class="material-icons">delete</i>
-                            <span class="hidden sm:inline">삭제</span>
-                          </a>
-                          <form id={"delete-form-#{topic.id}"} action={~p"/topics/#{topic.id}"} method="post" class="hidden">
-                            <input type="hidden" name="_method" value="delete">
-                            <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
-                          </form>
-                        <% end %>
-                      </div>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          <% end %>
+  <div class="mt-6">
+    <%= if Enum.empty?(@topics) do %>
+      <div class="card bg-base-100 shadow">
+        <div class="card-body items-center text-center py-12">
+          <div class="rounded-full bg-base-200 p-3 inline-block">
+            <i class="material-icons text-base-content/40 text-3xl">topic</i>
+          </div>
+          <h3 class="mt-2 text-sm font-medium">현재 등록된 토픽이 없습니다</h3>
+          <p class="mt-1 text-sm text-base-content/60">첫 번째 토픽을 만들어보세요.</p>
+          <div class="mt-6">
+            <a href="/topics/new" class="btn btn-primary btn-sm">
+              <i class="material-icons">add</i>
+              첫 번째 토픽 만들기
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+    <% else %>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
+            <tr>
+              <th>토픽</th>
+              <th class="text-right">작업</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for topic <- @topics do %>
+              <tr class="hover">
+                <td>
+                  <div class="font-medium"><%= topic.title %></div>
+                  <%= if topic.body && topic.body != "" do %>
+                    <div class="mt-1 text-base-content/60 text-xs truncate max-w-md">
+                      <%= Discuss.Markdown.excerpt(topic.body, 100) %>
+                    </div>
+                  <% end %>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-1">
+                    <a href={~p"/topics/#{topic.id}"} class="btn btn-info btn-xs btn-outline" title="상세보기">
+                      <i class="material-icons">visibility</i>
+                      <span class="hidden sm:inline">상세</span>
+                    </a>
+                    <%= if topic.auth_user_id == @current_user.id do %>
+                      <a href={~p"/topics/#{topic.id}/edit"} class="btn btn-warning btn-xs btn-outline" title="수정">
+                        <i class="material-icons">edit</i>
+                        <span class="hidden sm:inline">수정</span>
+                      </a>
+                      <a href="#" onclick={"event.preventDefault(); document.getElementById('delete-form-#{topic.id}').submit();"} class="btn btn-error btn-xs btn-outline" title="삭제">
+                        <i class="material-icons">delete</i>
+                        <span class="hidden sm:inline">삭제</span>
+                      </a>
+                      <form id={"delete-form-#{topic.id}"} action={~p"/topics/#{topic.id}"} method="post" class="hidden">
+                        <input type="hidden" name="_method" value="delete">
+                        <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
+                      </form>
+                    <% end %>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
   </div>
 
   <!-- 페이지네이션 -->
   <%= if @total > @per_page do %>
     <% total_pages = ceil(@total / @per_page) %>
     <div class="mt-4 flex items-center justify-between">
-      <p class="text-sm text-gray-700">
+      <p class="text-sm text-base-content/70">
         전체 <strong><%= @total %></strong>개 중
         <strong><%= (@page - 1) * @per_page + 1 %></strong> -
         <strong><%= min(@page * @per_page, @total) %></strong>
       </p>
-      <nav class="flex gap-1">
+      <div class="join">
         <%= if @page > 1 do %>
-          <a href={~p"/topics?#{[page: @page - 1, search: @search, my_topics: @my_topics]}"} class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-300">
+          <a href={~p"/topics?#{[page: @page - 1, search: @search, my_topics: @my_topics]}"} class="join-item btn btn-sm">
             이전
           </a>
         <% end %>
         <%= for p <- max(1, @page - 2)..min(total_pages, @page + 2) do %>
-          <a href={~p"/topics?#{[page: p, search: @search, my_topics: @my_topics]}"} class={"inline-flex items-center rounded-md px-3 py-2 text-sm font-medium border #{if p == @page, do: "bg-indigo-600 text-white border-indigo-600", else: "bg-white text-gray-500 hover:bg-gray-50 border-gray-300"}"}>
+          <a href={~p"/topics?#{[page: p, search: @search, my_topics: @my_topics]}"} class={"join-item btn btn-sm #{if p == @page, do: "btn-primary", else: ""}"}>
             <%= p %>
           </a>
         <% end %>
         <%= if @page < total_pages do %>
-          <a href={~p"/topics?#{[page: @page + 1, search: @search, my_topics: @my_topics]}"} class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 border border-gray-300">
+          <a href={~p"/topics?#{[page: @page + 1, search: @search, my_topics: @my_topics]}"} class="join-item btn btn-sm">
             다음
           </a>
         <% end %>
-      </nav>
+      </div>
     </div>
   <% end %>
 </div>

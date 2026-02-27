@@ -1,7 +1,16 @@
 {
+  "scripts": {
+    "build:css": "npx tailwindcss --config=tailwind.config.js --input=css/app.css --output=../priv/static/assets/app.css --postcss",
+    "build:css:prod": "npx tailwindcss --config=tailwind.config.js --input=css/app.css --output=../priv/static/assets/app.css --postcss --minify"
+  },
   "dependencies": {
+    "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.19",
+    "autoprefixer": "^10.4.20",
+    "daisyui": "^4.12.23",
     "dompurify": "^3.3.1",
-    "marked": "^17.0.3"
+    "marked": "^17.0.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
   }
 }

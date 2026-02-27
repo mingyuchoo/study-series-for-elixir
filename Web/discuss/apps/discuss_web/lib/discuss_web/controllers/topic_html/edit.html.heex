@@ -1,80 +1,86 @@
 <div>
   <div class="px-4 sm:px-0 mb-6">
-    <h3 class="text-lg font-medium leading-6 text-gray-900">토픽 수정</h3>
-    <p class="mt-1 text-sm text-gray-600">
+    <h3 class="text-lg font-medium leading-6 text-base-content">토픽 수정</h3>
+    <p class="mt-1 text-sm text-base-content/60">
       토픽 정보를 수정합니다. 제목과 본문을 입력해주세요.
       본문은 마크다운 형식을 지원합니다.
     </p>
   </div>
   <div>
-      <form action={~p"/topics/#{@topic.id}"} method="post">
-        <input type="hidden" name="_method" value="put">
-        <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
-        <div class="shadow sm:overflow-hidden sm:rounded-md">
-          <div class="space-y-6 bg-white px-4 py-5 sm:p-6">
-            <div>
-              <label for="title" class="block text-sm font-medium text-gray-700">토픽 제목</label>
-              <div class="mt-1">
-                <input
-                  type="text"
-                  name="topic[title]"
-                  id="title"
-                  value={@topic.title}
+    <form action={~p"/topics/#{@topic.id}"} method="post">
+      <input type="hidden" name="_method" value="put">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body space-y-6">
+          <div class="form-control w-full">
+            <label for="title" class="label">
+              <span class="label-text font-semibold">토픽 제목</span>
+            </label>
+            <input
+              type="text"
+              name="topic[title]"
+              id="title"
+              value={@topic.title}
+              class={[
+                "input input-bordered w-full",
+                @changeset.action && @changeset.errors[:title] && "input-error"
+              ]}
+              placeholder="토픽 제목을 입력하세요"
+            />
+            <%= if @changeset.action && @changeset.errors[:title] do %>
+              <label class="label">
+                <span class="label-text-alt text-error">
+                  <%= elem(@changeset.errors[:title], 0) %>
+                </span>
+              </label>
+            <% end %>
+          </div>
+
+          <div class="form-control w-full">
+            <label for="markdown-editor" class="label">
+              <span class="label-text font-semibold">본문 (마크다운)</span>
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <textarea
+                  name="topic[body]"
+                  id="markdown-editor"
+                  rows="16"
                   class={[
-                    "block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm",
-                    @changeset.action && @changeset.errors[:title] && "border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:outline-none focus:ring-red-500"
+                    "textarea textarea-bordered w-full font-mono",
+                    @changeset.action && @changeset.errors[:body] && "textarea-error"
                   ]}
-                  placeholder="토픽 제목을 입력하세요"
-                />
-                <%= if @changeset.action && @changeset.errors[:title] do %>
-                  <p class="mt-2 text-sm text-red-600">
-                    <%= elem(@changeset.errors[:title], 0) %>
-                  </p>
+                  placeholder="마크다운으로 본문을 작성하세요..."
+                ><%= @topic.body %></textarea>
+                <%= if @changeset.action && @changeset.errors[:body] do %>
+                  <label class="label">
+                    <span class="label-text-alt text-error">
+                      <%= elem(@changeset.errors[:body], 0) %>
+                    </span>
+                  </label>
                 <% end %>
               </div>
-            </div>
-
-            <div>
-              <label for="markdown-editor" class="block text-sm font-medium text-gray-700">본문 (마크다운)</label>
-              <div class="mt-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <textarea
-                    name="topic[body]"
-                    id="markdown-editor"
-                    rows="16"
-                    class={[
-                      "block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono",
-                      @changeset.action && @changeset.errors[:body] && "border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:outline-none focus:ring-red-500"
-                    ]}
-                    placeholder="마크다운으로 본문을 작성하세요..."
-                  ><%= @topic.body %></textarea>
-                  <%= if @changeset.action && @changeset.errors[:body] do %>
-                    <p class="mt-2 text-sm text-red-600">
-                      <%= elem(@changeset.errors[:body], 0) %>
-                    </p>
-                  <% end %>
-                </div>
-                <div>
-                  <div class="text-xs text-gray-500 mb-1">미리보기</div>
-                  <div
-                    id="markdown-preview"
-                    class="prose prose-sm max-w-none h-[21rem] overflow-y-auto rounded-md border border-gray-300 bg-gray-50 p-3"
-                  >
-                  </div>
+              <div>
+                <div class="text-xs text-base-content/60 mb-1">미리보기</div>
+                <div
+                  id="markdown-preview"
+                  class="prose prose-sm max-w-none h-[21rem] overflow-y-auto rounded-lg border border-base-300 bg-base-200 p-3"
+                >
                 </div>
               </div>
             </div>
           </div>
-          <div class="bg-gray-50 px-4 py-3 text-right sm:px-6">
-            <a href={~p"/topics/#{@topic.id}"} class="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-2">
-              취소
-            </a>
-            <button type="submit" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-              <i class="material-icons mr-1">save</i>
-              저장
-            </button>
-          </div>
         </div>
-      </form>
+        <div class="card-actions justify-end bg-base-200 px-6 py-3 rounded-b-2xl">
+          <a href={~p"/topics/#{@topic.id}"} class="btn btn-ghost btn-sm">
+            취소
+          </a>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="material-icons mr-1">save</i>
+            저장
+          </button>
+        </div>
+      </div>
+    </form>
   </div>
 </div>

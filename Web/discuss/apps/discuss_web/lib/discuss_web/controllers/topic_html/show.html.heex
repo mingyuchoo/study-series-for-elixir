@@ -1,49 +1,50 @@
 <div>
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
-      <div>
-        <h3 class="text-lg leading-6 font-medium text-gray-900">토픽 상세 정보</h3>
-        <p class="mt-1 max-w-2xl text-sm text-gray-500">토픽 상세 정보와 관련 작업을 할 수 있습니다.</p>
-      </div>
-      <div class="flex space-x-2">
-        <a href={~p"/topics"} class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="card-title">토픽 상세 정보</h2>
+          <p class="text-sm text-base-content/60 mt-1">토픽 상세 정보와 관련 작업을 할 수 있습니다.</p>
+        </div>
+        <a href={~p"/topics"} class="btn btn-ghost btn-sm">
           <i class="material-icons">arrow_back</i>
           <span class="hidden sm:inline ml-1">목록으로</span>
         </a>
       </div>
-    </div>
-    <div class="border-t border-gray-200">
+
+      <div class="divider mt-0"></div>
+
       <dl>
-        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-          <dt class="text-sm font-medium text-gray-500">토픽 제목</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @topic.title %></dd>
+        <div class="bg-base-200 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 rounded-lg mb-2">
+          <dt class="text-sm font-medium text-base-content/60">토픽 제목</dt>
+          <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @topic.title %></dd>
         </div>
         <%= if @topic.body && @topic.body != "" do %>
-          <div class="bg-white px-4 py-5 sm:px-6">
-            <dt class="text-sm font-medium text-gray-500 mb-3">본문</dt>
-            <dd class="prose prose-sm max-w-none text-gray-900">
+          <div class="px-4 py-4">
+            <dt class="text-sm font-medium text-base-content/60 mb-3">본문</dt>
+            <dd class="prose prose-sm max-w-none">
               <%= raw(Discuss.Markdown.to_html(@topic.body)) %>
             </dd>
           </div>
         <% end %>
-        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-          <dt class="text-sm font-medium text-gray-500">생성일</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @topic.inserted_at |> Calendar.strftime("%Y년 %m월 %d일 %H:%M") %></dd>
+        <div class="bg-base-200 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 rounded-lg mb-2">
+          <dt class="text-sm font-medium text-base-content/60">생성일</dt>
+          <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @topic.inserted_at |> Calendar.strftime("%Y년 %m월 %d일 %H:%M") %></dd>
         </div>
-        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-          <dt class="text-sm font-medium text-gray-500">마지막 수정일</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @topic.updated_at |> Calendar.strftime("%Y년 %m월 %d일 %H:%M") %></dd>
+        <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+          <dt class="text-sm font-medium text-base-content/60">마지막 수정일</dt>
+          <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @topic.updated_at |> Calendar.strftime("%Y년 %m월 %d일 %H:%M") %></dd>
         </div>
       </dl>
-    </div>
-    <%= if @topic.auth_user_id == @current_user.id do %>
-      <div class="bg-white px-4 py-5 sm:px-6 border-t border-gray-200">
-        <div class="flex justify-end space-x-3">
-          <a href={~p"/topics/#{@topic.id}/edit"} class="inline-flex items-center rounded-md border border-transparent bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
+
+      <%= if @topic.auth_user_id == @current_user.id do %>
+        <div class="divider"></div>
+        <div class="card-actions justify-end">
+          <a href={~p"/topics/#{@topic.id}/edit"} class="btn btn-warning btn-sm">
             <i class="material-icons mr-1">edit</i>
             수정
           </a>
-          <a href="#" onclick={"event.preventDefault(); document.getElementById('delete-form').submit();"} class="inline-flex items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+          <a href="#" onclick={"event.preventDefault(); document.getElementById('delete-form').submit();"} class="btn btn-error btn-sm">
             <i class="material-icons mr-1">delete</i>
             삭제
           </a>
@@ -52,7 +53,7 @@
           <input type="hidden" name="_method" value="delete">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
         </form>
-      </div>
-    <% end %>
+      <% end %>
+    </div>
   </div>
 </div>

@@ -19,8 +19,9 @@ module.exports = {
     },
   },
   plugins: [
-    require("@tailwindcss/forms"),
+    require("@tailwindcss/forms")({ strategy: "class" }),
     require("@tailwindcss/typography"),
+    require("daisyui"),
     // Allows prefixing tailwind classes with LiveView classes to add rules
     // only when LiveView classes are applied, for example:
     //
@@ -72,5 +73,21 @@ module.exports = {
         }
       }, {values})
     })
-  ]
+  ],
+  daisyui: {
+    themes: [{
+      discuss: {
+        "primary": "#4f46e5",
+        "secondary": "#6366f1",
+        "accent": "#8b5cf6",
+        "neutral": "#1f2937",
+        "base-100": "#f9fafb",
+        "info": "#3b82f6",
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+      }
+    }],
+    darkTheme: false,
+  }
 }

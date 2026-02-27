@@ -1,27 +1,29 @@
 <div class="mx-auto max-w-sm mt-10">
-  <div class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
-    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">회원가입</h2>
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title justify-center text-2xl mb-4">회원가입</h2>
 
-    <.simple_form :let={f} for={@changeset} action={~p"/users/register"}>
-      <.error :if={@changeset.action}>
-        오류가 발생했습니다. 아래 내용을 확인해주세요.
-      </.error>
+      <.simple_form :let={f} for={@changeset} action={~p"/users/register"}>
+        <.error :if={@changeset.action}>
+          오류가 발생했습니다. 아래 내용을 확인해주세요.
+        </.error>
 
-      <.input field={f[:email]} type="email" label="이메일" required />
-      <.input field={f[:password]} type="password" label="비밀번호" required />
+        <.input field={f[:email]} type="email" label="이메일" required />
+        <.input field={f[:password]} type="password" label="비밀번호" required />
 
-      <:actions>
-        <.button phx-disable-with="계정 생성 중..." class="w-full bg-indigo-600 hover:bg-indigo-700">
-          회원가입
-        </.button>
-      </:actions>
-    </.simple_form>
+        <:actions>
+          <.button phx-disable-with="계정 생성 중..." class="w-full">
+            회원가입
+          </.button>
+        </:actions>
+      </.simple_form>
 
-    <p class="text-center text-sm text-gray-600 mt-4">
-      이미 계정이 있으신가요?
-      <.link navigate={~p"/users/log_in"} class="font-semibold text-indigo-600 hover:text-indigo-500">
-        로그인
-      </.link>
-    </p>
+      <p class="text-center text-sm text-base-content/60 mt-4">
+        이미 계정이 있으신가요?
+        <.link navigate={~p"/users/log_in"} class="link link-primary font-semibold">
+          로그인
+        </.link>
+      </p>
+    </div>
   </div>
 </div>

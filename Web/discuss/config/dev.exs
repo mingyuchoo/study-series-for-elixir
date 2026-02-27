@@ -17,7 +17,15 @@ config :discuss_web, DiscussWeb.Endpoint,
   secret_key_base: "1DYEwKRZwURUNAxbQwJ3jYg8fEFwEl65vNMiRDyHJ4ELom9uYG0QHKmAS+FMyzIR",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:discuss_web, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:discuss_web, ~w(--watch)]}
+    npx: [
+      "tailwindcss",
+      "--config=tailwind.config.js",
+      "--input=css/app.css",
+      "--output=../priv/static/assets/app.css",
+      "--postcss",
+      "--watch",
+      cd: Path.expand("../apps/discuss_web/assets", __DIR__)
+    ]
   ]
 
 config :discuss_web, DiscussWeb.Endpoint,

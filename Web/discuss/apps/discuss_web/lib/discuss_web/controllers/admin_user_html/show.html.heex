@@ -1,34 +1,38 @@
-<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto">
-  <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
-    <h3 class="text-lg font-medium text-gray-900">사용자 상세</h3>
-    <a href={~p"/admin/users"} class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
-      <i class="material-icons">arrow_back</i>
-      목록으로
-    </a>
-  </div>
-  <div class="border-t border-gray-200">
+<div class="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+  <div class="card-body">
+    <div class="flex justify-between items-center">
+      <h2 class="card-title">사용자 상세</h2>
+      <a href={~p"/admin/users"} class="btn btn-ghost btn-sm">
+        <i class="material-icons">arrow_back</i>
+        목록으로
+      </a>
+    </div>
+
+    <div class="divider mt-0"></div>
+
     <dl>
-      <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt class="text-sm font-medium text-gray-500">이름</dt>
-        <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @user.name %></dd>
+      <div class="bg-base-200 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 rounded-lg mb-2">
+        <dt class="text-sm font-medium text-base-content/60">이름</dt>
+        <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @user.name %></dd>
       </div>
-      <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt class="text-sm font-medium text-gray-500">이메일</dt>
-        <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @user.email %></dd>
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 mb-2">
+        <dt class="text-sm font-medium text-base-content/60">이메일</dt>
+        <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @user.email %></dd>
       </div>
-      <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt class="text-sm font-medium text-gray-500">역할</dt>
-        <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @user.role %></dd>
+      <div class="bg-base-200 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 rounded-lg mb-2">
+        <dt class="text-sm font-medium text-base-content/60">역할</dt>
+        <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @user.role %></dd>
       </div>
-      <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt class="text-sm font-medium text-gray-500">주소</dt>
-        <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @user.address %></dd>
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-base-content/60">주소</dt>
+        <dd class="mt-1 text-sm sm:col-span-2 sm:mt-0"><%= @user.address %></dd>
       </div>
     </dl>
-  </div>
-  <div class="px-4 py-4 sm:px-6 border-t border-gray-200 flex justify-end space-x-3">
-    <a href={~p"/admin/users/#{@user.id}/edit"} class="inline-flex items-center rounded-md bg-yellow-600 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-700">
-      <i class="material-icons mr-1">edit</i>수정
-    </a>
+
+    <div class="card-actions justify-end mt-4">
+      <a href={~p"/admin/users/#{@user.id}/edit"} class="btn btn-warning btn-sm">
+        <i class="material-icons mr-1">edit</i>수정
+      </a>
+    </div>
   </div>
 </div>

@@ -29,17 +29,7 @@ config :esbuild,
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
 
-# tailwind 설정
-config :tailwind,
-  version: "3.4.0",
-  discuss_web: [
-    args: ~w(
-      --config=tailwind.config.js
-      --input=css/app.css
-      --output=../priv/static/assets/app.css
-    ),
-    cd: Path.expand("../apps/discuss_web/assets", __DIR__)
-  ]
+# tailwind 설정 — npm 기반 빌드 사용 (DaisyUI 지원)
 
 # Logger 설정
 config :logger, :console,

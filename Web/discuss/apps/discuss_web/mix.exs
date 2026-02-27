@@ -60,7 +60,6 @@ defmodule DiscussWeb.MixProject do
       {:floki, "~> 0.37.1", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.7"},
       {:esbuild, "~> 0.9", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.3.1", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.1.1",
@@ -80,10 +79,10 @@ defmodule DiscussWeb.MixProject do
     [
       setup: ["deps.get", "assets.setup", "assets.build"],
       test: ["test"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind discuss_web", "esbuild discuss_web"],
+      "assets.setup": ["esbuild.install --if-missing", "cmd npm --prefix assets install"],
+      "assets.build": ["cmd npm --prefix assets run build:css", "esbuild discuss_web"],
       "assets.deploy": [
-        "tailwind discuss_web --minify",
+        "cmd npm --prefix assets run build:css:prod",
         "esbuild discuss_web --minify",
         "phx.digest"
       ]
