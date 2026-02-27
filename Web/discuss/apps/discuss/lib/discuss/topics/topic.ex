@@ -4,6 +4,7 @@ defmodule Discuss.Topics.Topic do
 
   schema "topics" do
     field :title, :string
+    field :body, :string
     field :auth_user_id, :integer
     field :deleted_at, :utc_datetime
 
@@ -13,9 +14,10 @@ defmodule Discuss.Topics.Topic do
   @doc false
   def changeset(topic, attrs) do
     topic
-    |> cast(attrs, [:title, :auth_user_id])
+    |> cast(attrs, [:title, :body, :auth_user_id])
     |> validate_required([:title])
     |> validate_length(:title, min: 2)
     |> validate_length(:title, max: 100)
+    |> validate_length(:body, max: 50_000)
   end
 end

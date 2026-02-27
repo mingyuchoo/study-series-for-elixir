@@ -21,6 +21,8 @@ defmodule DiscussWeb.Api.TopicJSON do
     %{
       id: topic.id,
       title: topic.title,
+      body: topic.body,
+      body_html: Discuss.Markdown.to_html(topic.body),
       auth_user_id: topic.auth_user_id,
       inserted_at: topic.inserted_at,
       updated_at: topic.updated_at

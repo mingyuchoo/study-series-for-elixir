@@ -31,7 +31,8 @@ defmodule Discuss.Topics do
 
     base_query =
       if search && search != "" do
-        from t in base_query, where: ilike(t.title, ^"%#{search}%")
+        search_term = "%#{search}%"
+        from t in base_query, where: ilike(t.title, ^search_term) or ilike(t.body, ^search_term)
       else
         base_query
       end

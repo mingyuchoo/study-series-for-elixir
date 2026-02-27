@@ -56,6 +56,22 @@ defmodule DiscussWeb.Api.TopicControllerTest do
       assert response["data"]["id"] == topic.id
       assert response["data"]["title"] == "상세 API 토픽"
     end
+
+    test "body와 body_html을 JSON 응답에 포함한다", %{conn: conn} do
+      user = DiscussAuth.AccountsFixtures.user_fixture()
+
+      topic =
+        topic_fixture(%{
+          auth_user_id: user.id,
+          title: "마크다운 API",
+          body: "**굵은 글씨**"
+        })
+
+      conn = get(conn, ~p"/api/topics/#{topic.id}")
+      response = json_response(conn, 200)
+      assert response["data"]["body"] == "**굵은 글씨**"
+      assert response["data"]["body_html"] =~ "<strong>굵은 글씨</strong>"
+    end
   end
 
   describe "POST /api/topics (비인증)" do
@@ -76,6 +92,17 @@ defmodule DiscussWeb.Api.TopicControllerTest do
       conn = post(conn, ~p"/api/topics", %{"topic" => %{"title" => "API 생성 토픽"}})
       response = json_response(conn, 201)
       assert response["data"]["title"] == "API 생성 토픽"
+    end
+
+    test "body를 포함하여 토픽을 생성한다", %{conn: conn} do
+      conn =
+        post(conn, ~p"/api/topics", %{
+          "topic" => %{"title" => "API 마크다운", "body" => "# 본문"}
+        })
+
+      response = json_response(conn, 201)
+      assert response["data"]["body"] == "# 본문"
+      assert response["data"]["body_html"] =~ "<h1>"
     end
 
     test "유효하지 않은 데이터로 422를 반환한다", %{conn: conn} do

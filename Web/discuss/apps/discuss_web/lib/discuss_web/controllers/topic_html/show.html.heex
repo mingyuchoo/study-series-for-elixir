@@ -18,11 +18,19 @@
           <dt class="text-sm font-medium text-gray-500">토픽 제목</dt>
           <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @topic.title %></dd>
         </div>
-        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <%= if @topic.body && @topic.body != "" do %>
+          <div class="bg-white px-4 py-5 sm:px-6">
+            <dt class="text-sm font-medium text-gray-500 mb-3">본문</dt>
+            <dd class="prose prose-sm max-w-none text-gray-900">
+              <%= raw(Discuss.Markdown.to_html(@topic.body)) %>
+            </dd>
+          </div>
+        <% end %>
+        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-gray-500">생성일</dt>
           <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @topic.inserted_at |> Calendar.strftime("%Y년 %m월 %d일 %H:%M") %></dd>
         </div>
-        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
           <dt class="text-sm font-medium text-gray-500">마지막 수정일</dt>
           <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @topic.updated_at |> Calendar.strftime("%Y년 %m월 %d일 %H:%M") %></dd>
         </div>

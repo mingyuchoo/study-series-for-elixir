@@ -45,7 +45,8 @@ defmodule Discuss.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:swoosh, "~> 1.5"},
       {:finch, "~> 0.13"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:earmark, "~> 1.4"}
     ]
   end
 

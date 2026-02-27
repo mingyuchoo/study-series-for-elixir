@@ -44,6 +44,16 @@ defmodule Discuss.TopicsTest do
       assert hd(result.topics).title == "엘릭서 학습"
     end
 
+    test "본문 내용으로 토픽을 검색한다" do
+      %{user: user} = create_auth_user()
+      topic_fixture(%{auth_user_id: user.id, title: "제목만", body: "본문에 GenServer 설명"})
+      topic_fixture(%{auth_user_id: user.id, title: "다른 토픽"})
+
+      result = Topics.list_topics(search: "GenServer")
+      assert length(result.topics) == 1
+      assert hd(result.topics).title == "제목만"
+    end
+
     test "빈 검색어는 필터링하지 않는다" do
       %{user: user} = create_auth_user()
       topic_fixture(%{auth_user_id: user.id})
@@ -157,6 +167,37 @@ defmodule Discuss.TopicsTest do
 
       assert topic.title == "새 토픽"
       assert topic.auth_user_id == user.id
+    end
+
+    test "body를 포함하여 토픽을 생성한다" do
+      %{user: user} = create_auth_user()
+
+      assert {:ok, %Topic{} = topic} =
+               Topics.create_topic(%{
+                 "title" => "마크다운 토픽",
+                 "body" => "# 제목\n\n본문 내용",
+                 "auth_user_id" => user.id
+               })
+
+      assert topic.body == "# 제목\n\n본문 내용"
+    end
+
+    test "body 없이도 토픽을 생성할 수 있다" do
+      %{user: user} = create_auth_user()
+
+      assert {:ok, %Topic{} = topic} =
+               Topics.create_topic(%{"title" => "body 없는 토픽", "auth_user_id" => user.id})
+
+      assert is_nil(topic.body)
+    end
+
+    test "body가 50000자를 초과하면 에러를 반환한다" do
+      long_body = String.duplicate("a", 50_001)
+
+      assert {:error, changeset} =
+               Topics.create_topic(%{"title" => "긴 본문", "body" => long_body})
+
+      assert %{body: [_]} = errors_on(changeset)
     end
 
     test "제목이 없으면 에러를 반환한다" do

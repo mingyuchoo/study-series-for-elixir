@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@tailwindcss/typography": "^0.5.19",
+    "dompurify": "^3.3.1",
+    "marked": "^17.0.3"
+  }
+}

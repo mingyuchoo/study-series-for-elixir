@@ -22,7 +22,7 @@
           type="text"
           name="search"
           value={@search}
-          placeholder="토픽 제목 검색..."
+          placeholder="토픽 제목 또는 본문 검색..."
           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
         />
       </div>
@@ -77,8 +77,13 @@
               <tbody class="divide-y divide-gray-200 bg-white">
                 <%= for topic <- @topics do %>
                   <tr>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      <%= topic.title %>
+                    <td class="py-4 pl-4 pr-3 text-sm sm:pl-6">
+                      <div class="font-medium text-gray-900"><%= topic.title %></div>
+                      <%= if topic.body && topic.body != "" do %>
+                        <div class="mt-1 text-gray-500 text-xs truncate max-w-md">
+                          <%= Discuss.Markdown.excerpt(topic.body, 100) %>
+                        </div>
+                      <% end %>
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <div class="flex justify-end space-x-2">

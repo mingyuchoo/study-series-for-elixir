@@ -42,3 +42,7 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// 마크다운 에디터 초기화
+import { initMarkdownEditor } from "./markdown-editor"
+document.addEventListener("DOMContentLoaded", initMarkdownEditor)
+

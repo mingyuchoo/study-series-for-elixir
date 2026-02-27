@@ -78,6 +78,13 @@ defmodule DiscussWeb.TopicControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "생성되었습니다"
     end
 
+    test "body를 포함하여 토픽을 생성한다", %{conn: conn} do
+      conn = post(conn, ~p"/topics", topic: %{title: "마크다운 토픽", body: "# 본문\n\n내용입니다."})
+
+      assert redirected_to(conn) == ~p"/topics"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "생성되었습니다"
+    end
+
     test "유효하지 않은 데이터로 에러를 표시한다", %{conn: conn} do
       conn = post(conn, ~p"/topics", topic: %{title: ""})
       assert html_response(conn, 200) =~ "새 토픽 생성"
@@ -91,6 +98,13 @@ defmodule DiscussWeb.TopicControllerTest do
       topic = topic_fixture(%{auth_user_id: user.id, title: "상세 토픽"})
       conn = get(conn, ~p"/topics/#{topic.id}")
       assert html_response(conn, 200) =~ "상세 토픽"
+    end
+
+    test "body가 있는 토픽의 마크다운이 HTML로 렌더링된다", %{conn: conn, user: user} do
+      topic = topic_fixture(%{auth_user_id: user.id, title: "마크다운 토픽", body: "**굵은 텍스트**"})
+      conn = get(conn, ~p"/topics/#{topic.id}")
+      response = html_response(conn, 200)
+      assert response =~ "<strong>굵은 텍스트</strong>"
     end
   end
 
