@@ -1,15 +1,12 @@
 <div>
-  <div class="md:grid md:grid-cols-3 md:gap-6">
-    <div class="md:col-span-1">
-      <div class="px-4 sm:px-0">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">토픽 수정</h3>
-        <p class="mt-1 text-sm text-gray-600">
-          토픽 정보를 수정합니다. 제목과 본문을 입력해주세요.
-          본문은 마크다운 형식을 지원합니다.
-        </p>
-      </div>
-    </div>
-    <div class="mt-5 md:col-span-2 md:mt-0">
+  <div class="px-4 sm:px-0 mb-6">
+    <h3 class="text-lg font-medium leading-6 text-gray-900">토픽 수정</h3>
+    <p class="mt-1 text-sm text-gray-600">
+      토픽 정보를 수정합니다. 제목과 본문을 입력해주세요.
+      본문은 마크다운 형식을 지원합니다.
+    </p>
+  </div>
+  <div>
       <form action={~p"/topics/#{@topic.id}"} method="post">
         <input type="hidden" name="_method" value="put">
         <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
@@ -79,6 +76,5 @@
           </div>
         </div>
       </form>
-    </div>
   </div>
 </div>
