@@ -22,11 +22,11 @@
                   id="title"
                   class={[
                     "block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm",
-                    @changeset.errors[:title] && "border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:outline-none focus:ring-red-500"
+                    @changeset.action && @changeset.errors[:title] && "border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:outline-none focus:ring-red-500"
                   ]}
                   placeholder="토픽 제목을 입력하세요"
                 />
-                <%= if @changeset.errors[:title] do %>
+                <%= if @changeset.action && @changeset.errors[:title] do %>
                   <p class="mt-2 text-sm text-red-600">
                     <%= elem(@changeset.errors[:title], 0) %>
                   </p>

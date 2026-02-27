@@ -63,5 +63,17 @@ defmodule DiscussAuth.SeederTest do
 
       assert count == 1
     end
+
+    test "이미 관리자 프로필이 있으면 다시 생성하지 않는다" do
+      DiscussAuth.Seeder.run()
+      auth_user = Repo.get_by(AuthUser, email: @admin_email)
+      admin_before = Admin.get_user_by_auth_user_id(auth_user.id)
+
+      # 두 번째 실행
+      DiscussAuth.Seeder.run()
+      admin_after = Admin.get_user_by_auth_user_id(auth_user.id)
+
+      assert admin_before.id == admin_after.id
+    end
   end
 end

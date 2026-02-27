@@ -13,7 +13,28 @@ defmodule DiscussWeb.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [
+        ignore_modules: [
+          DiscussWeb.Application,
+          DiscussWeb.Telemetry,
+          DiscussWeb.Endpoint,
+          DiscussWeb.Layouts,
+          DiscussWeb.CoreComponents,
+          DiscussWeb.ConnCase,
+          DiscussWeb.Gettext,
+          DiscussWeb.TopicHTML,
+          DiscussWeb.PageHTML,
+          DiscussWeb.AdminUserHTML,
+          DiscussWeb.UserSessionHTML,
+          DiscussWeb.UserRegistrationHTML,
+          DiscussWeb.UserConfirmationHTML,
+          DiscussWeb.UserPasswordResetHTML,
+          DiscussWeb.ErrorHTML,
+          DiscussWeb.FallbackController,
+          DiscussWeb.ChangesetJSON
+        ]
+      ]
     ]
   end
 
