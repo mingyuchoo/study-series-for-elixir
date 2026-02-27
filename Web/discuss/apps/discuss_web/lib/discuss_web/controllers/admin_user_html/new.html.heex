@@ -1,0 +1,23 @@
+<div class="max-w-2xl mx-auto">
+  <div class="bg-white shadow sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+      <h3 class="text-lg font-medium text-gray-900">사용자 추가</h3>
+      <a href={~p"/admin/users"} class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+        <i class="material-icons">arrow_back</i>
+        목록으로
+      </a>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+      <.simple_form :let={f} for={@changeset} action={~p"/admin/users"}>
+        <.input field={f[:name]} type="text" label="이름" required />
+        <.input field={f[:email]} type="email" label="이메일" required />
+        <.input field={f[:role]} type="select" label="역할" options={[{"일반", "user"}, {"관리자", "admin"}]} required />
+        <.input field={f[:address]} type="text" label="주소" required />
+        <.input field={f[:auth_user_id]} type="number" label="인증 사용자 ID" />
+        <:actions>
+          <.button class="bg-indigo-600 hover:bg-indigo-700">사용자 생성</.button>
+        </:actions>
+      </.simple_form>
+    </div>
+  </div>
+</div>

@@ -112,6 +112,50 @@ defmodule DiscussWeb.UserAuth do
     end
   end
 
+  @doc """
+  관리자 권한을 가진 사용자만 접근을 허용하는 Plug.
+  """
+  def require_admin_user(conn, _opts) do
+    user = conn.assigns[:current_user]
+    admin = user && Discuss.Admin.get_user_by_auth_user_id(user.id)
+
+    if admin && admin.role == "admin" do
+      conn
+    else
+      conn
+      |> put_flash(:error, "관리자 권한이 필요합니다.")
+      |> redirect(to: ~p"/")
+      |> halt()
+    end
+  end
+
+  @doc """
+  Authorization 헤더에서 Bearer 토큰을 추출하여 사용자를 할당하는 Plug (API용).
+  """
+  def fetch_api_user(conn, _opts) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+         user when not is_nil(user) <- Accounts.get_user_by_session_token(token) do
+      assign(conn, :current_user, user)
+    else
+      _ -> assign(conn, :current_user, nil)
+    end
+  end
+
+  @doc """
+  API 인증이 필요한 엔드포인트에서 사용자 인증을 강제하는 Plug.
+  """
+  def require_api_user(conn, _opts) do
+    if conn.assigns[:current_user] do
+      conn
+    else
+      conn
+      |> put_status(:unauthorized)
+      |> put_view(DiscussWeb.ErrorJSON)
+      |> render("401.json")
+      |> halt()
+    end
+  end
+
   defp put_token_in_session(conn, token) do
     conn
     |> put_session(:user_token, token)

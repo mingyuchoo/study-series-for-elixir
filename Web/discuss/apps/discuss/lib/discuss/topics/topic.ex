@@ -5,6 +5,7 @@ defmodule Discuss.Topics.Topic do
   schema "topics" do
     field :title, :string
     field :auth_user_id, :integer
+    field :deleted_at, :utc_datetime
 
     timestamps(type: :utc_datetime)
   end

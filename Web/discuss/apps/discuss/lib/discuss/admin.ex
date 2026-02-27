@@ -15,6 +15,10 @@ defmodule Discuss.Admin do
     Repo.get!(User, id)
   end
 
+  def get_user_by_auth_user_id(auth_user_id) do
+    Repo.get_by(User, auth_user_id: auth_user_id)
+  end
+
   def create_user(attrs \\ %{}) do
     %User{}
     |> User.changeset(attrs)

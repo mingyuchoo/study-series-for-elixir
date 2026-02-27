@@ -17,6 +17,9 @@
           <input type="checkbox" name="user[remember_me]" value="true" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
           <span class="ml-2 text-sm text-gray-600">로그인 유지</span>
         </label>
+        <.link navigate={~p"/users/reset_password"} class="text-sm text-indigo-600 hover:text-indigo-500">
+          비밀번호를 잊으셨나요?
+        </.link>
       </div>
 
       <:actions>

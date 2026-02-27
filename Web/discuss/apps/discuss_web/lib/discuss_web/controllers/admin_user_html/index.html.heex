@@ -1,0 +1,65 @@
+<div class="px-4 sm:px-6 lg:px-8">
+  <div class="sm:flex sm:items-center">
+    <div class="sm:flex-auto">
+      <h1 class="text-2xl font-semibold text-gray-900">관리자 - 사용자 관리</h1>
+      <p class="mt-2 text-sm text-gray-700">등록된 사용자 목록입니다.</p>
+    </div>
+    <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+      <a href={~p"/admin/users/new"} class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
+        <i class="material-icons">add</i>
+        사용자 추가
+      </a>
+    </div>
+  </div>
+
+  <div class="mt-8 overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+    <%= if Enum.empty?(@users) do %>
+      <div class="bg-white px-6 py-12 text-center">
+        <p class="text-sm text-gray-500">등록된 사용자가 없습니다.</p>
+      </div>
+    <% else %>
+      <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">이름</th>
+            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">이메일</th>
+            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">역할</th>
+            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">주소</th>
+            <th class="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right"><span class="sr-only">작업</span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          <%= for user <- @users do %>
+            <tr>
+              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6"><%= user.name %></td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= user.email %></td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                <span class={"inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium #{if user.role == "admin", do: "bg-purple-100 text-purple-800", else: "bg-green-100 text-green-800"}"}>
+                  <%= user.role %>
+                </span>
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= user.address %></td>
+              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                <div class="flex justify-end space-x-2">
+                  <a href={~p"/admin/users/#{user.id}"} class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                    <i class="material-icons">visibility</i>
+                  </a>
+                  <a href={~p"/admin/users/#{user.id}/edit"} class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-sm font-medium text-yellow-700 hover:bg-yellow-100">
+                    <i class="material-icons">edit</i>
+                  </a>
+                  <a href="#" onclick={"event.preventDefault(); document.getElementById('admin-delete-#{user.id}').submit();"} class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-sm font-medium text-red-700 hover:bg-red-100">
+                    <i class="material-icons">delete</i>
+                  </a>
+                  <form id={"admin-delete-#{user.id}"} action={~p"/admin/users/#{user.id}"} method="post" class="hidden">
+                    <input type="hidden" name="_method" value="delete">
+                    <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</div>

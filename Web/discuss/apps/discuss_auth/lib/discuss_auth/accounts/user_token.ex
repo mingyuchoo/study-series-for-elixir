@@ -3,7 +3,10 @@ defmodule DiscussAuth.Accounts.UserToken do
   import Ecto.Query
 
   @rand_size 32
+  @hash_algorithm :sha256
   @session_validity_in_days 60
+  @confirmation_validity_in_days 7
+  @reset_password_validity_in_days 1
 
   schema "accounts_users_tokens" do
     field :token, :binary
@@ -23,6 +26,26 @@ defmodule DiscussAuth.Accounts.UserToken do
   end
 
   @doc """
+  이메일 토큰을 생성한다 (이메일 인증, 비밀번호 재설정 등).
+  """
+  def build_email_token(user, context) do
+    build_hashed_token(user, context, user.email)
+  end
+
+  defp build_hashed_token(user, context, sent_to) do
+    token = :crypto.strong_rand_bytes(@rand_size)
+    hashed_token = :crypto.hash(@hash_algorithm, token)
+
+    {Base.url_encode64(token, padding: false),
+     %__MODULE__{
+       token: hashed_token,
+       context: context,
+       sent_to: sent_to,
+       user_id: user.id
+     }}
+  end
+
+  @doc """
   세션 토큰으로 사용자를 조회하는 쿼리.
   """
   def verify_session_token_query(token) do
@@ -34,6 +57,31 @@ defmodule DiscussAuth.Accounts.UserToken do
 
     {:ok, query}
   end
+
+  @doc """
+  이메일 토큰으로 사용자를 조회하는 쿼리.
+  """
+  def verify_email_token_query(token, context) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded_token} ->
+        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+        days = days_for_context(context)
+
+        query =
+          from t in by_token_and_context_query(hashed_token, context),
+            join: user in assoc(t, :user),
+            where: t.inserted_at > ago(^days, "day") and t.sent_to == user.email,
+            select: user
+
+        {:ok, query}
+
+      :error ->
+        :error
+    end
+  end
+
+  defp days_for_context("confirm"), do: @confirmation_validity_in_days
+  defp days_for_context("reset_password"), do: @reset_password_validity_in_days
 
   @doc """
   토큰과 컨텍스트로 조회하는 쿼리.

@@ -33,7 +33,7 @@
   </head>
   <body class="h-full bg-gray-50">
     <div class="min-h-full">
-      <nav class="bg-indigo-600">
+      <nav class="bg-indigo-600 relative z-10">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div class="flex h-16 items-center justify-between">
             <div class="flex items-center">
@@ -56,6 +56,12 @@
                   <span class="text-indigo-200 text-sm mr-4">
                     <%= @current_user.email %>
                   </span>
+                  <.link
+                    href={~p"/admin/users"}
+                    class="text-white hover:bg-indigo-500 hover:bg-opacity-75 px-3 py-2 rounded-md text-sm font-medium mr-2"
+                  >
+                    관리자
+                  </.link>
                   <.link
                     href={~p"/users/log_out"}
                     method="delete"
