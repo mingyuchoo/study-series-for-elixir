@@ -34,10 +34,13 @@ discuss-*.tar
 
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
-/assets/node_modules/
+/**/node_modules/
 
 # Others
 *.tar
 /config/*.secret.exs
 .elixir_ls/
 .elixir-tools/
+
+# AI
+.claude/
