@@ -85,6 +85,17 @@ mix test
 
 - **DB 사용자**: postgres / postgres (dev.exs 참고)
 
+### 초기 관리자 계정
+
+시드 파일(`mix run apps/discuss/priv/repo/seeds.exs`)을 실행하면 아래 관리자 계정이 생성됩니다.
+
+| 항목 | 값 |
+|------|-----|
+| 이메일 | `admin@email.com` |
+| 비밀번호 | `password!` |
+| 역할 | `admin` |
+| 관리자 페이지 | `/admin/users` |
+
 ## 배포(Release) 및 Docker 빌드
 
 ### 1. 환경 변수 설정
