@@ -4196,10 +4196,6 @@ html {
   height: 1.25rem;
 }
 
-.h-\[21rem\] {
-  height: 21rem;
-}
-
 .h-full {
   height: 100%;
 }
@@ -4713,6 +4709,12 @@ html {
 
 .ease-out {
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Ensure HTML hidden attribute overrides DaisyUI component display rules */
+
+[hidden] {
+  display: none !important;
 }
 
 /* Font family */

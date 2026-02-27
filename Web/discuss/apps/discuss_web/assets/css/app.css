@@ -2,6 +2,11 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+/* Ensure HTML hidden attribute overrides DaisyUI component display rules */
+[hidden] {
+  display: none !important;
+}
+
 /* Font family */
 body {
   font-family: 'Noto Sans KR', sans-serif;

@@ -13,8 +13,17 @@ export function initMarkdownEditor() {
     preview.innerHTML = DOMPurify.sanitize(raw)
   }
 
+  function syncHeight() {
+    preview.style.height = textarea.offsetHeight + "px"
+  }
+
   textarea.addEventListener("input", updatePreview)
+
+  // ResizeObserver로 textarea 높이 변화 감지 → 미리보기 높이 동기화
+  const resizeObserver = new ResizeObserver(syncHeight)
+  resizeObserver.observe(textarea)
 
   // 초기 렌더링 (edit 페이지에서 기존 본문이 있는 경우)
   updatePreview()
+  syncHeight()
 }
