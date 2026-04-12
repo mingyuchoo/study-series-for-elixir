@@ -19,8 +19,8 @@
   <:item title="Name">{@role.name}</:item>
   <:item title="Description">{@role.description}</:item>
   <:item title="User Count">{@role.user_count}</:item>
-  <:item title="Inserted at">{Timex.format!(@role.inserted_at, "%F %T", :strftime)}</:item>
-  <:item title="Updated at">{Timex.format!(@role.updated_at, "%F %T", :strftime)}</:item>
+  <:item title="Inserted at">{Calendar.strftime(@role.inserted_at, "%Y-%m-%d %H:%M:%S")}</:item>
+  <:item title="Updated at">{Calendar.strftime(@role.updated_at, "%Y-%m-%d %H:%M:%S")}</:item>
 </.list>
 <!-- begin Users -->
 <div class="pt-20">

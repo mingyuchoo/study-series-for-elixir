@@ -25,8 +25,8 @@
       {@list.user.nickname || "##{@list.user.id}"}
     </.link>
   </:item>
-  <:item title="Inserted at">{Timex.format!(@list.inserted_at, "%F %T", :strftime)}</:item>
-  <:item title="Updated at">{Timex.format!(@list.updated_at, "%F %T", :strftime)}</:item>
+  <:item title="Inserted at">{Calendar.strftime(@list.inserted_at, "%Y-%m-%d %H:%M:%S")}</:item>
+  <:item title="Updated at">{Calendar.strftime(@list.updated_at, "%Y-%m-%d %H:%M:%S")}</:item>
 </.list>
 <!-- Items by list_id -->
 <div class="pt-20">

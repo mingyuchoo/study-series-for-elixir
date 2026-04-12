@@ -85,17 +85,17 @@ Phoenix 1.8 기반의 Elixir 우산(Umbrella) 프로젝트로, 사용자 관리,
 
 | 카테고리 | 기술 | 버전 |
 | --- | --- | --- |
-| **언어** | Elixir | ~1.19 |
-| **프레임워크** | Phoenix | ~1.8 |
-| **UI** | Phoenix LiveView | ~1.1 |
-| **데이터베이스** | PostgreSQL + Ecto | 3.13 |
-| **인증** | Guardian | ~2.3 |
-| **비밀번호** | Bcrypt | ~3.0 |
-| **스타일링** | Tailwind CSS | ~0.2 |
-| **JS 번들링** | esbuild | ~0.8 |
-| **이메일** | Swoosh | ~1.19 |
-| **시간 처리** | Timex | ~3.7.11 |
-| **테스트** | ExUnit + ExCoveralls | ~0.18 |
+| **언어** | Elixir | 1.19+ (OTP 28) |
+| **프레임워크** | Phoenix | 1.8.5 |
+| **UI** | Phoenix LiveView | 1.1.28 |
+| **데이터베이스** | PostgreSQL + Ecto SQL | 3.13.5 |
+| **인증** | Guardian | 2.4 |
+| **비밀번호** | Bcrypt | 3.3 |
+| **스타일링** | Tailwind CSS | 3.4.17 |
+| **JS 번들링** | esbuild | 0.25.4 |
+| **이메일** | Swoosh | 1.25 |
+| **국제화** | Gettext | 1.0.2 |
+| **테스트** | ExUnit + ExCoveralls | 0.18 |
 
 ## 데이터베이스 아키텍처
 
@@ -160,7 +160,7 @@ end
 ### 요구사항
 
 - Elixir 1.19+
-- Erlang/OTP 27+
+- Erlang/OTP 28+
 - PostgreSQL 14+
 - Node.js 18+ (프론트엔드 에셋용)
 

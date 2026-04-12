@@ -1,6 +1,5 @@
 defmodule ElixirBlogWeb.Components.Header do
   use Phoenix.Component
-  import ElixirBlogWeb.CoreComponents
 
   attr :current_path, :string, default: "/"
 

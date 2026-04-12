@@ -40,11 +40,11 @@ defmodule PlayaWeb.ListLive.ItemFormComponent do
         />
         <.label>Inserted at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          {(@item.inserted_at && Timex.format!(@item.inserted_at, "%F %T", :strftime)) || "NEW"}
+          {(@item.inserted_at && Calendar.strftime(@item.inserted_at, "%Y-%m-%d %H:%M:%S")) || "NEW"}
         </span>
         <.label>Updated at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          {(@item.updated_at && Timex.format!(@item.updated_at, "%F %T", :strftime)) || "NEW"}
+          {(@item.updated_at && Calendar.strftime(@item.updated_at, "%Y-%m-%d %H:%M:%S")) || "NEW"}
         </span>
         <.label>Owned by</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">

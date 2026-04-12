@@ -1,6 +1,5 @@
 defmodule ElixirBlogWeb.Components.PostGrid do
   use Phoenix.Component
-  import ElixirBlogWeb.CoreComponents
 
   attr :posts, :list, required: true
   attr :title, :string, default: nil

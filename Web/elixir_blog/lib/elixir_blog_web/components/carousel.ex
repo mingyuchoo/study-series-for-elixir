@@ -1,6 +1,5 @@
 defmodule ElixirBlogWeb.Components.Carousel do
   use Phoenix.Component
-  import ElixirBlogWeb.CoreComponents
 
   attr :posts, :list, required: true
   attr :current_index, :integer, default: 0

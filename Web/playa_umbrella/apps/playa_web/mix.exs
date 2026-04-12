@@ -62,12 +62,11 @@ defmodule PlayaWeb.MixProject do
        depth: 1},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 0.20"},
+      {:gettext, "~> 1.0"},
       {:auth, in_umbrella: true},
       {:productivity, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.8"},
-      {:timex, "~> 3.7.11"},
       {:excoveralls, "~> 0.18", only: :test}
     ]
   end

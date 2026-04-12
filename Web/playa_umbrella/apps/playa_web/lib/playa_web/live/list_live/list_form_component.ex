@@ -31,11 +31,11 @@ defmodule PlayaWeb.ListLive.ListFormComponent do
         </span>
         <.label>Inserted at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          {(@list.inserted_at && Timex.format!(@list.inserted_at, "%F %T", :strftime)) || "NEW"}
+          {(@list.inserted_at && Calendar.strftime(@list.inserted_at, "%Y-%m-%d %H:%M:%S")) || "NEW"}
         </span>
         <.label>Updated at</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">
-          {(@list.updated_at && Timex.format!(@list.updated_at, "%F %T", :strftime)) || "NEW"}
+          {(@list.updated_at && Calendar.strftime(@list.updated_at, "%Y-%m-%d %H:%M:%S")) || "NEW"}
         </span>
         <.label>Owned by</.label>
         <span class="px-3 pt-8 text-sm text-zinc-400">

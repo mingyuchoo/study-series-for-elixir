@@ -1,6 +1,5 @@
 defmodule ElixirBlogWeb.Components.CategorySidebar do
   use Phoenix.Component
-  import ElixirBlogWeb.CoreComponents
 
   @doc """
   Renders a category sidebar with all available categories/tags.

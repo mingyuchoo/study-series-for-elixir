@@ -20,8 +20,8 @@
   <:item title="Nickname">
     {@user.nickname || Phoenix.HTML.raw("<em>no nickname</em>")}
   </:item>
-  <:item title="Inserted ad">{Timex.format!(@user.inserted_at, "%F %T", :strftime)}</:item>
-  <:item title="Updated at">{Timex.format!(@user.updated_at, "%F %T", :strftime)}</:item>
+  <:item title="Inserted ad">{Calendar.strftime(@user.inserted_at, "%Y-%m-%d %H:%M:%S")}</:item>
+  <:item title="Updated at">{Calendar.strftime(@user.updated_at, "%Y-%m-%d %H:%M:%S")}</:item>
   <:item title="Roles">{Enum.count(@user.roles)}</:item>
 </.list>
 <!-- begin Roles -->

@@ -1,6 +1,5 @@
 defmodule ElixirBlogWeb.Components.PostMetadata do
   use Phoenix.Component
-  import ElixirBlogWeb.CoreComponents
 
   attr :post, :map, required: true
 
