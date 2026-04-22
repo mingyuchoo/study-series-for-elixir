@@ -13,9 +13,9 @@ if [[ -f "$SCRIPT_DIR/.env" ]]; then
     export $(grep -v '^#' "$SCRIPT_DIR/.env" | xargs)
 fi
 
-# Elixir/Erlang 경로 설정
-export ERLANG_HOME="$HOME/.asdf/installs/erlang/28.3"
-export ELIXIR_HOME="$HOME/.asdf/installs/elixir/1.19.4-otp-28"
+# Elixir/Erlang 경로 설정 (.tool-versions 기준)
+export ERLANG_HOME="$HOME/.asdf/installs/erlang/28.4.2"
+export ELIXIR_HOME="$HOME/.asdf/installs/elixir/1.19.5-otp-28"
 export PATH="$ELIXIR_HOME/bin:$ERLANG_HOME/bin:$PATH"
 
 # 색상 정의
@@ -61,9 +61,14 @@ echo -e "${GREEN}[INFO]${NC} 데이터베이스 마이그레이션..."
 mix ecto.create 2>/dev/null || true
 mix ecto.migrate
 
+# 초기 시드 (관리자 계정 / 에이전트 / MCP)
+echo -e "${GREEN}[INFO]${NC} 초기 데이터 시드..."
+mix run apps/core/priv/repo/seeds.exs
+
 # 서버 시작
 echo -e "${GREEN}[INFO]${NC} Phoenix 서버 시작..."
-echo -e "${BLUE}[INFO]${NC} 접속: http://localhost:4000/chat"
+echo -e "${BLUE}[INFO]${NC} 접속: http://localhost:4000"
+echo -e "${BLUE}[INFO]${NC} 계정 생성 후 /chat 으로 이동하세요."
 echo ""
 
 mix phx.server

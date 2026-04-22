@@ -210,6 +210,13 @@ defmodule Core.Contexts.Agents do
   end
 
   @doc """
+  폼용 changeset을 반환합니다.
+  """
+  def change_agent(%Agent{} = agent, attrs \\ %{}) do
+    Agent.changeset(agent, attrs)
+  end
+
+  @doc """
   에이전트를 비활성화합니다.
 
   ## Examples

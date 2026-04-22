@@ -4,7 +4,8 @@ defmodule Core.Fixtures do
   """
 
   alias Core.Repo
-  alias Core.Schema.{Agent, Conversation, AgentMemory, AgentTask, AgentInteraction}
+  alias Core.Contexts.Accounts
+  alias Core.Schema.{Agent, Conversation, AgentMemory, AgentTask, AgentInteraction, User}
 
   @doc """
   테스트용 Agent를 생성합니다.
@@ -128,11 +129,39 @@ defmodule Core.Fixtures do
   end
 
   @doc """
+  테스트용 User를 생성합니다.
+  """
+  def user_fixture(attrs \\ %{}) do
+    unique = System.unique_integer([:positive])
+
+    params =
+      Enum.into(attrs, %{
+        email: "user#{unique}@example.com",
+        password: "password-for-tests-123"
+      })
+
+    {:ok, user} = Accounts.register_user(params)
+    user
+  end
+
+  @doc """
   테스트용 Conversation을 생성합니다.
+  user_id가 주어지지 않으면 새 User를 생성합니다.
   """
   def conversation_fixture(attrs \\ %{}) do
+    attrs = Map.new(attrs)
+
+    user_id =
+      Map.get(attrs, :user_id) ||
+        case Map.get(attrs, :user) do
+          %User{id: id} -> id
+          nil -> user_fixture().id
+        end
+
     {:ok, conversation} =
       attrs
+      |> Map.drop([:user])
+      |> Map.put(:user_id, user_id)
       |> Enum.into(%{
         title: "Test Conversation",
         status: :active

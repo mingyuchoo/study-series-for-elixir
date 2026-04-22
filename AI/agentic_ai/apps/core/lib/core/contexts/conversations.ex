@@ -10,29 +10,31 @@ defmodule Core.Contexts.Conversations do
   alias Core.Schema.{Conversation, Message}
 
   @doc """
-  모든 대화 목록을 반환합니다.
+  특정 사용자의 대화 목록을 반환합니다.
   최신 순으로 정렬됩니다.
   """
-  def list_conversations do
+  def list_conversations(user_id) do
     from(c in Conversation,
-      where: c.status == :active,
+      where: c.status == :active and c.user_id == ^user_id,
       order_by: [desc: c.updated_at]
     )
     |> Repo.all()
   end
 
   @doc """
-  특정 대화를 ID로 조회합니다.
+  특정 사용자의 대화를 ID로 조회합니다.
   """
-  def get_conversation(id) do
-    Repo.get(Conversation, id)
+  def get_conversation(user_id, id) do
+    from(c in Conversation, where: c.user_id == ^user_id and c.id == ^id)
+    |> Repo.one()
   end
 
   @doc """
-  대화를 ID로 조회하고, 없으면 에러를 발생시킵니다.
+  특정 사용자의 대화를 ID로 조회하고, 없으면 에러를 발생시킵니다.
   """
-  def get_conversation!(id) do
-    Repo.get!(Conversation, id)
+  def get_conversation!(user_id, id) do
+    from(c in Conversation, where: c.user_id == ^user_id and c.id == ^id)
+    |> Repo.one!()
   end
 
   @doc """

@@ -31,6 +31,7 @@ defmodule Web.MixProject do
     [
       {:core, in_umbrella: true},
       {:phoenix, "~> 1.8.3"},
+      {:phoenix_ecto, "~> 4.6"},
       {:phoenix_html, "~> 4.2"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1"},
@@ -38,6 +39,7 @@ defmodule Web.MixProject do
       {:jason, "~> 1.4"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.8"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
       {:earmark, "~> 1.4"}

@@ -1,5 +1,10 @@
 import Config
 
+# workspace 디렉토리 (업로드 파일 저장 경로)는 개발/프로덕션 모두에서 적용
+if workspace_dir = System.get_env("WORKSPACE_DIR") do
+  config :core, :workspace_dir, workspace_dir
+end
+
 # 프로덕션용 런타임 설정
 if config_env() == :prod do
   # 환경 변수에서 Azure OpenAI 설정 로드
@@ -30,5 +35,6 @@ if config_env() == :prod do
   config :web, WebWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: port],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    server: true
 end

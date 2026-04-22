@@ -3,26 +3,28 @@ defmodule WebWeb.ChatLive do
 
   alias Core.Schema.{Conversation, Message}
   alias Core.Repo
-  alias Core.Agent.{MemoryManager, Supervisor, SupervisorAgent}
-  alias Core.Contexts.{Agents, Mcps}
+  alias Core.Agent.{Supervisor, SupervisorAgent}
+  alias Core.Contexts.{Agents, Conversations, Mcps}
 
   import Ecto.Query
 
-  # Markdown 렌더링 옵션
   @earmark_options %Earmark.Options{
     code_class_prefix: "language-",
     smartypants: false,
     breaks: true
   }
 
+  @max_upload_entries 5
+  # 10MB
+  @max_upload_size 10_000_000
+  @accepted_extensions ~w(.txt .md .pdf .png .jpg .jpeg .webp .json .csv .log)
+
   @impl true
   def mount(_params, _session, socket) do
-    conversations = list_conversations()
+    user = socket.assigns.current_user
+    conversations = Conversations.list_conversations(user.id)
     available_agents = Agents.list_agents(status: :active)
     available_mcps = Mcps.list_mcps_with_status()
-
-    # 사용자 프로필 확인 (표시용)
-    user_profile = get_user_profile_for_display()
 
     socket =
       socket
@@ -34,32 +36,43 @@ defmodule WebWeb.ChatLive do
       |> assign(:available_agents, available_agents)
       |> assign(:available_mcps, available_mcps)
       |> assign(:agent_usage_history, [])
-      |> assign(:user_profile, user_profile)
       |> assign(:message_sent_at, nil)
       |> assign(:streaming_content, "")
       |> assign(:streaming_message_id, nil)
       |> assign(:streaming_status, nil)
+      |> allow_upload(:attachments,
+        accept: @accepted_extensions,
+        max_entries: @max_upload_entries,
+        max_file_size: @max_upload_size
+      )
 
     {:ok, socket}
   end
 
   @impl true
   def handle_params(%{"id" => id}, _uri, socket) do
-    conversation = Repo.get!(Conversation, id)
-    messages = list_messages(id)
+    user = socket.assigns.current_user
 
-    # 실행 중이 아니면 에이전트 시작
-    ensure_agent_started(id)
+    case Conversations.get_conversation(user.id, id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "대화를 찾을 수 없습니다.")
+         |> push_navigate(to: ~p"/chat")}
 
-    # 대화 선택 시 이력 초기화 (새 질문 시에만 표시)
-    socket =
-      socket
-      |> assign(:current_conversation, conversation)
-      |> assign(:messages, messages)
-      |> assign(:agent_usage_history, [])
-      |> assign(:message_sent_at, nil)
+      conversation ->
+        messages = list_messages(id)
+        ensure_agent_started(id)
 
-    {:noreply, socket}
+        socket =
+          socket
+          |> assign(:current_conversation, conversation)
+          |> assign(:messages, messages)
+          |> assign(:agent_usage_history, [])
+          |> assign(:message_sent_at, nil)
+
+        {:noreply, socket}
+    end
   end
 
   def handle_params(_params, _uri, socket) do
@@ -68,16 +81,19 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_event("new_conversation", _params, socket) do
+    user = socket.assigns.current_user
+
     {:ok, conversation} =
       %Conversation{}
       |> Conversation.changeset(%{
-        title: "New Chat #{DateTime.utc_now() |> DateTime.to_string()}"
+        title: "New Chat #{DateTime.utc_now() |> DateTime.to_string()}",
+        user_id: user.id
       })
       |> Repo.insert()
 
     socket =
       socket
-      |> assign(:conversations, list_conversations())
+      |> assign(:conversations, Conversations.list_conversations(user.id))
       |> push_navigate(to: ~p"/chat/#{conversation.id}")
 
     {:noreply, socket}
@@ -90,35 +106,37 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_event("delete_conversation", %{"id" => id}, socket) do
-    conversation = Repo.get!(Conversation, id)
+    user = socket.assigns.current_user
 
-    # 실행 중인 에이전트 종료
-    case Registry.lookup(Core.Agent.Registry, {:supervisor, id}) do
-      [{pid, _}] -> Supervisor.stop_agent(pid)
-      _ -> :ok
+    case Conversations.get_conversation(user.id, id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "대화를 찾을 수 없습니다.")}
+
+      conversation ->
+        case Registry.lookup(Core.Agent.Registry, {:supervisor, id}) do
+          [{pid, _}] -> Supervisor.stop_agent(pid)
+          _ -> :ok
+        end
+
+        Message
+        |> where([m], m.conversation_id == ^id)
+        |> Repo.delete_all()
+
+        Repo.delete!(conversation)
+
+        socket =
+          if socket.assigns.current_conversation && socket.assigns.current_conversation.id == id do
+            socket
+            |> assign(:conversations, Conversations.list_conversations(user.id))
+            |> assign(:current_conversation, nil)
+            |> assign(:messages, [])
+            |> push_navigate(to: ~p"/chat")
+          else
+            assign(socket, :conversations, Conversations.list_conversations(user.id))
+          end
+
+        {:noreply, put_flash(socket, :info, "대화가 삭제되었습니다.")}
     end
-
-    # 관련 메시지 먼저 삭제
-    Message
-    |> where([m], m.conversation_id == ^id)
-    |> Repo.delete_all()
-
-    # 대화 삭제
-    Repo.delete!(conversation)
-
-    # 현재 보고 있던 대화를 삭제한 경우 목록으로 이동
-    socket =
-      if socket.assigns.current_conversation && socket.assigns.current_conversation.id == id do
-        socket
-        |> assign(:conversations, list_conversations())
-        |> assign(:current_conversation, nil)
-        |> assign(:messages, [])
-        |> push_navigate(to: ~p"/chat")
-      else
-        assign(socket, :conversations, list_conversations())
-      end
-
-    {:noreply, put_flash(socket, :info, "대화가 삭제되었습니다.")}
   end
 
   @impl true
@@ -127,94 +145,75 @@ defmodule WebWeb.ChatLive do
   end
 
   @impl true
-  def handle_event("send_message", _params, socket) do
-    input = String.trim(socket.assigns.input)
-
-    if input != "" and socket.assigns.current_conversation do
-      conversation_id = socket.assigns.current_conversation.id
-      now = DateTime.utc_now()
-      streaming_message_id = Ecto.UUID.generate()
-
-      # UI 즉시 업데이트
-      user_message = %{
-        id: Ecto.UUID.generate(),
-        role: :user,
-        content: input,
-        inserted_at: now
-      }
-
-      socket =
-        socket
-        |> assign(:messages, socket.assigns.messages ++ [user_message])
-        |> assign(:input, "")
-        |> assign(:loading, true)
-        |> assign(:message_sent_at, now)
-        |> assign(:agent_usage_history, [])
-        |> assign(:streaming_content, "")
-        |> assign(:streaming_message_id, streaming_message_id)
-        |> assign(:streaming_status, :streaming)
-
-      # 에이전트에게 스트리밍 모드로 비동기 전송
-      send(self(), {:process_message_stream, conversation_id, input})
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
+  def handle_event("validate_upload", _params, socket) do
+    {:noreply, socket}
   end
 
   @impl true
-  def handle_info({:process_message, conversation_id, input}, socket) do
-    case SupervisorAgent.chat(conversation_id, input) do
-      {:ok, response} ->
-        assistant_message = %{
-          id: Ecto.UUID.generate(),
-          role: :assistant,
-          content: response,
-          inserted_at: DateTime.utc_now()
-        }
+  def handle_event("cancel_upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :attachments, ref)}
+  end
 
-        # 이번 질문에 대한 에이전트 사용 이력만 조회
-        message_sent_at = socket.assigns.message_sent_at
-        agent_usage_history = Agents.list_agent_usage_history(conversation_id, message_sent_at)
+  @impl true
+  def handle_event("send_message", _params, socket) do
+    input = String.trim(socket.assigns.input)
 
-        # 프로필이 업데이트되었을 수 있으므로 새로고침
-        user_profile = get_user_profile_for_display()
-
-        socket =
-          socket
-          |> assign(:messages, socket.assigns.messages ++ [assistant_message])
-          |> assign(:loading, false)
-          |> assign(:agent_usage_history, agent_usage_history)
-          |> assign(:user_profile, user_profile)
-
+    cond do
+      not socket.assigns.current_conversation ->
         {:noreply, socket}
 
-      {:error, reason} ->
+      input == "" and socket.assigns.uploads.attachments.entries == [] ->
+        {:noreply, socket}
+
+      true ->
+        conversation_id = socket.assigns.current_conversation.id
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
+        streaming_message_id = Ecto.UUID.generate()
+
+        attachments = save_uploaded_files(socket, conversation_id)
+        full_message = build_llm_message(input, attachments)
+
+        user_message_record = %{
+          id: Ecto.UUID.generate(),
+          role: :user,
+          content: input,
+          attachments: attachments,
+          inserted_at: now
+        }
+
+        # 영구 저장
+        {:ok, _} =
+          Conversations.create_message(%{
+            role: :user,
+            content: input,
+            attachments: attachments,
+            conversation_id: conversation_id
+          })
+
         socket =
           socket
-          |> assign(:loading, false)
+          |> assign(:messages, socket.assigns.messages ++ [user_message_record])
+          |> assign(:input, "")
+          |> assign(:loading, true)
+          |> assign(:message_sent_at, now)
           |> assign(:agent_usage_history, [])
-          |> put_flash(:error, "Error: #{inspect(reason)}")
+          |> assign(:streaming_content, "")
+          |> assign(:streaming_message_id, streaming_message_id)
+          |> assign(:streaming_status, :streaming)
 
+        send(self(), {:process_message_stream, conversation_id, full_message})
         {:noreply, socket}
     end
   end
 
   @impl true
   def handle_info({:process_message_stream, conversation_id, input}, socket) do
-    # 스트리밍 모드로 에이전트에게 전송
     liveview_pid = self()
 
-    # 별도 프로세스에서 스트리밍 호출 (비동기)
     Task.start(fn ->
       case SupervisorAgent.stream_chat(conversation_id, input, liveview_pid) do
-        {:ok, _response} ->
-          # 완료 알림 (이미 stream_finish에서 처리됨)
-          :ok
-
-        {:error, reason} ->
-          send(liveview_pid, {:stream_error, conversation_id, reason})
+        {:ok, _response} -> :ok
+        {:error, reason} -> send(liveview_pid, {:stream_error, conversation_id, reason})
       end
     end)
 
@@ -223,9 +222,7 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info({:stream_chunk, conversation_id, text}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
-      # 스트리밍 콘텐츠에 텍스트 추가
+    if current?(socket, conversation_id) do
       new_content = socket.assigns.streaming_content <> text
 
       socket =
@@ -241,14 +238,8 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info({:stream_tool_start, conversation_id, tool_names}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
-      # 도구 실행 중 상태 표시
-      socket =
-        socket
-        |> assign(:streaming_status, {:tool_executing, tool_names})
-
-      {:noreply, socket}
+    if current?(socket, conversation_id) do
+      {:noreply, assign(socket, :streaming_status, {:tool_executing, tool_names})}
     else
       {:noreply, socket}
     end
@@ -256,14 +247,8 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info({:stream_tool_end, conversation_id}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
-      # 도구 실행 완료
-      socket =
-        socket
-        |> assign(:streaming_status, :streaming)
-
-      {:noreply, socket}
+    if current?(socket, conversation_id) do
+      {:noreply, assign(socket, :streaming_status, :streaming)}
     else
       {:noreply, socket}
     end
@@ -271,14 +256,8 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info({:stream_postprocess, conversation_id}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
-      # 후처리 중 상태
-      socket =
-        socket
-        |> assign(:streaming_status, :postprocessing)
-
-      {:noreply, socket}
+    if current?(socket, conversation_id) do
+      {:noreply, assign(socket, :streaming_status, :postprocessing)}
     else
       {:noreply, socket}
     end
@@ -286,15 +265,8 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info({:stream_finish, conversation_id}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
-      # 스트리밍 완료 - 후처리 결과를 기다림
-      # 최종 결과는 stream_complete에서 처리
-      socket =
-        socket
-        |> assign(:streaming_status, :finishing)
-
-      {:noreply, socket}
+    if current?(socket, conversation_id) do
+      {:noreply, assign(socket, :streaming_status, :finishing)}
     else
       {:noreply, socket}
     end
@@ -302,8 +274,7 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info({:stream_error, conversation_id, reason}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
+    if current?(socket, conversation_id) do
       socket =
         socket
         |> assign(:loading, false)
@@ -319,24 +290,19 @@ defmodule WebWeb.ChatLive do
     end
   end
 
-  # 스트리밍 완료 후 최종 메시지 추가 (SupervisorAgent에서 DB 저장 후)
   @impl true
   def handle_info({:stream_complete, conversation_id, final_response}, socket) do
-    if socket.assigns.current_conversation &&
-         socket.assigns.current_conversation.id == conversation_id do
+    if current?(socket, conversation_id) do
       assistant_message = %{
         id: socket.assigns.streaming_message_id,
         role: :assistant,
         content: final_response,
+        attachments: [],
         inserted_at: DateTime.utc_now()
       }
 
-      # 에이전트 사용 이력 조회
-      message_sent_at = socket.assigns.message_sent_at
-      agent_usage_history = Agents.list_agent_usage_history(conversation_id, message_sent_at)
-
-      # 프로필 새로고침
-      user_profile = get_user_profile_for_display()
+      agent_usage_history =
+        Agents.list_agent_usage_history(conversation_id, socket.assigns.message_sent_at)
 
       socket =
         socket
@@ -346,7 +312,6 @@ defmodule WebWeb.ChatLive do
         |> assign(:streaming_message_id, nil)
         |> assign(:streaming_status, nil)
         |> assign(:agent_usage_history, agent_usage_history)
-        |> assign(:user_profile, user_profile)
 
       {:noreply, socket}
     else
@@ -354,13 +319,11 @@ defmodule WebWeb.ChatLive do
     end
   end
 
-  # 비공개 함수들
+  ## 비공개 헬퍼
 
-  defp list_conversations do
-    Conversation
-    |> order_by([c], desc: c.inserted_at)
-    |> limit(20)
-    |> Repo.all()
+  defp current?(socket, conversation_id) do
+    socket.assigns.current_conversation &&
+      socket.assigns.current_conversation.id == conversation_id
   end
 
   defp list_messages(conversation_id) do
@@ -373,14 +336,9 @@ defmodule WebWeb.ChatLive do
   defp ensure_agent_started(conversation_id) do
     case Registry.lookup(Core.Agent.Registry, {:supervisor, conversation_id}) do
       [] ->
-        # 활성화된 supervisor 에이전트 가져오기
         case Agents.get_active_supervisor() do
-          nil ->
-            # 폴백: supervisor가 설정되지 않음
-            :ok
-
-          supervisor ->
-            Supervisor.start_supervisor_agent(supervisor.id, conversation_id)
+          nil -> :ok
+          supervisor -> Supervisor.start_supervisor_agent(supervisor.id, conversation_id)
         end
 
       _ ->
@@ -388,39 +346,67 @@ defmodule WebWeb.ChatLive do
     end
   end
 
+  defp save_uploaded_files(socket, conversation_id) do
+    workspace_dir = Application.get_env(:core, :workspace_dir) || "./workspace"
+    dir = Path.join(workspace_dir, conversation_id)
+    File.mkdir_p!(dir)
+
+    consume_uploaded_entries(socket, :attachments, fn %{path: tmp_path}, entry ->
+      ext = Path.extname(entry.client_name)
+      unique_name = "#{Ecto.UUID.generate()}_#{sanitize(entry.client_name)}"
+      dest = Path.join(dir, unique_name)
+      File.cp!(tmp_path, dest)
+
+      {:ok,
+       %{
+         "filename" => entry.client_name,
+         "stored_path" => dest,
+         "content_type" => entry.client_type,
+         "size" => entry.client_size,
+         "extension" => ext
+       }}
+    end)
+  end
+
+  defp sanitize(name) do
+    name
+    |> String.replace(~r/[^A-Za-z0-9._-]/, "_")
+    |> String.slice(0, 80)
+  end
+
+  defp build_llm_message(input, []), do: input
+
+  defp build_llm_message(input, attachments) do
+    file_list =
+      attachments
+      |> Enum.map(fn a ->
+        "- #{a["filename"]} (#{a["content_type"]}, #{format_bytes(a["size"])})\n  경로: #{a["stored_path"]}"
+      end)
+      |> Enum.join("\n")
+
+    """
+    #{input}
+
+    [첨부 파일 #{length(attachments)}개]
+    #{file_list}
+
+    (필요 시 file_system 도구로 위 경로의 파일을 읽어 분석하세요.)
+    """
+  end
+
+  defp format_bytes(nil), do: "?"
+  defp format_bytes(b) when b < 1024, do: "#{b} B"
+  defp format_bytes(b) when b < 1_048_576, do: "#{Float.round(b / 1024, 1)} KB"
+  defp format_bytes(b), do: "#{Float.round(b / 1_048_576, 1)} MB"
+
+  ## 렌더
+
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex h-screen bg-base-100">
+    <div class="flex h-[calc(100vh-4rem)] bg-base-100">
       <!-- Sidebar -->
       <div class="w-64 bg-base-200 text-base-content flex flex-col border-r border-base-300">
-        <!-- 사용자 프로필 섹션 -->
-        <%= if @user_profile do %>
-          <div class="p-4 border-b border-base-300 bg-neutral text-neutral-content">
-            <div class="flex items-center gap-3">
-              <div class="avatar placeholder">
-                <div class="w-10 rounded-full bg-neutral-content/20">
-                  <span class="text-lg font-bold">
-                    {String.first(@user_profile[:user_name] || @user_profile["user_name"] || "?")}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div class="font-medium text-sm">
-                  {@user_profile[:user_name] || @user_profile["user_name"]}
-                </div>
-                <div class="text-xs opacity-80 flex items-center gap-1">
-                  <.icon name="hero-map-pin" class="w-3 h-3" />
-                  {@user_profile[:city] || @user_profile["city"]}
-                </div>
-              </div>
-            </div>
-            <div class="mt-2 text-xs opacity-90">
-              AI 비서: {@user_profile[:agent_name] || @user_profile["agent_name"]}
-            </div>
-          </div>
-        <% end %>
-
         <div class="p-4 border-b border-base-300">
           <button phx-click="new_conversation" class="btn btn-primary btn-block gap-2">
             <.icon name="hero-plus" class="w-4 h-4" /> New Chat
@@ -437,7 +423,7 @@ defmodule WebWeb.ChatLive do
                 <div
                   phx-click="select_conversation"
                   phx-value-id={conv.id}
-                  class="flex-1 min-w-0"
+                  class="flex-1 min-w-0 cursor-pointer"
                 >
                   <div class="truncate text-sm font-medium">{conv.title}</div>
                   <div class="text-xs opacity-50">
@@ -447,8 +433,8 @@ defmodule WebWeb.ChatLive do
                 <button
                   phx-click="delete_conversation"
                   phx-value-id={conv.id}
-                  data-confirm="이 대화를 삭제하시겠습니까? 모든 메시지가 함께 삭제됩니다."
-                  class="btn btn-ghost btn-xs btn-circle text-error opacity-0 group-hover:opacity-100 transition-opacity"
+                  data-confirm="이 대화를 삭제하시겠습니까?"
+                  class="btn btn-ghost btn-xs btn-circle text-error opacity-0 group-hover:opacity-100"
                   title="대화 삭제"
                 >
                   <.icon name="hero-trash" class="w-4 h-4" />
@@ -457,8 +443,7 @@ defmodule WebWeb.ChatLive do
             </li>
           <% end %>
         </ul>
-        
-    <!-- MCP Panel -->
+
         <ul class="menu menu-xs border-t border-base-300 p-2">
           <li class="menu-title">사용 가능한 MCP</li>
           <%= if @available_mcps == [] do %>
@@ -473,17 +458,12 @@ defmodule WebWeb.ChatLive do
                     <.icon name="hero-server" class="w-3 h-3" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <div class="truncate font-medium text-secondary">
-                      {mcp.name}
-                    </div>
+                    <div class="truncate font-medium text-secondary">{mcp.name}</div>
                     <div class="truncate text-xs opacity-50">
                       {mcp.command} {Enum.join(mcp.args, " ")}
                     </div>
                   </div>
-                  <span
-                    class={mcp_status_indicator_class(mcp.status)}
-                    title={mcp_status_label(mcp.status)}
-                  >
+                  <span class={mcp_status_indicator_class(mcp.status)}>
                     <span class={mcp_status_dot_class(mcp.status)}></span>
                   </span>
                 </div>
@@ -491,32 +471,22 @@ defmodule WebWeb.ChatLive do
             <% end %>
           <% end %>
         </ul>
-        
-    <!-- Agent Panel -->
+
         <ul class="menu menu-xs border-t border-base-300 p-2">
           <li class="menu-title">사용 가능한 에이전트</li>
           <%= for agent <- @available_agents do %>
             <% usage_info = find_agent_usage(@agent_usage_history, agent.id) %>
             <li>
-              <div class={[
-                "flex items-center gap-2",
-                usage_info && "active"
-              ]}>
+              <div class={["flex items-center gap-2", usage_info && "active"]}>
                 <%= if usage_info do %>
-                  <div class="badge badge-primary badge-sm font-bold">
-                    {usage_info.order}
-                  </div>
+                  <div class="badge badge-primary badge-sm font-bold">{usage_info.order}</div>
                 <% else %>
                   <div class="badge badge-ghost badge-sm">-</div>
                 <% end %>
                 <div class="flex-1 min-w-0">
-                  <div class="truncate font-medium">
-                    {agent.display_name || agent.name}
-                  </div>
+                  <div class="truncate font-medium">{agent.display_name || agent.name}</div>
                   <%= if agent.description do %>
-                    <div class="truncate text-xs opacity-50">
-                      {agent.description}
-                    </div>
+                    <div class="truncate text-xs opacity-50">{agent.description}</div>
                   <% end %>
                 </div>
                 <%= if usage_info do %>
@@ -526,30 +496,10 @@ defmodule WebWeb.ChatLive do
             </li>
           <% end %>
         </ul>
-
-        <%= if @agent_usage_history != [] do %>
-          <div class="border-t border-base-300 p-2">
-            <div class="text-xs font-semibold opacity-50 uppercase tracking-wider mb-2">
-              실행 순서
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <%= for usage <- @agent_usage_history do %>
-                <div
-                  class="badge badge-primary badge-sm gap-1"
-                  title={Calendar.strftime(usage.timestamp, "%H:%M:%S")}
-                >
-                  <span class="font-bold">{usage.order}.</span>
-                  {usage.agent.display_name || usage.agent.name}
-                </div>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
       </div>
-      
+
     <!-- Main Chat Area -->
       <div class="flex-1 flex flex-col">
-        <!-- Header -->
         <div class="navbar bg-base-100 border-b border-base-300 shadow-sm px-4">
           <div class="flex-1">
             <div>
@@ -558,7 +508,7 @@ defmodule WebWeb.ChatLive do
                   do: @current_conversation.title,
                   else: "Agentic AI Assistant"}
               </h1>
-              <p class="text-sm text-base-content/50">Powered by Azure OpenAI gpt-5-mini</p>
+              <p class="text-sm text-base-content/50">Powered by Azure OpenAI</p>
             </div>
           </div>
           <div class="flex-none">
@@ -566,17 +516,15 @@ defmodule WebWeb.ChatLive do
               <button
                 phx-click="delete_conversation"
                 phx-value-id={@current_conversation.id}
-                data-confirm="이 대화를 삭제하시겠습니까? 모든 메시지가 함께 삭제됩니다."
+                data-confirm="이 대화를 삭제하시겠습니까?"
                 class="btn btn-ghost btn-sm text-error gap-2"
-                title="대화 삭제"
               >
                 <.icon name="hero-trash" class="w-4 h-4" /> 삭제
               </button>
             <% end %>
           </div>
         </div>
-        
-    <!-- Messages -->
+
         <div class="flex-1 overflow-y-auto p-4 space-y-2" id="messages">
           <%= if @messages == [] and @current_conversation do %>
             <div class="hero min-h-[50vh]">
@@ -584,7 +532,7 @@ defmodule WebWeb.ChatLive do
                 <div class="max-w-md">
                   <h2 class="text-2xl font-bold">대화를 시작하세요!</h2>
                   <p class="py-4 text-base-content/60">
-                    AI 어시스턴트가 다양한 도구를 활용하여 도움을 드릴 수 있습니다.
+                    AI 어시스턴트가 다양한 도구를 활용해 도움을 드립니다.
                   </p>
                 </div>
               </div>
@@ -596,9 +544,7 @@ defmodule WebWeb.ChatLive do
               "chat",
               (message.role in [:user, "user"] && "chat-end") || "chat-start"
             ]}>
-              <div class="chat-header text-xs opacity-60 mb-1">
-                {role_label(message.role)}
-              </div>
+              <div class="chat-header text-xs opacity-60 mb-1">{role_label(message.role)}</div>
               <div class={["chat-bubble", chat_bubble_class(message.role)]}>
                 <%= if message.role in [:assistant, "assistant"] do %>
                   <div class="prose prose-sm max-w-none">
@@ -607,13 +553,13 @@ defmodule WebWeb.ChatLive do
                 <% else %>
                   <div class="whitespace-pre-wrap">{message.content}</div>
                 <% end %>
+                <.attachments_list attachments={Map.get(message, :attachments) || []} />
               </div>
             </div>
           <% end %>
 
           <%= if @loading do %>
             <%= if @streaming_content != "" or @streaming_status do %>
-              <!-- 스트리밍 메시지 표시 -->
               <div class="chat chat-start">
                 <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-2">
                   Assistant
@@ -651,7 +597,6 @@ defmodule WebWeb.ChatLive do
                 </div>
               </div>
             <% else %>
-              <!-- 기존 로딩 표시 -->
               <div class="chat chat-start">
                 <div class="chat-bubble chat-bubble-accent">
                   <span class="loading loading-dots loading-md"></span>
@@ -660,27 +605,67 @@ defmodule WebWeb.ChatLive do
             <% end %>
           <% end %>
         </div>
-        
+
     <!-- Input -->
         <%= if @current_conversation do %>
-          <div class="bg-base-100 border-t border-base-300 p-4">
-            <form phx-submit="send_message" phx-change="update_input" class="join w-full">
-              <input
-                type="text"
-                name="message"
-                value={@input}
-                placeholder="메시지를 입력하세요..."
-                disabled={@loading}
-                class="input input-bordered join-item flex-1"
-                autocomplete="off"
-              />
-              <button
-                type="submit"
-                disabled={@loading or @input == ""}
-                class="btn btn-primary join-item gap-2"
-              >
-                <.icon name="hero-paper-airplane" class="w-5 h-5" /> Send
-              </button>
+          <div class="bg-base-100 border-t border-base-300 p-4 space-y-2">
+            <form
+              id="chat-form"
+              phx-submit="send_message"
+              phx-change="validate_upload"
+              class="space-y-2"
+            >
+              <!-- 업로드된 파일 미리보기 -->
+              <%= if @uploads.attachments.entries != [] do %>
+                <div class="flex flex-wrap gap-2">
+                  <%= for entry <- @uploads.attachments.entries do %>
+                    <div class="badge badge-lg gap-2">
+                      <.icon name="hero-paper-clip" class="w-3 h-3" />
+                      <span class="text-xs">{entry.client_name}</span>
+                      <%= if entry.progress > 0 and entry.progress < 100 do %>
+                        <span class="text-xs">{entry.progress}%</span>
+                      <% end %>
+                      <button
+                        type="button"
+                        phx-click="cancel_upload"
+                        phx-value-ref={entry.ref}
+                        class="btn btn-ghost btn-xs btn-circle"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+              <%= for err <- upload_errors(@uploads.attachments) do %>
+                <div class="alert alert-error py-2 text-xs">
+                  {error_to_string(err)}
+                </div>
+              <% end %>
+
+              <div class="join w-full">
+                <label class="btn btn-ghost join-item" title="파일 첨부">
+                  <.icon name="hero-paper-clip" class="w-5 h-5" />
+                  <.live_file_input upload={@uploads.attachments} class="hidden" />
+                </label>
+                <input
+                  type="text"
+                  name="message"
+                  value={@input}
+                  phx-change="update_input"
+                  placeholder="메시지를 입력하세요..."
+                  disabled={@loading}
+                  class="input input-bordered join-item flex-1"
+                  autocomplete="off"
+                />
+                <button
+                  type="submit"
+                  disabled={@loading}
+                  class="btn btn-primary join-item gap-2"
+                >
+                  <.icon name="hero-paper-airplane" class="w-5 h-5" /> Send
+                </button>
+              </div>
             </form>
           </div>
         <% else %>
@@ -696,12 +681,29 @@ defmodule WebWeb.ChatLive do
     """
   end
 
+  attr :attachments, :list, default: []
+
+  defp attachments_list(assigns) do
+    ~H"""
+    <%= if @attachments != [] do %>
+      <div class="mt-2 space-y-1">
+        <%= for a <- @attachments do %>
+          <div class="text-xs opacity-80 flex items-center gap-1">
+            <.icon name="hero-paper-clip" class="w-3 h-3" />
+            {Map.get(a, "filename") || Map.get(a, :filename)}
+            <span class="opacity-50">
+              ({format_bytes(Map.get(a, "size") || Map.get(a, :size))})
+            </span>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+    """
+  end
+
   defp chat_bubble_class(role) when role in [:user, "user"], do: "chat-bubble-primary"
   defp chat_bubble_class(role) when role in [:assistant, "assistant"], do: "chat-bubble-accent"
-
-  defp chat_bubble_class(role) when role in [:tool, "tool"],
-    do: "chat-bubble-warning"
-
+  defp chat_bubble_class(role) when role in [:tool, "tool"], do: "chat-bubble-warning"
   defp chat_bubble_class(_), do: ""
 
   defp role_label(role) when role in [:user, "user"], do: "You"
@@ -710,12 +712,9 @@ defmodule WebWeb.ChatLive do
   defp role_label(_), do: "System"
 
   defp find_agent_usage(usage_history, agent_id) do
-    Enum.find(usage_history, fn usage ->
-      usage.agent && usage.agent.id == agent_id
-    end)
+    Enum.find(usage_history, fn usage -> usage.agent && usage.agent.id == agent_id end)
   end
 
-  # Markdown을 HTML로 렌더링
   defp render_markdown(nil), do: Phoenix.HTML.raw("")
 
   defp render_markdown(content) when is_binary(content) do
@@ -726,14 +725,12 @@ defmodule WebWeb.ChatLive do
 
   defp render_markdown(_), do: Phoenix.HTML.raw("")
 
-  # MCP 상태 표시기 스타일
   defp mcp_status_indicator_class(status) do
     base = "flex items-center justify-center w-5 h-5 rounded-full"
 
     case status do
       :ready -> "#{base} bg-success/20"
       :unavailable -> "#{base} bg-error/20"
-      :unknown -> "#{base} bg-base-content/10"
       _ -> "#{base} bg-base-content/10"
     end
   end
@@ -744,38 +741,12 @@ defmodule WebWeb.ChatLive do
     case status do
       :ready -> "#{base} bg-success shadow-lg shadow-success/50"
       :unavailable -> "#{base} bg-error shadow-lg shadow-error/50"
-      :unknown -> "#{base} bg-base-content/30"
       _ -> "#{base} bg-base-content/30"
     end
   end
 
-  defp mcp_status_label(status) do
-    case status do
-      :ready -> "사용 가능"
-      :unavailable -> "환경 변수 미설정"
-      :unknown -> "상태 확인 불가"
-      _ -> "알 수 없음"
-    end
-  end
-
-  # 사용자 프로필 조회 (표시용)
-  # AI Agent가 대화를 통해 프로필을 수집하므로 팝업 없이 표시만 함
-  defp get_user_profile_for_display do
-    case MemoryManager.get_user_profile() do
-      {:ok, profile} ->
-        # 프로필이 완전한지 확인
-        has_user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name)
-        has_agent_name = Map.get(profile, "agent_name") || Map.get(profile, :agent_name)
-        has_city = Map.get(profile, "city") || Map.get(profile, :city)
-
-        if has_user_name && has_agent_name && has_city do
-          profile
-        else
-          nil
-        end
-
-      {:error, _} ->
-        nil
-    end
-  end
+  defp error_to_string(:too_large), do: "파일이 너무 큽니다 (최대 10MB)."
+  defp error_to_string(:too_many_files), do: "파일이 너무 많습니다 (최대 5개)."
+  defp error_to_string(:not_accepted), do: "지원하지 않는 파일 형식입니다."
+  defp error_to_string(err), do: "업로드 오류: #{inspect(err)}"
 end

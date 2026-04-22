@@ -11,6 +11,7 @@ defmodule Core.Schema.Message do
     field(:tool_calls, {:array, :map}, default: [])
     field(:tool_call_id, :string)
     field(:tokens_used, :integer)
+    field(:attachments, {:array, :map}, default: [])
 
     belongs_to(:conversation, Core.Schema.Conversation)
     belongs_to(:agent, Core.Schema.Agent)
@@ -27,6 +28,7 @@ defmodule Core.Schema.Message do
       :tool_calls,
       :tool_call_id,
       :tokens_used,
+      :attachments,
       :conversation_id,
       :agent_id,
       :agent_task_id

@@ -11,6 +11,7 @@ defmodule Core.Schema.Conversation do
     field(:status, Ecto.Enum, values: [:active, :archived], default: :active)
     field(:context_summary, :string)
 
+    belongs_to(:user, Core.Schema.User)
     belongs_to(:supervisor_agent, Core.Schema.Agent)
     has_many(:messages, Core.Schema.Message)
     has_many(:agent_tasks, Core.Schema.AgentTask)
@@ -22,8 +23,9 @@ defmodule Core.Schema.Conversation do
 
   def changeset(conversation, attrs) do
     conversation
-    |> cast(attrs, [:title, :system_prompt, :status, :supervisor_agent_id, :context_summary])
-    |> validate_required([:title])
+    |> cast(attrs, [:title, :system_prompt, :status, :supervisor_agent_id, :context_summary, :user_id])
+    |> validate_required([:title, :user_id])
     |> foreign_key_constraint(:supervisor_agent_id)
+    |> foreign_key_constraint(:user_id)
   end
 end
