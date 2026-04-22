@@ -14,7 +14,7 @@ if [[ -f "$SCRIPT_DIR/.env" ]]; then
 fi
 
 # Elixir/Erlang 경로 설정 (.tool-versions 기준)
-export ERLANG_HOME="$HOME/.asdf/installs/erlang/28.4.2"
+export ERLANG_HOME="$HOME/.asdf/installs/erlang/28.4.3"
 export ELIXIR_HOME="$HOME/.asdf/installs/elixir/1.19.5-otp-28"
 export PATH="$ELIXIR_HOME/bin:$ERLANG_HOME/bin:$PATH"
 

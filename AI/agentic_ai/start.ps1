@@ -35,7 +35,7 @@ if (Test-Path -LiteralPath $EnvFile) {
 # Elixir/Erlang 경로 설정 (.tool-versions 기준, asdf 사용 시)
 # Windows 의 Elixir/Erlang 설치 경로가 다르면 아래 블록을 환경에 맞게 수정하거나
 # 시스템 PATH 에 등록된 설치본을 그대로 사용하세요.
-$ErlangHome = Join-Path $HOME '.asdf\installs\erlang\28.4.2'
+$ErlangHome = Join-Path $HOME '.asdf\installs\erlang\28.4.3'
 $ElixirHome = Join-Path $HOME '.asdf\installs\elixir\1.19.5-otp-28'
 
 if (Test-Path -LiteralPath $ErlangHome) { $env:ERLANG_HOME = $ErlangHome }
