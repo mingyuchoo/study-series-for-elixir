@@ -82,8 +82,11 @@ mix ecto.setup
 # 또는 개별 실행
 # mix ecto.create && mix ecto.migrate && mix run apps/core/priv/repo/seeds.exs
 
-# 개발 서버
+# 개발 서버 (macOS / Linux)
 ./start.sh
+
+# 개발 서버 (Windows / PowerShell)
+./start.ps1
 ```
 
 브라우저에서 <http://localhost:4000> 접속 → `/users/register`로 계정 생성 후 `/chat` 이동.
@@ -142,6 +145,31 @@ mix run --no-halt -e "Core.MCP.Transport.Stdio.start()"
 ```
 
 지원 메서드: `initialize`, `tools/{list,call}`, `prompts/{list,get}`, `resources/{list,read}`.
+
+## UI / 디자인 시스템
+
+- **Tailwind CSS 3.4** (Phoenix standalone CLI) + **daisyUI v5**(라이트/다크 테마) + **Heroicons v2**.
+- Heroicons 는 `apps/web/mix.exs`에 git 의존성으로 포함되어 `deps/heroicons/optimized` 에서 SVG 를 읽고, `apps/web/assets/vendor/heroicons.js` Tailwind 플러그인이 `hero-*` 유틸리티 클래스를 생성합니다. `<.icon name="hero-x-mark" />` 형태로 사용합니다.
+- 자산 빌드 산출물은 `apps/web/priv/static/assets/` 로 출력되며, 개발 환경에서는 watcher(`esbuild --watch`, `tailwind --watch`)가 자동으로 재빌드합니다.
+- ⚠️ `apps/web/assets/vendor/daisyui.js` 는 ESM 형식으로 `default` export 를 노출하므로 `tailwind.config.js` 에서 `require("./vendor/daisyui").default` 로 unwrap 해야 컴포넌트 CSS(`navbar`, `btn`, `dropdown`, `card` 등)가 정상 생성됩니다.
+
+### 컴포넌트 규칙
+
+모든 UI 요소는 daisyUI 컴포넌트 + `core_components.ex` 헬퍼를 우선적으로 사용합니다.
+
+| 용도 | 방식 |
+|---|---|
+| 폼 입력(텍스트/비밀번호/선택/텍스트영역/체크박스) | `<.input field={@form[:x]} type="..." label="..." />` 로 통일. 라벨·오류 메시지·`input-error` 상태가 자동 처리됩니다. |
+| 페이지 헤더 | `<.header>...<:subtitle>...</:subtitle><:actions>...</:actions></.header>` |
+| 플래시/알림 | `flash_group` + daisyUI `toast` / `alert` (`role="alert"`) |
+| 테마 토글 | `<.theme_dropdown />` (Light / Dark / System 3단 전환, `localStorage` 저장) |
+| 상태 표시 (MCP 등) | `<span class="status status-success" />` 의 daisyUI `status` 컴포넌트 |
+| 리스트/메뉴 | `menu menu-sm`, 활성 항목은 `menu-active` |
+| 채팅 | `chat chat-start|chat-end` + `chat-bubble chat-bubble-primary|accent|warning` |
+| 로딩 인디케이터 | `loading loading-dots|spinner loading-xs|sm|md` |
+| 레이아웃 | `hero`, `card bg-base-100 shadow-xl`, `navbar`, `join` (버튼 그룹) 우선 |
+
+커스텀 CSS는 `apps/web/assets/css/app.css`의 **채팅 마크다운 `prose` 스타일** 과 LiveView 로딩 유틸리티(`phx-click-loading`, `phx-loading`) 만 유지하며, 그 외 폼/모달/토스트 관련 규칙은 daisyUI 에 위임합니다.
 
 ## 개발
 

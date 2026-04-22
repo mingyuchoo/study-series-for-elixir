@@ -30,18 +30,18 @@ defmodule WebWeb.McpLive.Index do
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto p-6">
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-3xl font-bold">MCP 서버 관리</h1>
-          <p class="text-base-content/60">Model Context Protocol 서버 설정을 관리합니다.</p>
-        </div>
-        <.link navigate={~p"/admin/mcps/new"} class="btn btn-primary gap-2">
-          <.icon name="hero-plus" class="w-4 h-4" /> 새 MCP
-        </.link>
-      </div>
+      <.header>
+        MCP 서버 관리
+        <:subtitle>Model Context Protocol 서버 설정을 관리합니다.</:subtitle>
+        <:actions>
+          <.link navigate={~p"/admin/mcps/new"} class="btn btn-primary gap-2">
+            <.icon name="hero-plus" class="size-4" /> 새 MCP
+          </.link>
+        </:actions>
+      </.header>
 
-      <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
-        <table class="table">
+      <div class="card bg-base-100 shadow overflow-x-auto">
+        <table class="table table-zebra">
           <thead>
             <tr>
               <th>이름</th>
@@ -53,49 +53,56 @@ defmodule WebWeb.McpLive.Index do
             </tr>
           </thead>
           <tbody>
-            <%= for mcp <- @mcps do %>
-              <tr>
-                <td class="font-semibold">{mcp.name}</td>
-                <td class="text-xs font-mono">
-                  {mcp.command} {Enum.join(mcp.args, " ")}
-                </td>
-                <td class="text-xs">
-                  <%= for {k, _v} <- (mcp.env || %{}) do %>
-                    <span class="badge badge-ghost badge-sm">{k}</span>
-                  <% end %>
-                </td>
-                <td>
-                  <span class={status_badge(mcp.status)}>{status_label(mcp.status)}</span>
-                </td>
-                <td>
-                  <button phx-click="toggle" phx-value-id={mcp.id} class="btn btn-ghost btn-xs">
-                    <input type="checkbox" class="toggle toggle-sm" checked={mcp.enabled} />
+            <tr :for={mcp <- @mcps}>
+              <td class="font-semibold">{mcp.name}</td>
+              <td class="text-xs font-mono">
+                {mcp.command} {Enum.join(mcp.args, " ")}
+              </td>
+              <td class="text-xs">
+                <span :for={{k, _v} <- mcp.env || %{}} class="badge badge-ghost badge-sm mr-1">
+                  {k}
+                </span>
+              </td>
+              <td>
+                <span class={["badge gap-1", status_badge(mcp.status)]}>
+                  <span class={["status", status_dot(mcp.status)]} />
+                  {status_label(mcp.status)}
+                </span>
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  class="toggle toggle-sm"
+                  checked={mcp.enabled}
+                  phx-click="toggle"
+                  phx-value-id={mcp.id}
+                  aria-label="MCP 활성화"
+                />
+              </td>
+              <td>
+                <div class="join">
+                  <.link
+                    navigate={~p"/admin/mcps/#{mcp.id}/edit"}
+                    class="btn btn-ghost btn-xs join-item"
+                  >
+                    편집
+                  </.link>
+                  <button
+                    phx-click="delete"
+                    phx-value-id={mcp.id}
+                    data-confirm="삭제하시겠습니까?"
+                    class="btn btn-ghost btn-xs text-error join-item"
+                  >
+                    삭제
                   </button>
-                </td>
-                <td>
-                  <div class="flex gap-1">
-                    <.link navigate={~p"/admin/mcps/#{mcp.id}/edit"} class="btn btn-ghost btn-xs">
-                      편집
-                    </.link>
-                    <button
-                      phx-click="delete"
-                      phx-value-id={mcp.id}
-                      data-confirm="삭제하시겠습니까?"
-                      class="btn btn-ghost btn-xs text-error"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            <% end %>
-            <%= if @mcps == [] do %>
-              <tr>
-                <td colspan="6" class="text-center opacity-50 py-8">
-                  등록된 MCP가 없습니다.
-                </td>
-              </tr>
-            <% end %>
+                </div>
+              </td>
+            </tr>
+            <tr :if={@mcps == []}>
+              <td colspan="6" class="text-center opacity-50 py-8">
+                등록된 MCP가 없습니다.
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -103,9 +110,13 @@ defmodule WebWeb.McpLive.Index do
     """
   end
 
-  defp status_badge(:ready), do: "badge badge-success gap-1"
-  defp status_badge(:unavailable), do: "badge badge-error gap-1"
-  defp status_badge(_), do: "badge badge-ghost gap-1"
+  defp status_badge(:ready), do: "badge-success"
+  defp status_badge(:unavailable), do: "badge-error"
+  defp status_badge(_), do: "badge-ghost"
+
+  defp status_dot(:ready), do: "status-success"
+  defp status_dot(:unavailable), do: "status-error"
+  defp status_dot(_), do: "status-neutral"
 
   defp status_label(:ready), do: "사용 가능"
   defp status_label(:unavailable), do: "환경변수 누락"

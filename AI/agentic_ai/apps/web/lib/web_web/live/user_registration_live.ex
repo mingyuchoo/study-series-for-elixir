@@ -6,7 +6,7 @@ defmodule WebWeb.UserRegistrationLive do
 
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen hero bg-base-200">
+    <div class="hero min-h-[calc(100vh-4rem)]">
       <div class="hero-content flex-col w-full max-w-md">
         <div class="text-center">
           <h1 class="text-3xl font-bold">계정 만들기</h1>
@@ -17,7 +17,7 @@ defmodule WebWeb.UserRegistrationLive do
         </div>
 
         <div class="card bg-base-100 shadow-xl w-full">
-          <div class="card-body">
+          <div class="card-body gap-4">
             <.form
               for={@form}
               id="registration_form"
@@ -26,40 +26,22 @@ defmodule WebWeb.UserRegistrationLive do
               phx-trigger-action={@trigger_submit}
               action={~p"/users/log_in?_action=registered"}
               method="post"
-              class="space-y-4"
             >
-              <div class="form-control">
-                <label class="label" for={@form[:email].id}>
-                  <span class="label-text">이메일</span>
-                </label>
-                <input
-                  type="email"
-                  name={@form[:email].name}
-                  id={@form[:email].id}
-                  value={Phoenix.HTML.Form.normalize_value("email", @form[:email].value)}
-                  required
-                  autocomplete="username"
-                  class="input input-bordered w-full"
-                />
-                <.error_list field={@form[:email]} />
-              </div>
-
-              <div class="form-control">
-                <label class="label" for={@form[:password].id}>
-                  <span class="label-text">비밀번호 (최소 8자)</span>
-                </label>
-                <input
-                  type="password"
-                  name={@form[:password].name}
-                  id={@form[:password].id}
-                  required
-                  autocomplete="new-password"
-                  class="input input-bordered w-full"
-                />
-                <.error_list field={@form[:password]} />
-              </div>
-
-              <button type="submit" phx-disable-with="생성 중..." class="btn btn-primary btn-block">
+              <.input
+                field={@form[:email]}
+                type="email"
+                label="이메일"
+                autocomplete="username"
+                required
+              />
+              <.input
+                field={@form[:password]}
+                type="password"
+                label="비밀번호 (최소 8자)"
+                autocomplete="new-password"
+                required
+              />
+              <button type="submit" phx-disable-with="생성 중..." class="btn btn-primary btn-block mt-2">
                 계정 만들기
               </button>
             </.form>
@@ -109,21 +91,5 @@ defmodule WebWeb.UserRegistrationLive do
     else
       assign(socket, form: form)
     end
-  end
-
-  attr :field, Phoenix.HTML.FormField, required: true
-
-  defp error_list(assigns) do
-    ~H"""
-    <%= for msg <- Enum.map(@field.errors, &render_error/1) do %>
-      <div class="text-error text-sm mt-1">{msg}</div>
-    <% end %>
-    """
-  end
-
-  defp render_error({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", to_string(value))
-    end)
   end
 end

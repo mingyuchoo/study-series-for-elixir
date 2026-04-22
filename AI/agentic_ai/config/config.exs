@@ -17,6 +17,7 @@ config :core,
   azure_openai_endpoint: System.get_env("AZURE_OPENAI_ENDPOINT"),
   azure_openai_api_key: System.get_env("AZURE_OPENAI_API_KEY"),
   azure_openai_api_version: System.get_env("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
+  azure_openai_deployment: System.get_env("AZURE_OPENAI_DEPLOYMENT", "gpt-5-mini"),
   workspace_dir: Path.expand("../workspace", __DIR__)
 
 # Web 앱 설정
@@ -40,6 +41,10 @@ config :logger, :console,
 
 # JSON 라이브러리
 config :phoenix, :json_library, Jason
+
+# MIME 타입 추가: .log 파일을 LiveView allow_upload 에서 허용하기 위해 등록.
+# 변경 후에는 `mix deps.clean mime --build` + `mix compile` 가 필요합니다.
+config :mime, :extensions, %{"log" => "text/plain"}
 
 # esbuild 설정 (버전 필수)
 config :esbuild,

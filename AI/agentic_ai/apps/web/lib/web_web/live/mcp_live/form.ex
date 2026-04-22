@@ -110,100 +110,57 @@ defmodule WebWeb.McpLive.Form do
         <h1 class="text-3xl font-bold mt-1">{@page_title}</h1>
       </div>
 
-      <.form for={@form} phx-change="validate" phx-submit="save" class="space-y-4">
-        <div class="form-control">
-          <label class="label"><span class="label-text">이름 (unique)</span></label>
-          <input
-            type="text"
-            name={@form[:name].name}
-            value={@form[:name].value}
-            class="input input-bordered"
-            placeholder="예: firecrawl"
-            required
-          />
-          <.errors field={@form[:name]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label"><span class="label-text">실행 명령</span></label>
-          <input
-            type="text"
-            name={@form[:command].name}
-            value={@form[:command].value}
-            class="input input-bordered font-mono"
-            placeholder="예: npx"
-            required
-          />
-          <.errors field={@form[:command]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">인자 (공백 구분)</span>
-          </label>
-          <input
-            type="text"
-            name={@form[:args].name}
-            value={args_string(@form[:args].value)}
-            class="input input-bordered font-mono"
-            placeholder="-y firecrawl-mcp"
-          />
-          <.errors field={@form[:args]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">환경 변수 (JSON)</span>
-          </label>
-          <textarea
-            name={@form[:env].name}
-            rows="4"
-            class="textarea textarea-bordered font-mono text-xs"
-          >{env_string(@form[:env].value)}</textarea>
-          <div class="label">
-            <span class="label-text-alt opacity-60">
-              {"${VAR_NAME} 형식으로 시스템 환경변수 참조 가능 (예: {\"API_KEY\": \"${FIRECRAWL_API_KEY}\"})"}
-            </span>
-          </div>
-          <.errors field={@form[:env]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label cursor-pointer justify-start gap-2">
-            <input
-              type="hidden"
-              name={@form[:enabled].name}
-              value="false"
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <.form for={@form} phx-change="validate" phx-submit="save">
+            <.input
+              field={@form[:name]}
+              type="text"
+              label="이름 (unique)"
+              placeholder="예: firecrawl"
+              required
             />
-            <input
-              type="checkbox"
-              name={@form[:enabled].name}
-              value="true"
-              checked={@form[:enabled].value in [true, "true"]}
-              class="checkbox"
+
+            <.input
+              field={@form[:command]}
+              type="text"
+              label="실행 명령"
+              placeholder="예: npx"
+              class="w-full input font-mono"
+              required
             />
-            <span class="label-text">활성화</span>
-          </label>
+
+            <.input
+              field={@form[:args]}
+              type="text"
+              label="인자 (공백 구분)"
+              value={args_string(@form[:args].value)}
+              class="w-full input font-mono"
+              placeholder="-y firecrawl-mcp"
+            />
+
+            <.input
+              field={@form[:env]}
+              type="textarea"
+              label="환경 변수 (JSON)"
+              rows="4"
+              value={env_string(@form[:env].value)}
+              class="w-full textarea font-mono text-xs"
+            />
+            <p class="text-xs opacity-60 -mt-1 mb-2">
+              {~s[${VAR_NAME} 형식으로 시스템 환경변수 참조 가능 (예: {"API_KEY": "${FIRECRAWL_API_KEY}"})]}
+            </p>
+
+            <.input field={@form[:enabled]} type="checkbox" label="활성화" />
+
+            <div class="flex gap-2 pt-4">
+              <button type="submit" phx-disable-with="저장 중..." class="btn btn-primary">저장</button>
+              <.link navigate={~p"/admin/mcps"} class="btn btn-ghost">취소</.link>
+            </div>
+          </.form>
         </div>
-
-        <div class="flex gap-2 pt-4">
-          <button type="submit" phx-disable-with="저장 중..." class="btn btn-primary">저장</button>
-          <.link navigate={~p"/admin/mcps"} class="btn btn-ghost">취소</.link>
-        </div>
-      </.form>
-    </div>
-    """
-  end
-
-  attr :field, Phoenix.HTML.FormField, required: true
-
-  defp errors(assigns) do
-    ~H"""
-    <%= for {msg, opts} <- @field.errors do %>
-      <div class="text-error text-sm mt-1">
-        {Enum.reduce(opts, msg, fn {k, v}, acc -> String.replace(acc, "%{#{k}}", to_string(v)) end)}
       </div>
-    <% end %>
+    </div>
     """
   end
 

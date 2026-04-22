@@ -110,170 +110,95 @@ defmodule WebWeb.AgentLive.Form do
         <h1 class="text-3xl font-bold mt-1">{@page_title}</h1>
       </div>
 
-      <.form for={@form} phx-change="validate" phx-submit="save" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">유형</span></label>
-            <select
-              name={@form[:type].name}
-              class="select select-bordered w-full"
-              value={@form[:type].value}
-            >
-              <option value="supervisor" selected={to_string(@form[:type].value) == "supervisor"}>
-                supervisor
-              </option>
-              <option value="worker" selected={to_string(@form[:type].value) == "worker"}>
-                worker
-              </option>
-            </select>
-            <.errors field={@form[:type]} />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">상태</span></label>
-            <select
-              name={@form[:status].name}
-              class="select select-bordered w-full"
-              value={@form[:status].value}
-            >
-              <option value="active" selected={to_string(@form[:status].value) == "active"}>
-                active
-              </option>
-              <option value="disabled" selected={to_string(@form[:status].value) == "disabled"}>
-                disabled
-              </option>
-            </select>
-            <.errors field={@form[:status]} />
-          </div>
-        </div>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <.form for={@form} phx-change="validate" phx-submit="save">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <.input
+                field={@form[:type]}
+                type="select"
+                label="유형"
+                options={[{"supervisor", "supervisor"}, {"worker", "worker"}]}
+              />
+              <.input
+                field={@form[:status]}
+                type="select"
+                label="상태"
+                options={[{"active", "active"}, {"disabled", "disabled"}]}
+              />
+            </div>
 
-        <div class="form-control">
-          <label class="label"><span class="label-text">내부 이름 (unique)</span></label>
-          <input
-            type="text"
-            name={@form[:name].name}
-            value={@form[:name].value}
-            class="input input-bordered"
-            placeholder="예: calculator_worker"
-            required
-          />
-          <.errors field={@form[:name]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label"><span class="label-text">표시 이름</span></label>
-          <input
-            type="text"
-            name={@form[:display_name].name}
-            value={@form[:display_name].value}
-            class="input input-bordered"
-            placeholder="예: 계산 전문가"
-          />
-          <.errors field={@form[:display_name]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label"><span class="label-text">설명</span></label>
-          <input
-            type="text"
-            name={@form[:description].name}
-            value={@form[:description].value}
-            class="input input-bordered"
-          />
-          <.errors field={@form[:description]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label"><span class="label-text">시스템 프롬프트</span></label>
-          <textarea
-            name={@form[:system_prompt].name}
-            rows="8"
-            class="textarea textarea-bordered font-mono text-xs"
-          >{@form[:system_prompt].value}</textarea>
-          <.errors field={@form[:system_prompt]} />
-        </div>
-
-        <div class="grid grid-cols-3 gap-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">모델</span></label>
-            <input
+            <.input
+              field={@form[:name]}
               type="text"
-              name={@form[:model].name}
-              value={@form[:model].value}
-              class="input input-bordered"
+              label="내부 이름 (unique)"
+              placeholder="예: calculator_worker"
+              required
             />
-            <.errors field={@form[:model]} />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Temperature (0-2)</span></label>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="2"
-              name={@form[:temperature].name}
-              value={@form[:temperature].value}
-              class="input input-bordered"
+
+            <.input
+              field={@form[:display_name]}
+              type="text"
+              label="표시 이름"
+              placeholder="예: 계산 전문가"
             />
-            <.errors field={@form[:temperature]} />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">Max Iterations</span></label>
-            <input
-              type="number"
-              min="1"
-              max="50"
-              name={@form[:max_iterations].name}
-              value={@form[:max_iterations].value}
-              class="input input-bordered"
+
+            <.input field={@form[:description]} type="text" label="설명" />
+
+            <.input
+              field={@form[:system_prompt]}
+              type="textarea"
+              label="시스템 프롬프트"
+              rows="8"
+              class="w-full textarea font-mono text-xs"
             />
-            <.errors field={@form[:max_iterations]} />
-          </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <.input field={@form[:model]} type="text" label="모델" />
+              <.input
+                field={@form[:temperature]}
+                type="number"
+                label="Temperature (0-2)"
+                step="0.1"
+                min="0"
+                max="2"
+              />
+              <.input
+                field={@form[:max_iterations]}
+                type="number"
+                label="Max Iterations"
+                min="1"
+                max="50"
+              />
+            </div>
+
+            <.input
+              field={@form[:enabled_tools]}
+              type="text"
+              label="활성 도구 (콤마 구분)"
+              value={tools_string(@form[:enabled_tools].value)}
+              placeholder="calculator, web_search, get_current_time"
+            />
+
+            <.input
+              field={@form[:config]}
+              type="textarea"
+              label="Config (JSON)"
+              rows="3"
+              value={config_string(@form[:config].value)}
+              class="w-full textarea font-mono text-xs"
+            />
+
+            <div class="flex gap-2 pt-4">
+              <button type="submit" phx-disable-with="저장 중..." class="btn btn-primary">
+                저장
+              </button>
+              <.link navigate={~p"/admin/agents"} class="btn btn-ghost">취소</.link>
+            </div>
+          </.form>
         </div>
-
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">활성 도구 (콤마 구분)</span>
-          </label>
-          <input
-            type="text"
-            name={@form[:enabled_tools].name}
-            value={tools_string(@form[:enabled_tools].value)}
-            class="input input-bordered"
-            placeholder="calculator, web_search, get_current_time"
-          />
-          <.errors field={@form[:enabled_tools]} />
-        </div>
-
-        <div class="form-control">
-          <label class="label"><span class="label-text">Config (JSON)</span></label>
-          <textarea
-            name={@form[:config].name}
-            rows="3"
-            class="textarea textarea-bordered font-mono text-xs"
-          >{config_string(@form[:config].value)}</textarea>
-          <.errors field={@form[:config]} />
-        </div>
-
-        <div class="flex gap-2 pt-4">
-          <button type="submit" phx-disable-with="저장 중..." class="btn btn-primary">
-            저장
-          </button>
-          <.link navigate={~p"/admin/agents"} class="btn btn-ghost">취소</.link>
-        </div>
-      </.form>
-    </div>
-    """
-  end
-
-  attr :field, Phoenix.HTML.FormField, required: true
-
-  defp errors(assigns) do
-    ~H"""
-    <%= for {msg, opts} <- @field.errors do %>
-      <div class="text-error text-sm mt-1">
-        {Enum.reduce(opts, msg, fn {k, v}, acc -> String.replace(acc, "%{#{k}}", to_string(v)) end)}
       </div>
-    <% end %>
+    </div>
     """
   end
 

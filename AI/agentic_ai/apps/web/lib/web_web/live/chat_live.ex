@@ -159,7 +159,7 @@ defmodule WebWeb.ChatLive do
     input = String.trim(socket.assigns.input)
 
     cond do
-      not socket.assigns.current_conversation ->
+      is_nil(socket.assigns.current_conversation) ->
         {:noreply, socket}
 
       input == "" and socket.assigns.uploads.attachments.entries == [] ->
@@ -211,9 +211,19 @@ defmodule WebWeb.ChatLive do
     liveview_pid = self()
 
     Task.start(fn ->
-      case SupervisorAgent.stream_chat(conversation_id, input, liveview_pid) do
-        {:ok, _response} -> :ok
-        {:error, reason} -> send(liveview_pid, {:stream_error, conversation_id, reason})
+      try do
+        case SupervisorAgent.stream_chat(conversation_id, input, liveview_pid) do
+          {:ok, _response} -> :ok
+          {:error, reason} -> send(liveview_pid, {:stream_error, conversation_id, reason})
+        end
+      catch
+        # GenServer.call 타임아웃/exit 등으로 Task 가 죽으면 LiveView 가
+        # "실시간 응답 중" 상태에 영구히 머무르므로 명시적으로 오류를 알린다.
+        :exit, reason ->
+          send(liveview_pid, {:stream_error, conversation_id, {:exit, reason}})
+
+        kind, reason ->
+          send(liveview_pid, {:stream_error, conversation_id, {kind, reason}})
       end
     end)
 
@@ -405,26 +415,23 @@ defmodule WebWeb.ChatLive do
   def render(assigns) do
     ~H"""
     <div class="flex h-[calc(100vh-4rem)] bg-base-100">
-      <!-- Sidebar -->
-      <div class="w-64 bg-base-200 text-base-content flex flex-col border-r border-base-300">
-        <div class="p-4 border-b border-base-300">
-          <button phx-click="new_conversation" class="btn btn-primary btn-block gap-2">
-            <.icon name="hero-plus" class="w-4 h-4" /> New Chat
+      <aside class="w-64 shrink-0 bg-base-200 flex flex-col border-r border-base-300">
+        <div class="p-3 border-b border-base-300">
+          <button phx-click="new_conversation" class="btn btn-primary btn-block btn-sm gap-2">
+            <.icon name="hero-plus" class="size-4" /> 새 대화
           </button>
         </div>
 
         <ul class="menu menu-sm flex-1 overflow-y-auto p-2 gap-1">
           <%= for conv <- @conversations do %>
-            <li>
-              <div class={[
-                "group flex items-center justify-between",
-                @current_conversation && @current_conversation.id == conv.id && "active"
-              ]}>
-                <div
-                  phx-click="select_conversation"
-                  phx-value-id={conv.id}
-                  class="flex-1 min-w-0 cursor-pointer"
-                >
+            <% active? = @current_conversation && @current_conversation.id == conv.id %>
+            <li class="group">
+              <a
+                phx-click="select_conversation"
+                phx-value-id={conv.id}
+                class={["pr-1", active? && "menu-active"]}
+              >
+                <div class="flex-1 min-w-0">
                   <div class="truncate text-sm font-medium">{conv.title}</div>
                   <div class="text-xs opacity-50">
                     {Calendar.strftime(conv.inserted_at, "%Y-%m-%d %H:%M")}
@@ -437,9 +444,9 @@ defmodule WebWeb.ChatLive do
                   class="btn btn-ghost btn-xs btn-circle text-error opacity-0 group-hover:opacity-100"
                   title="대화 삭제"
                 >
-                  <.icon name="hero-trash" class="w-4 h-4" />
+                  <.icon name="hero-trash" class="size-4" />
                 </button>
-              </div>
+              </a>
             </li>
           <% end %>
         </ul>
@@ -448,24 +455,22 @@ defmodule WebWeb.ChatLive do
           <li class="menu-title">사용 가능한 MCP</li>
           <%= if @available_mcps == [] do %>
             <li class="disabled">
-              <span class="text-xs italic opacity-40">설정된 MCP가 없습니다</span>
+              <span class="italic opacity-50">설정된 MCP가 없습니다</span>
             </li>
           <% else %>
             <%= for mcp <- @available_mcps do %>
               <li>
-                <div class="flex items-center gap-2">
-                  <div class="badge badge-secondary badge-sm">
-                    <.icon name="hero-server" class="w-3 h-3" />
-                  </div>
+                <div class="items-center">
+                  <span
+                    class={["status", mcp_status_class(mcp.status)]}
+                    title={mcp_status_label(mcp.status)}
+                  />
                   <div class="flex-1 min-w-0">
-                    <div class="truncate font-medium text-secondary">{mcp.name}</div>
+                    <div class="truncate font-medium">{mcp.name}</div>
                     <div class="truncate text-xs opacity-50">
                       {mcp.command} {Enum.join(mcp.args, " ")}
                     </div>
                   </div>
-                  <span class={mcp_status_indicator_class(mcp.status)}>
-                    <span class={mcp_status_dot_class(mcp.status)}></span>
-                  </span>
                 </div>
               </li>
             <% end %>
@@ -477,136 +482,105 @@ defmodule WebWeb.ChatLive do
           <%= for agent <- @available_agents do %>
             <% usage_info = find_agent_usage(@agent_usage_history, agent.id) %>
             <li>
-              <div class={["flex items-center gap-2", usage_info && "active"]}>
+              <div class={["items-center", usage_info && "menu-active"]}>
                 <%= if usage_info do %>
-                  <div class="badge badge-primary badge-sm font-bold">{usage_info.order}</div>
+                  <span class="badge badge-primary badge-sm font-bold">{usage_info.order}</span>
                 <% else %>
-                  <div class="badge badge-ghost badge-sm">-</div>
+                  <span class="badge badge-ghost badge-sm">-</span>
                 <% end %>
                 <div class="flex-1 min-w-0">
                   <div class="truncate font-medium">{agent.display_name || agent.name}</div>
-                  <%= if agent.description do %>
-                    <div class="truncate text-xs opacity-50">{agent.description}</div>
-                  <% end %>
+                  <div :if={agent.description} class="truncate text-xs opacity-50">
+                    {agent.description}
+                  </div>
                 </div>
-                <%= if usage_info do %>
-                  <.icon name="hero-check-circle" class="w-4 h-4 text-success" />
-                <% end %>
+                <.icon :if={usage_info} name="hero-check-circle" class="size-4 text-success" />
               </div>
             </li>
           <% end %>
         </ul>
-      </div>
+      </aside>
 
-    <!-- Main Chat Area -->
-      <div class="flex-1 flex flex-col">
-        <div class="navbar bg-base-100 border-b border-base-300 shadow-sm px-4">
-          <div class="flex-1">
-            <div>
-              <h1 class="text-xl font-semibold">
-                {if @current_conversation,
-                  do: @current_conversation.title,
-                  else: "Agentic AI Assistant"}
-              </h1>
-              <p class="text-sm text-base-content/50">Powered by Azure OpenAI</p>
-            </div>
+      <section class="flex-1 flex flex-col min-w-0">
+        <div class="navbar bg-base-100 border-b border-base-300 shadow-sm min-h-14 px-4">
+          <div class="flex-1 flex-col items-start">
+            <h1 class="text-xl font-semibold">
+              {if @current_conversation,
+                do: @current_conversation.title,
+                else: "Agentic AI Assistant"}
+            </h1>
+            <p class="text-xs text-base-content/50">Powered by Azure OpenAI</p>
           </div>
           <div class="flex-none">
-            <%= if @current_conversation do %>
-              <button
-                phx-click="delete_conversation"
-                phx-value-id={@current_conversation.id}
-                data-confirm="이 대화를 삭제하시겠습니까?"
-                class="btn btn-ghost btn-sm text-error gap-2"
-              >
-                <.icon name="hero-trash" class="w-4 h-4" /> 삭제
-              </button>
-            <% end %>
+            <button
+              :if={@current_conversation}
+              phx-click="delete_conversation"
+              phx-value-id={@current_conversation.id}
+              data-confirm="이 대화를 삭제하시겠습니까?"
+              class="btn btn-ghost btn-sm text-error gap-2"
+            >
+              <.icon name="hero-trash" class="size-4" /> 삭제
+            </button>
           </div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 space-y-2" id="messages">
-          <%= if @messages == [] and @current_conversation do %>
-            <div class="hero min-h-[50vh]">
-              <div class="hero-content text-center">
-                <div class="max-w-md">
-                  <h2 class="text-2xl font-bold">대화를 시작하세요!</h2>
-                  <p class="py-4 text-base-content/60">
-                    AI 어시스턴트가 다양한 도구를 활용해 도움을 드립니다.
-                  </p>
-                </div>
+          <div :if={@messages == [] and @current_conversation} class="hero min-h-[50vh]">
+            <div class="hero-content text-center">
+              <div class="max-w-md">
+                <h2 class="text-2xl font-bold">대화를 시작하세요!</h2>
+                <p class="py-4 text-base-content/60">
+                  AI 어시스턴트가 다양한 도구를 활용해 도움을 드립니다.
+                </p>
               </div>
             </div>
-          <% end %>
+          </div>
 
-          <%= for message <- @messages do %>
-            <div class={[
-              "chat",
-              (message.role in [:user, "user"] && "chat-end") || "chat-start"
-            ]}>
-              <div class="chat-header text-xs opacity-60 mb-1">{role_label(message.role)}</div>
-              <div class={["chat-bubble", chat_bubble_class(message.role)]}>
-                <%= if message.role in [:assistant, "assistant"] do %>
-                  <div class="prose prose-sm max-w-none">
-                    {render_markdown(message.content)}
-                  </div>
-                <% else %>
-                  <div class="whitespace-pre-wrap">{message.content}</div>
-                <% end %>
-                <.attachments_list attachments={Map.get(message, :attachments) || []} />
-              </div>
+          <div
+            :for={message <- @messages}
+            class={["chat", chat_align_class(message.role)]}
+          >
+            <div class="chat-header text-xs opacity-60 mb-1">{role_label(message.role)}</div>
+            <div class={["chat-bubble", chat_bubble_class(message.role)]}>
+              <%= if message.role in [:assistant, "assistant"] do %>
+                <div class="prose prose-sm max-w-none">
+                  {render_markdown(message.content)}
+                </div>
+              <% else %>
+                <div class="whitespace-pre-wrap">{message.content}</div>
+              <% end %>
+              <.attachments_list attachments={Map.get(message, :attachments) || []} />
             </div>
-          <% end %>
+          </div>
 
           <%= if @loading do %>
             <%= if @streaming_content != "" or @streaming_status do %>
               <div class="chat chat-start">
                 <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-2">
                   Assistant
-                  <%= case @streaming_status do %>
-                    <% :streaming -> %>
-                      <span class="badge badge-info badge-sm gap-1">
-                        <span class="loading loading-dots loading-xs"></span> 실시간 응답 중
-                      </span>
-                    <% {:tool_executing, tool_names} -> %>
-                      <span class="badge badge-warning badge-sm gap-1">
-                        <span class="loading loading-spinner loading-xs"></span>
-                        {Enum.join(tool_names, ", ")}
-                      </span>
-                    <% :postprocessing -> %>
-                      <span class="badge badge-secondary badge-sm gap-1">
-                        <.icon name="hero-sparkles" class="w-3 h-3 animate-pulse" /> 응답 다듬는 중
-                      </span>
-                    <% :finishing -> %>
-                      <span class="badge badge-success badge-sm gap-1">
-                        <.icon name="hero-check-circle" class="w-3 h-3" /> 완료 중
-                      </span>
-                    <% _ -> %>
-                      <span class="badge badge-ghost badge-sm">처리 중</span>
-                  <% end %>
+                  <.streaming_status_badge status={@streaming_status} />
                 </div>
                 <div class="chat-bubble chat-bubble-accent">
                   <%= if @streaming_content != "" do %>
                     <div class="prose prose-sm max-w-none">
                       {render_markdown(@streaming_content)}
                     </div>
-                    <span class="inline-block w-2 h-4 bg-primary animate-pulse ml-1"></span>
+                    <span class="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
                   <% else %>
-                    <span class="loading loading-dots loading-md"></span>
+                    <span class="loading loading-dots loading-md" />
                   <% end %>
                 </div>
               </div>
             <% else %>
               <div class="chat chat-start">
                 <div class="chat-bubble chat-bubble-accent">
-                  <span class="loading loading-dots loading-md"></span>
+                  <span class="loading loading-dots loading-md" />
                 </div>
               </div>
             <% end %>
           <% end %>
         </div>
 
-    <!-- Input -->
         <%= if @current_conversation do %>
           <div class="bg-base-100 border-t border-base-300 p-4 space-y-2">
             <form
@@ -615,37 +589,39 @@ defmodule WebWeb.ChatLive do
               phx-change="validate_upload"
               class="space-y-2"
             >
-              <!-- 업로드된 파일 미리보기 -->
-              <%= if @uploads.attachments.entries != [] do %>
-                <div class="flex flex-wrap gap-2">
-                  <%= for entry <- @uploads.attachments.entries do %>
-                    <div class="badge badge-lg gap-2">
-                      <.icon name="hero-paper-clip" class="w-3 h-3" />
-                      <span class="text-xs">{entry.client_name}</span>
-                      <%= if entry.progress > 0 and entry.progress < 100 do %>
-                        <span class="text-xs">{entry.progress}%</span>
-                      <% end %>
-                      <button
-                        type="button"
-                        phx-click="cancel_upload"
-                        phx-value-ref={entry.ref}
-                        class="btn btn-ghost btn-xs btn-circle"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  <% end %>
+              <div :if={@uploads.attachments.entries != []} class="flex flex-wrap gap-2">
+                <div
+                  :for={entry <- @uploads.attachments.entries}
+                  class="badge badge-lg badge-outline gap-2"
+                >
+                  <.icon name="hero-paper-clip" class="size-3" />
+                  <span class="text-xs">{entry.client_name}</span>
+                  <span :if={entry.progress > 0 and entry.progress < 100} class="text-xs opacity-60">
+                    {entry.progress}%
+                  </span>
+                  <button
+                    type="button"
+                    phx-click="cancel_upload"
+                    phx-value-ref={entry.ref}
+                    class="btn btn-ghost btn-xs btn-circle"
+                    aria-label="첨부 취소"
+                  >
+                    ×
+                  </button>
                 </div>
-              <% end %>
-              <%= for err <- upload_errors(@uploads.attachments) do %>
-                <div class="alert alert-error py-2 text-xs">
-                  {error_to_string(err)}
-                </div>
-              <% end %>
+              </div>
+              <div
+                :for={err <- upload_errors(@uploads.attachments)}
+                role="alert"
+                class="alert alert-error alert-soft py-2 text-xs"
+              >
+                <.icon name="hero-exclamation-triangle" class="size-4" />
+                <span>{error_to_string(err)}</span>
+              </div>
 
               <div class="join w-full">
                 <label class="btn btn-ghost join-item" title="파일 첨부">
-                  <.icon name="hero-paper-clip" class="w-5 h-5" />
+                  <.icon name="hero-paper-clip" class="size-5" />
                   <.live_file_input upload={@uploads.attachments} class="hidden" />
                 </label>
                 <input
@@ -655,29 +631,66 @@ defmodule WebWeb.ChatLive do
                   phx-change="update_input"
                   placeholder="메시지를 입력하세요..."
                   disabled={@loading}
-                  class="input input-bordered join-item flex-1"
+                  class="input join-item flex-1"
                   autocomplete="off"
                 />
-                <button
-                  type="submit"
-                  disabled={@loading}
-                  class="btn btn-primary join-item gap-2"
-                >
-                  <.icon name="hero-paper-airplane" class="w-5 h-5" /> Send
+                <button type="submit" disabled={@loading} class="btn btn-primary join-item gap-2">
+                  <.icon name="hero-paper-airplane" class="size-5" /> 전송
                 </button>
               </div>
             </form>
           </div>
         <% else %>
           <div class="bg-base-100 border-t border-base-300 p-4">
-            <div class="alert alert-info">
-              <.icon name="hero-information-circle" class="w-5 h-5" />
+            <div role="alert" class="alert alert-info alert-soft">
+              <.icon name="hero-information-circle" class="size-5" />
               <span>대화를 선택하거나 새로 만들어 채팅을 시작하세요.</span>
             </div>
           </div>
         <% end %>
-      </div>
+      </section>
     </div>
+    """
+  end
+
+  attr :status, :any, required: true
+
+  defp streaming_status_badge(%{status: :streaming} = assigns) do
+    ~H"""
+    <span class="badge badge-info badge-sm gap-1">
+      <span class="loading loading-dots loading-xs" /> 실시간 응답 중
+    </span>
+    """
+  end
+
+  defp streaming_status_badge(%{status: {:tool_executing, _}} = assigns) do
+    ~H"""
+    <span class="badge badge-warning badge-sm gap-1">
+      <span class="loading loading-spinner loading-xs" />
+      {elem(@status, 1) |> Enum.join(", ")}
+    </span>
+    """
+  end
+
+  defp streaming_status_badge(%{status: :postprocessing} = assigns) do
+    ~H"""
+    <span class="badge badge-secondary badge-sm gap-1">
+      <.icon name="hero-sparkles" class="size-3 animate-pulse" /> 응답 다듬는 중
+    </span>
+    """
+  end
+
+  defp streaming_status_badge(%{status: :finishing} = assigns) do
+    ~H"""
+    <span class="badge badge-success badge-sm gap-1">
+      <.icon name="hero-check-circle" class="size-3" /> 완료 중
+    </span>
+    """
+  end
+
+  defp streaming_status_badge(assigns) do
+    ~H"""
+    <span class="badge badge-ghost badge-sm">처리 중</span>
     """
   end
 
@@ -700,6 +713,9 @@ defmodule WebWeb.ChatLive do
     <% end %>
     """
   end
+
+  defp chat_align_class(role) when role in [:user, "user"], do: "chat-end"
+  defp chat_align_class(_), do: "chat-start"
 
   defp chat_bubble_class(role) when role in [:user, "user"], do: "chat-bubble-primary"
   defp chat_bubble_class(role) when role in [:assistant, "assistant"], do: "chat-bubble-accent"
@@ -725,25 +741,13 @@ defmodule WebWeb.ChatLive do
 
   defp render_markdown(_), do: Phoenix.HTML.raw("")
 
-  defp mcp_status_indicator_class(status) do
-    base = "flex items-center justify-center w-5 h-5 rounded-full"
+  defp mcp_status_class(:ready), do: "status-success"
+  defp mcp_status_class(:unavailable), do: "status-error"
+  defp mcp_status_class(_), do: "status-neutral"
 
-    case status do
-      :ready -> "#{base} bg-success/20"
-      :unavailable -> "#{base} bg-error/20"
-      _ -> "#{base} bg-base-content/10"
-    end
-  end
-
-  defp mcp_status_dot_class(status) do
-    base = "w-2.5 h-2.5 rounded-full"
-
-    case status do
-      :ready -> "#{base} bg-success shadow-lg shadow-success/50"
-      :unavailable -> "#{base} bg-error shadow-lg shadow-error/50"
-      _ -> "#{base} bg-base-content/30"
-    end
-  end
+  defp mcp_status_label(:ready), do: "사용 가능"
+  defp mcp_status_label(:unavailable), do: "사용 불가"
+  defp mcp_status_label(_), do: "상태 미확인"
 
   defp error_to_string(:too_large), do: "파일이 너무 큽니다 (최대 10MB)."
   defp error_to_string(:too_many_files), do: "파일이 너무 많습니다 (최대 5개)."

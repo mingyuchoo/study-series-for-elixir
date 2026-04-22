@@ -22,7 +22,7 @@ defmodule Core.LLM.AzureOpenAI do
   @spec chat_completion([message()], completion_opts()) :: {:ok, map()} | {:error, term()}
   def chat_completion(messages, opts \\ []) do
     config = get_config()
-    model = Keyword.get(opts, :model, @default_model)
+    model = Keyword.get(opts, :model, config.deployment)
 
     # GPT-5-mini는 temperature 1.0만 지원
     default_temperature = if model == "gpt-5-mini", do: 1.0, else: 0.7
@@ -63,7 +63,7 @@ defmodule Core.LLM.AzureOpenAI do
           {:ok, map()} | {:error, term()}
   def stream_chat_completion(messages, opts \\ [], callback) do
     config = get_config()
-    model = Keyword.get(opts, :model, @default_model)
+    model = Keyword.get(opts, :model, config.deployment)
 
     # GPT-5-mini는 temperature 1.0만 지원
     default_temperature = if model == "gpt-5-mini", do: 1.0, else: 0.7
@@ -99,7 +99,10 @@ defmodule Core.LLM.AzureOpenAI do
     %{
       endpoint: Application.get_env(:core, :azure_openai_endpoint),
       api_key: Application.get_env(:core, :azure_openai_api_key),
-      api_version: Application.get_env(:core, :azure_openai_api_version, @default_api_version)
+      api_version: Application.get_env(:core, :azure_openai_api_version, @default_api_version),
+      # Azure 의 URL 경로는 모델명이 아니라 "배포(deployment) 이름" 이므로
+      # 환경 변수로 노출해 사용자가 자신의 리소스에 맞게 지정할 수 있게 한다.
+      deployment: Application.get_env(:core, :azure_openai_deployment, @default_model)
     }
   end
 

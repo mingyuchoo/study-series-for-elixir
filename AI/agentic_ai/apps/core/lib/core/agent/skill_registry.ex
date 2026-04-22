@@ -277,7 +277,13 @@ defmodule Core.Agent.SkillRegistry do
   end
 
   defp parse_markdown(content) do
-    case Regex.run(~r/^---\n(.*?)\n---\n(.*)$/s, content) do
+    # CRLF/CR 모두 LF 로 정규화하여 Windows 에서 저장된 SKILL.md 도 파싱 가능하게 한다.
+    normalized =
+      content
+      |> String.replace("\r\n", "\n")
+      |> String.replace("\r", "\n")
+
+    case Regex.run(~r/^---\n(.*?)\n---\n(.*)$/s, normalized) do
       [_, frontmatter, body] ->
         {:ok, parse_frontmatter(frontmatter), String.trim(body)}
 

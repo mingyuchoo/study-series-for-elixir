@@ -11,55 +11,39 @@ defmodule WebWeb.UserSettingsLive do
         <p class="text-base-content/60">이메일 주소와 비밀번호를 관리합니다.</p>
       </div>
 
-      <div class="card bg-base-100 shadow">
-        <div class="card-body">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body gap-3">
           <h2 class="card-title">이메일 변경</h2>
           <.form
             for={@email_form}
             id="email_form"
             phx-submit="update_email"
             phx-change="validate_email"
-            class="space-y-3"
           >
-            <div class="form-control">
-              <label class="label" for={@email_form[:email].id}>
-                <span class="label-text">새 이메일</span>
-              </label>
-              <input
-                type="email"
-                name={@email_form[:email].name}
-                id={@email_form[:email].id}
-                value={Phoenix.HTML.Form.normalize_value("email", @email_form[:email].value)}
-                required
-                class="input input-bordered w-full"
-              />
-              <.error_list field={@email_form[:email]} />
-            </div>
-
-            <div class="form-control">
-              <label class="label" for={@email_form[:current_password].id}>
-                <span class="label-text">현재 비밀번호</span>
-              </label>
-              <input
-                type="password"
-                name={@email_form[:current_password].name}
-                id={@email_form[:current_password].id}
-                value={@email_form_current_password}
-                required
-                class="input input-bordered w-full"
-              />
-              <.error_list field={@email_form[:current_password]} />
-            </div>
-
-            <button type="submit" phx-disable-with="변경 중..." class="btn btn-primary">
+            <.input
+              field={@email_form[:email]}
+              type="email"
+              label="새 이메일"
+              autocomplete="username"
+              required
+            />
+            <.input
+              field={@email_form[:current_password]}
+              type="password"
+              label="현재 비밀번호"
+              value={@email_form_current_password}
+              autocomplete="current-password"
+              required
+            />
+            <button type="submit" phx-disable-with="변경 중..." class="btn btn-primary mt-2">
               이메일 변경
             </button>
           </.form>
         </div>
       </div>
 
-      <div class="card bg-base-100 shadow">
-        <div class="card-body">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body gap-3">
           <h2 class="card-title">비밀번호 변경</h2>
           <.form
             for={@password_form}
@@ -69,7 +53,6 @@ defmodule WebWeb.UserSettingsLive do
             phx-change="validate_password"
             phx-submit="update_password"
             phx-trigger-action={@trigger_submit}
-            class="space-y-3"
           >
             <input
               name={@password_form[:email].name}
@@ -77,51 +60,29 @@ defmodule WebWeb.UserSettingsLive do
               id="hidden_email"
               value={@current_email}
             />
-
-            <div class="form-control">
-              <label class="label" for={@password_form[:password].id}>
-                <span class="label-text">새 비밀번호</span>
-              </label>
-              <input
-                type="password"
-                name={@password_form[:password].name}
-                id={@password_form[:password].id}
-                required
-                class="input input-bordered w-full"
-              />
-              <.error_list field={@password_form[:password]} />
-            </div>
-
-            <div class="form-control">
-              <label class="label" for={@password_form[:password_confirmation].id}>
-                <span class="label-text">새 비밀번호 확인</span>
-              </label>
-              <input
-                type="password"
-                name={@password_form[:password_confirmation].name}
-                id={@password_form[:password_confirmation].id}
-                required
-                class="input input-bordered w-full"
-              />
-              <.error_list field={@password_form[:password_confirmation]} />
-            </div>
-
-            <div class="form-control">
-              <label class="label" for={@password_form[:current_password].id}>
-                <span class="label-text">현재 비밀번호</span>
-              </label>
-              <input
-                type="password"
-                name={@password_form[:current_password].name}
-                id={@password_form[:current_password].id}
-                value={@current_password}
-                required
-                class="input input-bordered w-full"
-              />
-              <.error_list field={@password_form[:current_password]} />
-            </div>
-
-            <button type="submit" phx-disable-with="변경 중..." class="btn btn-primary">
+            <.input
+              field={@password_form[:password]}
+              type="password"
+              label="새 비밀번호"
+              autocomplete="new-password"
+              required
+            />
+            <.input
+              field={@password_form[:password_confirmation]}
+              type="password"
+              label="새 비밀번호 확인"
+              autocomplete="new-password"
+              required
+            />
+            <.input
+              field={@password_form[:current_password]}
+              type="password"
+              label="현재 비밀번호"
+              value={@current_password}
+              autocomplete="current-password"
+              required
+            />
+            <button type="submit" phx-disable-with="변경 중..." class="btn btn-primary mt-2">
               비밀번호 변경
             </button>
           </.form>
@@ -210,21 +171,5 @@ defmodule WebWeb.UserSettingsLive do
       {:error, changeset} ->
         {:noreply, assign(socket, password_form: to_form(changeset))}
     end
-  end
-
-  attr :field, Phoenix.HTML.FormField, required: true
-
-  defp error_list(assigns) do
-    ~H"""
-    <%= for msg <- Enum.map(@field.errors, &render_error/1) do %>
-      <div class="text-error text-sm mt-1">{msg}</div>
-    <% end %>
-    """
-  end
-
-  defp render_error({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", to_string(value))
-    end)
   end
 end

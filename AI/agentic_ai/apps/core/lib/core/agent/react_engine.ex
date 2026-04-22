@@ -159,53 +159,78 @@ defmodule Core.Agent.ReactEngine do
     }
 
     # 스트리밍 콜백 래퍼 - 청크를 수집하면서 실시간으로 콜백 호출
-    {final_state, _} =
+    {final_state, http_result} =
       stream_with_callback(formatted_messages, formatted_tools, stream_callback, state)
 
-    case final_state do
-      %{tool_calls: [], content: content} when content != "" ->
-        # 도구 호출 없음 - 최종 응답 반환
-        assistant_message = %{
-          role: "assistant",
-          content: content,
-          tool_calls: nil,
-          tool_call_id: nil
-        }
-
-        {:ok, content, messages ++ [assistant_message]}
-
-      %{tool_calls: tool_calls, content: content} when is_list(tool_calls) and tool_calls != [] ->
-        # 도구 호출 존재 - 도구 실행 후 루프 계속
-        # 도구 실행 중임을 알림
-        stream_callback.({:tool_execution, tool_calls})
-
-        assistant_message = %{
-          role: "assistant",
-          content: content || "",
-          tool_calls: tool_calls,
-          tool_call_id: nil
-        }
-
-        messages_after_assistant = messages ++ [assistant_message]
-        messages_after_tools = execute_tool_calls(messages_after_assistant, tool_calls)
-
-        # 도구 실행 완료 알림
-        stream_callback.({:tool_completed, tool_calls})
-
-        agent_loop_stream(
-          messages_after_tools,
-          tools,
-          stream_callback,
-          iteration + 1,
-          max_iterations
-        )
-
-      %{error: reason} ->
+    cond do
+      # HTTP 레벨 오류 (네트워크/타임아웃 등) - 즉시 전파
+      match?({:error, _}, http_result) ->
+        {:error, reason} = http_result
+        Logger.error("LLM streaming HTTP error: #{inspect(reason)}")
         {:error, reason}
 
-      _ ->
-        # 빈 응답 처리
-        {:ok, "", messages}
+      # HTTP 200 이 아닌 응답 (인증/요금/모델 오류 등) - 본문을 사유로 전파
+      match?({:ok, %Req.Response{status: status}} when status >= 400, http_result) ->
+        {:ok, %Req.Response{status: status, body: body}} = http_result
+
+        Logger.error(
+          "LLM streaming responded with HTTP #{status}: #{inspect(body, limit: 500)}"
+        )
+
+        {:error, {:http_error, status, body}}
+
+      true ->
+        case final_state do
+          %{tool_calls: [], content: content} when content != "" ->
+            # 도구 호출 없음 - 최종 응답 반환
+            assistant_message = %{
+              role: "assistant",
+              content: content,
+              tool_calls: nil,
+              tool_call_id: nil
+            }
+
+            {:ok, content, messages ++ [assistant_message]}
+
+          %{tool_calls: tool_calls, content: content}
+          when is_list(tool_calls) and tool_calls != [] ->
+            # 도구 호출 존재 - 도구 실행 후 루프 계속
+            # 도구 실행 중임을 알림
+            stream_callback.({:tool_execution, tool_calls})
+
+            assistant_message = %{
+              role: "assistant",
+              content: content || "",
+              tool_calls: tool_calls,
+              tool_call_id: nil
+            }
+
+            messages_after_assistant = messages ++ [assistant_message]
+            messages_after_tools = execute_tool_calls(messages_after_assistant, tool_calls)
+
+            # 도구 실행 완료 알림
+            stream_callback.({:tool_completed, tool_calls})
+
+            agent_loop_stream(
+              messages_after_tools,
+              tools,
+              stream_callback,
+              iteration + 1,
+              max_iterations
+            )
+
+          %{error: reason} ->
+            {:error, reason}
+
+          _ ->
+            # 빈 응답: 빈 문자열을 그대로 돌려주면 UI 가 빈 말풍선으로 보이므로
+            # 명시적인 오류로 승격시켜 사용자에게 원인을 노출한다.
+            Logger.warning(
+              "LLM streaming returned empty response. final_state=#{inspect(final_state)}"
+            )
+
+            {:error, :empty_response}
+        end
     end
   end
 

@@ -90,7 +90,9 @@ defmodule Core.Agent.ConfigLoader do
   Markdown 내용을 frontmatter와 body로 분리합니다.
   """
   def parse_markdown(content) do
-    case Regex.run(~r/^---\n(.*?)\n---\n(.*)$/s, content) do
+    normalized = String.replace(content, "\r\n", "\n")
+
+    case Regex.run(~r/^---\n(.*?)\n---\n(.*)$/s, normalized) do
       [_, frontmatter, body] ->
         {:ok, parse_frontmatter(frontmatter), String.trim(body)}
 

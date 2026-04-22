@@ -7,7 +7,13 @@ config :core, Core.Repo,
 
 # Web 개발 환경 설정
 config :web, WebWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  # 브라우저 새로고침/탭 닫기 등으로 연결이 중단될 때 Bandit/ThousandIsland 가
+  # :econnaborted GenServer terminating 로그를 매번 남기는 것을 억제합니다.
+  http: [
+    ip: {127, 0, 0, 1},
+    port: 4000,
+    thousand_island_options: [silent_terminate_on_error: true]
+  ],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

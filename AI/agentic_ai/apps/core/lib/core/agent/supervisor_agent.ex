@@ -194,6 +194,7 @@ defmodule Core.Agent.SupervisorAgent do
               agent_id: state.agent_id
             })
 
+            notify_stream_complete(liveview_pid, state.conversation_id, greeting)
             {:reply, {:ok, greeting}, new_state}
 
           {:complete, _state} ->
@@ -203,13 +204,23 @@ defmodule Core.Agent.SupervisorAgent do
       collecting_state
       when collecting_state in [:collecting_user_name, :collecting_agent_name, :collecting_city] ->
         # 프로필 수집 중 - 일반 응답 처리
-        process_profile_response(state, user_message)
+        process_profile_response(state, user_message, liveview_pid)
 
       :complete ->
         # 프로필 수집 완료, 스트리밍 처리
         process_streaming_message(state, user_message, liveview_pid)
     end
   end
+
+  # LiveView 가 스트리밍 응답을 기다리고 있는 경우 완료 알림을 전송한다.
+  # 프로필 수집처럼 GenServer 동기 응답으로 즉시 결과를 돌려줄 때도
+  # LiveView UI 가 "실시간 응답 중" 상태에 머무르지 않도록 동일한 메시지를 보낸다.
+  defp notify_stream_complete(liveview_pid, conversation_id, response)
+       when is_pid(liveview_pid) do
+    send(liveview_pid, {:stream_complete, conversation_id, response})
+  end
+
+  defp notify_stream_complete(_liveview_pid, _conversation_id, _response), do: :ok
 
   # 프로필 완료 여부 확인 및 수집 시작
   defp check_and_start_profile_collection(state) do
@@ -273,8 +284,12 @@ defmodule Core.Agent.SupervisorAgent do
     end
   end
 
+  # 프로필 응답 처리 (스트리밍 컨텍스트가 아닌 일반 호출용)
+  defp process_profile_response(state, user_message),
+    do: process_profile_response(state, user_message, nil)
+
   # 프로필 응답 처리
-  defp process_profile_response(state, user_message) do
+  defp process_profile_response(state, user_message, liveview_pid) do
     # 사용자 메시지 저장
     save_message(state.conversation_id, %{
       role: :user,
@@ -304,6 +319,7 @@ defmodule Core.Agent.SupervisorAgent do
         })
 
         new_state = %{state | profile_state: :collecting_agent_name, partial_profile: new_profile}
+        notify_stream_complete(liveview_pid, state.conversation_id, response)
         {:reply, {:ok, response}, new_state}
 
       :collecting_agent_name ->
@@ -329,6 +345,7 @@ defmodule Core.Agent.SupervisorAgent do
         })
 
         new_state = %{state | profile_state: :collecting_city, partial_profile: new_profile}
+        notify_stream_complete(liveview_pid, state.conversation_id, response)
         {:reply, {:ok, response}, new_state}
 
       :collecting_city ->
@@ -368,6 +385,7 @@ defmodule Core.Agent.SupervisorAgent do
         })
 
         new_state = %{state | profile_state: :complete, partial_profile: new_profile}
+        notify_stream_complete(liveview_pid, state.conversation_id, response)
         {:reply, {:ok, response}, new_state}
     end
   end
@@ -426,6 +444,10 @@ defmodule Core.Agent.SupervisorAgent do
 
         # 학습을 위한 오류 패턴 기록
         record_error_pattern(state, user_message, reason)
+
+        # LiveView 스트리밍 상태가 영원히 "응답 중" 으로 남지 않도록
+        # 오류 사유를 본문으로 담아 완료 알림을 전송한다.
+        send(liveview_pid, {:stream_complete, state.conversation_id, error_message})
 
         {:reply, error, state}
     end

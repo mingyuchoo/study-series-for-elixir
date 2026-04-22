@@ -19,7 +19,9 @@ module.exports = {
   plugins: [
     require("@tailwindcss/forms"),
     require("@tailwindcss/typography"),
-    require("./vendor/daisyui"),
+    // vendor/daisyui.js 는 ESM 스타일로 default 를 노출하므로 .default 로 풀어야 합니다.
+    require("./vendor/daisyui").default,
+    require("./vendor/heroicons"),
     // LiveView 클래스가 적용될 때만 규칙을 추가하도록
     // tailwind 클래스에 LiveView 클래스 접두사를 붙일 수 있습니다, 예:
     //
