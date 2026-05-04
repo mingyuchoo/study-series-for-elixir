@@ -699,7 +699,7 @@ defmodule WebWeb.ChatLive do
           </button>
         </div>
 
-        <ul class="menu menu-sm flex-1 overflow-y-auto p-2 gap-1">
+        <ul class="menu menu-sm flex-1 w-full overflow-y-auto p-2 gap-1">
           <%= for conv <- @conversations do %>
             <% active? = @current_conversation && @current_conversation.id == conv.id %>
             <li class="group">
@@ -728,12 +728,12 @@ defmodule WebWeb.ChatLive do
           <% end %>
         </ul>
 
-        <ul class="menu menu-xs border-t border-base-300 p-2">
+        <ul class="menu menu-xs w-full border-t border-base-300 p-2">
           <li class="menu-title">사용 가능한 에이전트</li>
           <%= for agent <- @available_agents do %>
             <% agent_status = Map.get(@agent_statuses, agent.name, :idle) %>
-            <li>
-              <div class="items-center gap-2">
+            <li class="w-full">
+              <div class="flex items-center gap-2 w-full">
                 <img
                   src={agent_avatar_url(agent.name)}
                   alt={agent.display_name || agent.name}
@@ -741,7 +741,7 @@ defmodule WebWeb.ChatLive do
                 />
                 <span
                   class={[
-                    "status",
+                    "status shrink-0",
                     agent_status_class(agent_status)
                   ]}
                   title={agent_status_label(agent_status)}
@@ -757,7 +757,7 @@ defmodule WebWeb.ChatLive do
           <% end %>
         </ul>
 
-        <ul class="menu menu-xs border-t border-base-300 p-2">
+        <ul class="menu menu-xs w-full border-t border-base-300 p-2">
           <li class="menu-title">사용 가능한 MCP</li>
           <%= if @available_mcps == [] do %>
             <li class="disabled">
@@ -766,10 +766,10 @@ defmodule WebWeb.ChatLive do
           <% else %>
             <%= for mcp <- @available_mcps do %>
               <% mcp_runtime_status = Map.get(@mcp_statuses, mcp.name, :idle) %>
-              <li>
-                <div class="items-center">
+              <li class="w-full">
+                <div class="flex items-center gap-2 w-full">
                   <span
-                    class={["status", mcp_status_class(mcp.status, mcp_runtime_status)]}
+                    class={["status shrink-0", mcp_status_class(mcp.status, mcp_runtime_status)]}
                     title={mcp_status_label(mcp.status, mcp_runtime_status)}
                   />
                   <div class="flex-1 min-w-0">
