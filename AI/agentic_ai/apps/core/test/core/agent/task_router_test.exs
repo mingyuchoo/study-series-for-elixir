@@ -1,5 +1,5 @@
 defmodule Core.Agent.TaskRouterTest do
-  use ExUnit.Case, async: true
+  use Core.DataCase, async: false
 
   alias Core.Agent.TaskRouter
   alias Core.Schema.Agent

@@ -6,90 +6,11 @@ defmodule Core.Agent.TaskRouter do
   분석하여 가장 적합한 Worker를 반환합니다.
   """
 
+  import Ecto.Query
+
   require Logger
-  alias Core.Schema.Agent
-
-  # 도메인별 키워드 매핑
-  @domain_keywords %{
-    calculator: [
-      "계산",
-      "더하기",
-      "빼기",
-      "곱하기",
-      "나누기",
-      "수학",
-      "숫자",
-      "평균",
-      "합계",
-      "통계",
-      "단위",
-      "변환",
-      "+",
-      "-",
-      "*",
-      "/",
-      "="
-    ],
-    code: [
-      "코드",
-      "프로그램",
-      "함수",
-      "실행",
-      "디버그",
-      "테스트",
-      "리팩토링",
-      "구현"
-    ],
-    web_search: [
-      "검색",
-      "찾아",
-      "알려",
-      "최신",
-      "뉴스",
-      "정보",
-      "조사",
-      # 실시간 데이터/외부 정보 키워드
-      "시세",
-      "가격",
-      "환율",
-      "주가",
-      "비트코인",
-      "이더리움",
-      "코인",
-      "주식",
-      "날씨",
-      "기온",
-      "지금",
-      "현재",
-      "오늘",
-      "어제",
-      "최근",
-      "스크랩",
-      "스크래핑",
-      "url",
-      "http",
-      "사이트",
-      "페이지",
-      "웹사이트"
-    ]
-  }
-
-  # 프로덕션 도구 이름 → 도메인 매핑
-  # 도구명이 도메인명과 부분문자열로 일치하지 않는 경우를 보완합니다.
-  # (예: "search_web"은 "web_search"를 부분문자열로 포함하지 않음)
-  @tool_to_domain %{
-    "search_web" => :web_search,
-    "firecrawl_search" => :web_search,
-    "firecrawl_scrape" => :web_search,
-    "calculate" => :calculator,
-    "execute_code" => :code
-  }
-
-  # Worker 이름의 타입 부분 → 도메인 매핑
-  # (예: "research_worker" → :web_search)
-  @name_type_to_domain %{
-    "research" => :web_search
-  }
+  alias Core.Repo
+  alias Core.Schema.{Agent, AgentRoutingRule}
 
   @doc """
   사용자 요청에 가장 적합한 Worker를 선택합니다.
@@ -126,7 +47,7 @@ defmodule Core.Agent.TaskRouter do
     # Calculate match score for each worker
     scored_workers =
       Enum.map(workers, fn worker ->
-        score = calculate_match_score(user_request, worker)
+        score = calculate_match_score(user_request, worker, routing_rules())
         {worker, score}
       end)
 
@@ -145,10 +66,10 @@ defmodule Core.Agent.TaskRouter do
 
   # 비공개 함수들
 
-  defp calculate_match_score(user_request, worker) do
+  defp calculate_match_score(user_request, worker, rules) do
     description_score = calculate_description_score(user_request, worker.description)
-    tools_score = calculate_tools_score(user_request, worker.enabled_tools)
-    name_score = calculate_name_score(user_request, worker.name)
+    tools_score = calculate_tools_score(user_request, worker.enabled_tools, rules)
+    name_score = calculate_name_score(user_request, worker.name, rules)
 
     # 가중 평균
     description_score * 0.5 + tools_score * 0.3 + name_score * 0.2
@@ -175,12 +96,12 @@ defmodule Core.Agent.TaskRouter do
     end)
   end
 
-  defp calculate_tools_score(user_request, enabled_tools) do
+  defp calculate_tools_score(user_request, enabled_tools, rules) do
     request_lower = String.downcase(user_request)
 
     # 요청이 도메인 키워드와 일치하는지 확인
     matching_domains =
-      Enum.filter(@domain_keywords, fn {_domain, keywords} ->
+      Enum.filter(rules.domain_keywords, fn {_domain, keywords} ->
         Enum.any?(keywords, &String.contains?(request_lower, &1))
       end)
 
@@ -188,11 +109,10 @@ defmodule Core.Agent.TaskRouter do
       0
     else
       domain_atoms = Enum.map(matching_domains, fn {domain, _} -> domain end)
-      domain_names = Enum.map(domain_atoms, &Atom.to_string/1)
 
       tool_matches =
         Enum.count(enabled_tools, fn tool ->
-          tool_matches_domain?(tool, domain_atoms, domain_names)
+          tool_matches_domain?(tool, domain_atoms, rules.tool_to_domain)
         end)
 
       if length(enabled_tools) > 0 do
@@ -204,16 +124,16 @@ defmodule Core.Agent.TaskRouter do
   end
 
   # 도구가 매칭 도메인에 속하는지 판정합니다.
-  # 1) 명시적 매핑(@tool_to_domain) 우선 — 프로덕션 도구명을 정확히 매칭
+  # 1) DB 명시 매핑 우선 — 프로덕션 도구명을 정확히 매칭
   # 2) 폴백으로 부분문자열 매칭 — 테스트 픽스처/구버전 도구명 호환
-  defp tool_matches_domain?(tool, domain_atoms, domain_names) do
-    case Map.get(@tool_to_domain, tool) do
-      nil -> Enum.any?(domain_names, &String.contains?(tool, &1))
-      domain -> domain in domain_atoms
+  defp tool_matches_domain?(tool, domains, tool_to_domain) do
+    case Map.get(tool_to_domain, tool) do
+      nil -> Enum.any?(domains, &String.contains?(tool, &1))
+      domain -> domain in domains
     end
   end
 
-  defp calculate_name_score(user_request, name) do
+  defp calculate_name_score(user_request, name, rules) do
     request_lower = String.downcase(user_request)
     name_lower = String.downcase(name)
 
@@ -223,12 +143,10 @@ defmodule Core.Agent.TaskRouter do
       |> String.replace("_worker", "")
       |> String.replace("_agent", "")
 
-    # Worker 타입 키워드가 일치하는지 확인 (예: "research" → :web_search 도메인)
-    domain_atom =
-      Map.get(@name_type_to_domain, worker_type) ||
-        safe_to_existing_atom(worker_type)
+    # Worker 타입 키워드가 일치하는지 확인 (예: "research" → "web_search" 도메인)
+    domain = Map.get(rules.name_type_to_domain, worker_type, worker_type)
 
-    domain_keywords = Map.get(@domain_keywords, domain_atom, [])
+    domain_keywords = Map.get(rules.domain_keywords, domain, [])
 
     matches = Enum.count(domain_keywords, &String.contains?(request_lower, &1))
 
@@ -254,10 +172,29 @@ defmodule Core.Agent.TaskRouter do
     end
   end
 
-  # 임의 문자열로 atom 생성을 피하기 위해 이미 존재하는 atom만 변환합니다.
-  defp safe_to_existing_atom(string) do
-    String.to_existing_atom(string)
-  rescue
-    ArgumentError -> nil
+  defp routing_rules do
+    AgentRoutingRule
+    |> where([r], r.enabled == true)
+    |> Repo.all()
+    |> Enum.reduce(
+      %{domain_keywords: %{}, tool_to_domain: %{}, name_type_to_domain: %{}},
+      fn rule, acc ->
+        put_routing_rule(acc, rule)
+      end
+    )
+  end
+
+  defp put_routing_rule(acc, %AgentRoutingRule{rule_type: :domain_keyword} = rule) do
+    update_in(acc.domain_keywords, fn keywords_by_domain ->
+      Map.update(keywords_by_domain, rule.domain, [rule.pattern], &[rule.pattern | &1])
+    end)
+  end
+
+  defp put_routing_rule(acc, %AgentRoutingRule{rule_type: :tool_domain} = rule) do
+    put_in(acc.tool_to_domain[rule.pattern], rule.domain)
+  end
+
+  defp put_routing_rule(acc, %AgentRoutingRule{rule_type: :name_domain} = rule) do
+    put_in(acc.name_type_to_domain[rule.pattern], rule.domain)
   end
 end
