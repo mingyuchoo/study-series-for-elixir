@@ -1,6 +1,195 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+
+@layer base {
+  :root {
+    --carbon-blue: #0f62fe;
+    --carbon-blue-hover: #0050e6;
+    --carbon-blue-active: #002d9c;
+    --carbon-ink: #161616;
+    --carbon-muted: #525252;
+    --carbon-subtle: #8c8c8c;
+    --carbon-canvas: #ffffff;
+    --carbon-surface: #f4f4f4;
+    --carbon-hairline: #e0e0e0;
+  }
+
+  [data-theme="dark"] {
+    --carbon-ink: #ffffff;
+    --carbon-muted: #c6c6c6;
+    --carbon-subtle: #8d8d8d;
+    --carbon-canvas: #161616;
+    --carbon-surface: #262626;
+    --carbon-hairline: #393939;
+  }
+
+  html {
+    font-family: "IBM Plex Sans", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    letter-spacing: 0.16px;
+  }
+
+  body {
+    color: var(--carbon-ink);
+    background: var(--carbon-canvas);
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: 0;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp,
+  .font-mono {
+    font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+}
+
+@layer components {
+  .btn {
+    min-height: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0;
+    border-width: 1px;
+    box-shadow: none;
+    font-weight: 400;
+    letter-spacing: 0.16px;
+    text-transform: none;
+  }
+
+  .btn-primary {
+    border-color: var(--carbon-blue);
+    background-color: var(--carbon-blue);
+    color: #ffffff;
+  }
+
+  .btn-primary:hover {
+    border-color: var(--carbon-blue-hover);
+    background-color: var(--carbon-blue-hover);
+  }
+
+  .btn-primary:active {
+    border-color: var(--carbon-blue-active);
+    background-color: var(--carbon-blue-active);
+  }
+
+  .btn-ghost,
+  .btn-outline {
+    border-color: transparent;
+    background-color: transparent;
+    color: var(--carbon-blue);
+  }
+
+  .btn-ghost:hover,
+  .btn-outline:hover {
+    border-color: var(--carbon-hairline);
+    background-color: var(--carbon-surface);
+    color: var(--carbon-blue-hover);
+  }
+
+  .card {
+    border: 1px solid var(--carbon-hairline);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+  }
+
+  .input,
+  .textarea,
+  .select {
+    border: 0;
+    border-bottom: 1px solid #8d8d8d;
+    border-radius: 0;
+    background-color: var(--carbon-surface);
+    color: var(--carbon-ink);
+    box-shadow: none;
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .select:focus {
+    border-bottom-color: var(--carbon-blue);
+    outline: 2px solid var(--carbon-blue);
+    outline-offset: -2px;
+    box-shadow: none;
+  }
+
+  .label {
+    color: var(--carbon-muted);
+    font-size: 0.875rem;
+    line-height: 1.29;
+  }
+
+  .table {
+    border: 1px solid var(--carbon-hairline);
+    border-radius: 0;
+  }
+
+  .table :where(th) {
+    background-color: var(--carbon-surface);
+    color: var(--carbon-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.32px;
+    text-transform: uppercase;
+  }
+
+  .table :where(td),
+  .table :where(th) {
+    border-bottom: 1px solid var(--carbon-hairline);
+  }
+
+  .badge {
+    border-radius: 0;
+    font-weight: 400;
+  }
+
+  .alert,
+  .toast .alert,
+  .dropdown-content,
+  .menu :where(li > *) {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .navbar {
+    min-height: 3.5rem;
+    box-shadow: none;
+  }
+
+  .chat-bubble {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .join > :where(*:not(:first-child)) {
+    margin-inline-start: -1px;
+  }
+
+  .rounded-box,
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl {
+    border-radius: 0;
+  }
+
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none;
+  }
+}
 
 /* ========================================
    LiveView 기본 로딩 상태
@@ -30,7 +219,7 @@
 }
 
 .prose pre {
-  @apply rounded-lg overflow-x-auto my-3;
+  @apply overflow-x-auto my-3;
   background: oklch(var(--n));
   border: 1px solid oklch(var(--bc) / 0.15);
 }
@@ -42,7 +231,7 @@
 }
 
 .prose code:not(pre code) {
-  @apply px-1.5 py-0.5 rounded font-medium;
+  @apply px-1.5 py-0.5 font-medium;
   background: oklch(var(--b3));
   color: oklch(var(--bc));
   font-size: 0.875em;
@@ -104,7 +293,7 @@
 }
 
 .prose blockquote {
-  @apply my-3 pl-4 py-2 rounded-r-lg italic;
+  @apply my-3 pl-4 py-2 italic;
   border-left: 4px solid oklch(var(--bc) / 0.2);
   background: oklch(var(--b2));
   quotes: none;
@@ -116,7 +305,7 @@
 }
 
 .prose table {
-  @apply w-full my-3 border-collapse rounded-lg overflow-hidden;
+  @apply w-full my-3 border-collapse overflow-hidden;
 }
 
 .prose thead {
@@ -172,7 +361,7 @@
 }
 
 .prose img {
-  @apply rounded-lg my-3;
+  @apply my-3;
 }
 
 .prose ul.contains-task-list {

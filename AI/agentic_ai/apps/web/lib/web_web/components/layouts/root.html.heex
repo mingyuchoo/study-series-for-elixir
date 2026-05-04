@@ -30,11 +30,11 @@
       })();
     </script>
   </head>
-  <body class="min-h-screen bg-base-200">
-    <div class="navbar bg-base-100 shadow-sm sticky top-0 z-30 px-4">
+  <body class="min-h-screen bg-base-100">
+    <div class="navbar bg-base-100 sticky top-0 z-30 border-b border-base-300 px-4">
       <div class="navbar-start">
         <.link navigate={~p"/"} class="btn btn-ghost text-xl gap-2 normal-case">
-          <span class="text-primary">⚡</span>
+          <span class="inline-block size-4 bg-primary" aria-hidden="true"></span>
           <span>Agentic AI</span>
         </.link>
         <%= if assigns[:current_user] do %>
@@ -43,7 +43,7 @@
             <li>
               <details>
                 <summary>Admin</summary>
-                <ul class="bg-base-100 rounded-box z-40 w-52 shadow">
+                <ul class="bg-base-100 z-40 w-52 border border-base-300">
                   <li><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
                   <li><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
                   <li><.link navigate={~p"/admin/dashboard"}>대시보드</.link></li>
@@ -61,13 +61,18 @@
           <div class="dropdown dropdown-end">
             <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-2">
               <div class="avatar placeholder">
-                <div class="bg-primary text-primary-content rounded-full w-7">
-                  <span class="text-xs">{String.first(@current_user.email) |> String.upcase()}</span>
+                <div class="bg-primary text-primary-content w-7">
+                  <span class="text-xs">
+                    {String.first(@current_user.email) |> String.upcase()}
+                  </span>
                 </div>
               </div>
               <span class="hidden sm:inline text-sm">{@current_user.email}</span>
             </div>
-            <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-40 mt-3 w-56 p-2 shadow">
+            <ul
+              tabindex="0"
+              class="menu menu-sm dropdown-content bg-base-100 z-40 mt-3 w-56 border border-base-300 p-2"
+            >
               <li class="menu-title">
                 <span class="truncate">{@current_user.email}</span>
               </li>

@@ -1,18 +1,18 @@
-<div class="hero min-h-[calc(100vh-4rem)]">
-  <div class="hero-content text-center py-12">
-    <div class="max-w-4xl">
-      <div class="badge badge-primary badge-outline gap-2 mb-6">
-        <span>⚡</span> Powered by Azure OpenAI
+<div class="min-h-[calc(100vh-4rem)] bg-base-100">
+  <section class="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[1.2fr_0.8fr] md:py-24">
+    <div>
+      <div class="mb-8 inline-flex border-l-4 border-primary bg-base-200 px-4 py-3 text-sm text-base-content/70">
+        Powered by Azure OpenAI
       </div>
-      <h1 class="text-5xl sm:text-6xl font-bold tracking-tight mb-6 text-primary">
+      <h1 class="mb-6 text-5xl font-light leading-tight text-base-content sm:text-6xl">
         Agentic AI
       </h1>
-      <p class="text-xl text-base-content/70 mb-8 leading-relaxed">
+      <p class="mb-8 max-w-2xl text-xl leading-relaxed text-base-content/70">
         다중 에이전트 오케스트레이션과 MCP(Model Context Protocol)를 활용한<br class="hidden sm:block" />
         지능형 대화형 AI 플랫폼
       </p>
 
-      <div class="flex flex-wrap gap-3 justify-center mb-12">
+      <div class="flex flex-wrap gap-3">
         <.link navigate={~p"/users/register"} class="btn btn-primary btn-lg gap-2">
           시작하기 <span aria-hidden="true">→</span>
         </.link>
@@ -20,39 +20,42 @@
           로그인
         </.link>
       </div>
+    </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-        <div class="card bg-base-100 shadow-sm hover:shadow-lg transition-shadow">
-          <div class="card-body">
-            <h3 class="card-title text-base">
-              <span class="text-2xl">🤖</span> 다중 에이전트
-            </h3>
-            <p class="text-sm text-base-content/60">
-              Supervisor와 Worker 에이전트가 협업해 복잡한 작업을 자동으로 처리합니다.
-            </p>
-          </div>
+    <div class="grid grid-cols-1 border-t border-base-300 md:border-l md:border-t-0">
+      <div class="card bg-base-100">
+        <div class="card-body">
+          <div class="mb-6 h-1 w-12 bg-primary"></div>
+          <h3 class="card-title text-2xl font-normal">
+            다중 에이전트
+          </h3>
+          <p class="text-sm text-base-content/60">
+            Supervisor와 Worker 에이전트가 협업해 복잡한 작업을 자동으로 처리합니다.
+          </p>
         </div>
-        <div class="card bg-base-100 shadow-sm hover:shadow-lg transition-shadow">
-          <div class="card-body">
-            <h3 class="card-title text-base">
-              <span class="text-2xl">🔌</span> MCP 통합
-            </h3>
-            <p class="text-sm text-base-content/60">
-              외부 도구·서비스를 MCP 표준으로 연결하여 확장 가능한 기능을 제공합니다.
-            </p>
-          </div>
+      </div>
+      <div class="card bg-base-100">
+        <div class="card-body">
+          <div class="mb-6 h-1 w-12 bg-base-content"></div>
+          <h3 class="card-title text-2xl font-normal">
+            MCP 통합
+          </h3>
+          <p class="text-sm text-base-content/60">
+            외부 도구·서비스를 MCP 표준으로 연결하여 확장 가능한 기능을 제공합니다.
+          </p>
         </div>
-        <div class="card bg-base-100 shadow-sm hover:shadow-lg transition-shadow">
-          <div class="card-body">
-            <h3 class="card-title text-base">
-              <span class="text-2xl">📁</span> 파일 분석
-            </h3>
-            <p class="text-sm text-base-content/60">
-              대화에 파일을 첨부하여 AI가 내용을 읽고 분석하도록 할 수 있습니다.
-            </p>
-          </div>
+      </div>
+      <div class="card bg-base-100">
+        <div class="card-body">
+          <div class="mb-6 h-1 w-12 bg-base-300"></div>
+          <h3 class="card-title text-2xl font-normal">
+            파일 분석
+          </h3>
+          <p class="text-sm text-base-content/60">
+            대화에 파일을 첨부하여 AI가 내용을 읽고 분석하도록 할 수 있습니다.
+          </p>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 </div>

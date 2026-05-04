@@ -102,15 +102,15 @@ defmodule WebWeb.AgentLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto p-6">
-      <div class="mb-6">
-        <.link navigate={~p"/admin/agents"} class="link link-hover text-sm opacity-60">
+    <div class="mx-auto max-w-3xl bg-base-100 p-6">
+      <div class="mb-6 border-b border-base-300 pb-6">
+        <.link navigate={~p"/admin/agents"} class="link link-primary text-sm">
           ← 에이전트 목록
         </.link>
-        <h1 class="text-3xl font-bold mt-1">{@page_title}</h1>
+        <h1 class="mt-3 text-4xl font-light leading-tight">{@page_title}</h1>
       </div>
 
-      <div class="card bg-base-100 shadow-xl">
+      <div class="card bg-base-100">
         <div class="card-body">
           <.form for={@form} phx-change="validate" phx-submit="save">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">

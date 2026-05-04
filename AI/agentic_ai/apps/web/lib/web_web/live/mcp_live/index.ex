@@ -29,7 +29,7 @@ defmodule WebWeb.McpLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-6xl mx-auto p-6">
+    <div class="mx-auto max-w-6xl bg-base-100 p-6">
       <.header>
         MCP 서버 관리
         <:subtitle>Model Context Protocol 서버 설정을 관리합니다.</:subtitle>
@@ -40,7 +40,7 @@ defmodule WebWeb.McpLive.Index do
         </:actions>
       </.header>
 
-      <div class="card bg-base-100 shadow overflow-x-auto">
+      <div class="overflow-x-auto border border-base-300 bg-base-100">
         <table class="table table-zebra">
           <thead>
             <tr>

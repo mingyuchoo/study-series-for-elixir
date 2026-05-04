@@ -587,7 +587,8 @@ defmodule WebWeb.ChatLive do
     end)
   end
 
-  defp finalize_agent_statuses(agent_statuses, true), do: mark_running_agents_failed(agent_statuses)
+  defp finalize_agent_statuses(agent_statuses, true),
+    do: mark_running_agents_failed(agent_statuses)
 
   defp finalize_agent_statuses(agent_statuses, false) do
     Map.new(agent_statuses, fn
@@ -693,7 +694,7 @@ defmodule WebWeb.ChatLive do
   def render(assigns) do
     ~H"""
     <div class="flex h-[calc(100vh-4rem)] bg-base-100">
-      <aside class="w-64 shrink-0 bg-base-200 flex flex-col border-r border-base-300">
+      <aside class="flex w-64 shrink-0 flex-col border-r border-base-300 bg-base-200">
         <div class="p-3 border-b border-base-300">
           <button phx-click="new_conversation" class="btn btn-primary btn-block btn-sm gap-2">
             <.icon name="hero-plus" class="size-4" /> 새 대화
@@ -719,7 +720,7 @@ defmodule WebWeb.ChatLive do
                   phx-click="delete_conversation"
                   phx-value-id={conv.id}
                   data-confirm="이 대화를 삭제하시겠습니까?"
-                  class="btn btn-ghost btn-xs btn-circle text-error opacity-0 group-hover:opacity-100"
+                  class="btn btn-ghost btn-xs text-error opacity-0 group-hover:opacity-100"
                   title="대화 삭제"
                 >
                   <.icon name="hero-trash" class="size-4" />
@@ -738,7 +739,7 @@ defmodule WebWeb.ChatLive do
                 <img
                   src={agent_avatar_url(agent.name)}
                   alt={agent.display_name || agent.name}
-                  class="w-7 h-7 rounded-full object-cover shrink-0"
+                  class="h-7 w-7 shrink-0 object-cover ring-1 ring-base-300"
                 />
                 <span
                   class={[
@@ -786,10 +787,10 @@ defmodule WebWeb.ChatLive do
         </ul>
       </aside>
 
-      <section class="flex-1 flex flex-col min-w-0">
-        <div class="navbar bg-base-100 border-b border-base-300 shadow-sm min-h-14 px-4">
+      <section class="flex min-w-0 flex-1 flex-col">
+        <div class="navbar min-h-14 border-b border-base-300 bg-base-100 px-4">
           <div class="flex-1 flex-col items-start">
-            <h1 class="text-xl font-semibold">
+            <h1 class="text-xl font-normal">
               {if @current_conversation,
                 do: @current_conversation.title,
                 else: "Agentic AI Assistant"}
@@ -813,7 +814,7 @@ defmodule WebWeb.ChatLive do
           <div :if={@messages == [] and @current_conversation} class="hero min-h-[50vh]">
             <div class="hero-content text-center">
               <div class="max-w-md">
-                <h2 class="text-2xl font-bold">대화를 시작하세요!</h2>
+                <h2 class="text-3xl font-light">대화를 시작하세요</h2>
                 <p class="py-4 text-base-content/60">
                   AI 어시스턴트가 다양한 도구를 활용해 도움을 드립니다.
                 </p>
@@ -826,7 +827,7 @@ defmodule WebWeb.ChatLive do
             class={["chat", chat_align_class(message)]}
           >
             <div :if={message_role(message) in [:assistant, "assistant"]} class="chat-image avatar">
-              <div class="w-8 rounded-full">
+              <div class="w-8 ring-1 ring-base-300">
                 <img
                   src={message_avatar_url(message)}
                   alt={message_speaker_label(message)}
@@ -867,7 +868,7 @@ defmodule WebWeb.ChatLive do
             <%= if @streaming_content != "" or @streaming_status do %>
               <div class="chat chat-start">
                 <div class="chat-image avatar">
-                  <div class="w-8 rounded-full">
+                  <div class="w-8 ring-1 ring-base-300">
                     <img
                       src={speaker_avatar_url(@current_speaker)}
                       alt={speaker_streaming_label(@current_speaker)}
@@ -894,7 +895,7 @@ defmodule WebWeb.ChatLive do
             <% else %>
               <div class="chat chat-start">
                 <div class="chat-image avatar">
-                  <div class="w-8 rounded-full">
+                  <div class="w-8 ring-1 ring-base-300">
                     <img
                       src={speaker_avatar_url(@current_speaker)}
                       alt={speaker_streaming_label(@current_speaker)}
@@ -931,7 +932,7 @@ defmodule WebWeb.ChatLive do
                     type="button"
                     phx-click="cancel_upload"
                     phx-value-ref={entry.ref}
-                    class="btn btn-ghost btn-xs btn-circle"
+                    class="btn btn-ghost btn-xs"
                     aria-label="첨부 취소"
                   >
                     ×

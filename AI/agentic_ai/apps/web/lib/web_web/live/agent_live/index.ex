@@ -35,7 +35,7 @@ defmodule WebWeb.AgentLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-6xl mx-auto p-6">
+    <div class="mx-auto max-w-6xl bg-base-100 p-6">
       <.header>
         에이전트 관리
         <:subtitle>Supervisor/Worker 에이전트를 생성하고 관리합니다.</:subtitle>
@@ -46,7 +46,7 @@ defmodule WebWeb.AgentLive.Index do
         </:actions>
       </.header>
 
-      <div class="card bg-base-100 shadow overflow-x-auto">
+      <div class="overflow-x-auto border border-base-300 bg-base-100">
         <table class="table table-zebra">
           <thead>
             <tr>
@@ -61,8 +61,18 @@ defmodule WebWeb.AgentLive.Index do
           <tbody>
             <tr :for={agent <- @agents}>
               <td>
-                <div class="font-semibold">{agent.display_name || agent.name}</div>
-                <div class="text-xs opacity-60">{agent.name}</div>
+                <div class="flex items-center gap-3">
+                  <img
+                    src={agent_avatar_url(agent.name)}
+                    alt={agent.display_name || agent.name}
+                    class="size-[27px] shrink-0 rounded-full object-cover ring-1 ring-base-300"
+                    loading="lazy"
+                  />
+                  <div class="min-w-0">
+                    <div class="truncate font-semibold">{agent.display_name || agent.name}</div>
+                    <div class="truncate text-xs opacity-60">{agent.name}</div>
+                  </div>
+                </div>
               </td>
               <td>
                 <span class={["badge", agent_type_badge(agent.type)]}>{agent.type}</span>
@@ -123,4 +133,16 @@ defmodule WebWeb.AgentLive.Index do
   defp agent_status_badge(:active), do: "badge-success"
   defp agent_status_badge(:disabled), do: "badge-ghost"
   defp agent_status_badge(_), do: "badge-ghost"
+
+  defp agent_avatar_url(agent_name) do
+    "/images/profiles/" <> agent_avatar_filename(agent_name)
+  end
+
+  defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
+  defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
+  defp agent_avatar_filename("general_worker"), do: "avatar-03.png"
+  defp agent_avatar_filename("calculator_worker"), do: "avatar-04.png"
+  defp agent_avatar_filename("restructure_worker"), do: "avatar-05.png"
+  defp agent_avatar_filename("emoji_worker"), do: "avatar-06.png"
+  defp agent_avatar_filename(_), do: "avatar-07.png"
 end

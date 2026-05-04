@@ -3,7 +3,7 @@ type: worker
 name: emoji_worker
 display_name: Emoji Worker
 description: 답변에 적절한 이모지를 추가하여 가독성과 친근감을 높이는 Worker
-model: gpt-5-mini
+model: gpt-5.3-chat
 temperature: 0.8
 max_iterations: 3
 status: active

@@ -3,7 +3,7 @@ type: worker
 name: general_worker
 display_name: General Worker
 description: LLM 자체 지식 기반의 텍스트 생성/요약/번역 등 외부 호출이 필요 없는 작업을 수행하는 Worker
-model: gpt-5-mini
+model: gpt-5.3-chat
 temperature: 1.0
 max_iterations: 10
 status: active

@@ -3,17 +3,16 @@ defmodule WebWeb.UserLoginLive do
 
   def render(assigns) do
     ~H"""
-    <div class="hero min-h-[calc(100vh-4rem)]">
-      <div class="hero-content flex-col w-full max-w-md">
-        <div class="text-center">
-          <h1 class="text-3xl font-bold">로그인</h1>
-          <p class="py-2 text-base-content/60">
-            계정이 없나요?
-            <.link navigate={~p"/users/register"} class="link link-primary">회원가입</.link>
+    <div class="min-h-[calc(100vh-4rem)] bg-base-100 px-6 py-16">
+      <div class="mx-auto w-full max-w-md">
+        <div class="mb-8 border-b border-base-300 pb-6">
+          <h1 class="text-4xl font-light leading-tight">로그인</h1>
+          <p class="mt-3 text-sm text-base-content/60">
+            계정이 없나요? <.link navigate={~p"/users/register"} class="link link-primary">회원가입</.link>
           </p>
         </div>
 
-        <div class="card bg-base-100 shadow-xl w-full">
+        <div class="card w-full bg-base-100">
           <div class="card-body gap-4">
             <.form
               for={@form}
@@ -40,7 +39,11 @@ defmodule WebWeb.UserLoginLive do
                 type="checkbox"
                 label="로그인 상태 유지"
               />
-              <button type="submit" phx-disable-with="로그인 중..." class="btn btn-primary btn-block mt-2">
+              <button
+                type="submit"
+                phx-disable-with="로그인 중..."
+                class="btn btn-primary btn-block mt-2"
+              >
                 로그인
               </button>
             </.form>

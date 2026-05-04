@@ -5,15 +5,15 @@ defmodule WebWeb.UserSettingsLive do
 
   def render(assigns) do
     ~H"""
-    <div class="max-w-2xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 class="text-3xl font-bold">계정 설정</h1>
-        <p class="text-base-content/60">이메일 주소와 비밀번호를 관리합니다.</p>
+    <div class="mx-auto max-w-2xl space-y-6 bg-base-100 p-6">
+      <div class="border-b border-base-300 pb-6">
+        <h1 class="text-4xl font-light leading-tight">계정 설정</h1>
+        <p class="mt-2 text-sm text-base-content/60">이메일 주소와 비밀번호를 관리합니다.</p>
       </div>
 
-      <div class="card bg-base-100 shadow-xl">
+      <div class="card bg-base-100">
         <div class="card-body gap-3">
-          <h2 class="card-title">이메일 변경</h2>
+          <h2 class="card-title text-2xl font-normal">이메일 변경</h2>
           <.form
             for={@email_form}
             id="email_form"
@@ -42,9 +42,9 @@ defmodule WebWeb.UserSettingsLive do
         </div>
       </div>
 
-      <div class="card bg-base-100 shadow-xl">
+      <div class="card bg-base-100">
         <div class="card-body gap-3">
-          <h2 class="card-title">비밀번호 변경</h2>
+          <h2 class="card-title text-2xl font-normal">비밀번호 변경</h2>
           <.form
             for={@password_form}
             id="password_form"

@@ -30,19 +30,34 @@ defmodule WebWeb.Layouts do
       <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle" title="테마">
         <.icon name="hero-swatch" class="size-5" />
       </div>
-      <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-40 mt-3 w-44 p-2 shadow">
+      <ul
+        tabindex="0"
+        class="menu menu-sm dropdown-content bg-base-100 z-40 mt-3 w-44 border border-base-300 p-2"
+      >
         <li>
-          <button phx-click={JS.dispatch("phx:set-theme")} data-phx-theme="light" class="flex items-center gap-2">
+          <button
+            phx-click={JS.dispatch("phx:set-theme")}
+            data-phx-theme="light"
+            class="flex items-center gap-2"
+          >
             <.icon name="hero-sun-mini" class="size-4" /> Light
           </button>
         </li>
         <li>
-          <button phx-click={JS.dispatch("phx:set-theme")} data-phx-theme="dark" class="flex items-center gap-2">
+          <button
+            phx-click={JS.dispatch("phx:set-theme")}
+            data-phx-theme="dark"
+            class="flex items-center gap-2"
+          >
             <.icon name="hero-moon-mini" class="size-4" /> Dark
           </button>
         </li>
         <li>
-          <button phx-click={JS.dispatch("phx:set-theme")} data-phx-theme="system" class="flex items-center gap-2">
+          <button
+            phx-click={JS.dispatch("phx:set-theme")}
+            data-phx-theme="system"
+            class="flex items-center gap-2"
+          >
             <.icon name="hero-computer-desktop-mini" class="size-4" /> System
           </button>
         </li>

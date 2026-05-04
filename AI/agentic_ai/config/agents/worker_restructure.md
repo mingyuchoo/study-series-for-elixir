@@ -3,7 +3,7 @@ type: worker
 name: restructure_worker
 display_name: Restructure Worker
 description: 답변을 결론 우선 구조로 재구성하는 Worker
-model: gpt-5-mini
+model: gpt-5.3-chat
 temperature: 0.7
 max_iterations: 3
 status: active

@@ -3,7 +3,7 @@ type: supervisor
 name: main_supervisor
 display_name: Main Supervisor
 description: 사용자 요청을 분석하고 적절한 Worker에게 작업을 전달하는 메인 Supervisor
-model: gpt-5-mini
+model: gpt-5.3-chat
 temperature: 1.0
 max_iterations: 10
 status: active

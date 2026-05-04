@@ -6,17 +6,16 @@ defmodule WebWeb.UserRegistrationLive do
 
   def render(assigns) do
     ~H"""
-    <div class="hero min-h-[calc(100vh-4rem)]">
-      <div class="hero-content flex-col w-full max-w-md">
-        <div class="text-center">
-          <h1 class="text-3xl font-bold">계정 만들기</h1>
-          <p class="py-2 text-base-content/60">
-            이미 계정이 있나요?
-            <.link navigate={~p"/users/log_in"} class="link link-primary">로그인</.link>
+    <div class="min-h-[calc(100vh-4rem)] bg-base-100 px-6 py-16">
+      <div class="mx-auto w-full max-w-md">
+        <div class="mb-8 border-b border-base-300 pb-6">
+          <h1 class="text-4xl font-light leading-tight">계정 만들기</h1>
+          <p class="mt-3 text-sm text-base-content/60">
+            이미 계정이 있나요? <.link navigate={~p"/users/log_in"} class="link link-primary">로그인</.link>
           </p>
         </div>
 
-        <div class="card bg-base-100 shadow-xl w-full">
+        <div class="card w-full bg-base-100">
           <div class="card-body gap-4">
             <.form
               for={@form}
@@ -41,7 +40,11 @@ defmodule WebWeb.UserRegistrationLive do
                 autocomplete="new-password"
                 required
               />
-              <button type="submit" phx-disable-with="생성 중..." class="btn btn-primary btn-block mt-2">
+              <button
+                type="submit"
+                phx-disable-with="생성 중..."
+                class="btn btn-primary btn-block mt-2"
+              >
                 계정 만들기
               </button>
             </.form>
