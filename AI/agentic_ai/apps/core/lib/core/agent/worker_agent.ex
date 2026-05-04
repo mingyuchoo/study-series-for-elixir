@@ -9,10 +9,10 @@ defmodule Core.Agent.WorkerAgent do
   use GenServer
   require Logger
 
-  alias Core.Agent.{MemoryManager, ReactEngine, ToolRegistry, SkillRegistry}
+  alias Core.Agent.{MemoryManager, ReactEngine, SkillRegistry, ToolRegistry}
   alias Core.Contexts.{Agents, Conversations, VectorRags}
-  alias Core.Schema.{Agent, AgentTask}
   alias Core.Repo
+  alias Core.Schema.{Agent, AgentTask}
 
   defstruct [:agent_id, :agent, :tools, :current_task]
 
@@ -355,39 +355,38 @@ defmodule Core.Agent.WorkerAgent do
 
   defp build_knowledge_context(%Agent{enabled_tools: enabled_tools})
        when is_list(enabled_tools) do
-    if "search_vector_rag" in enabled_tools do
-      case VectorRags.list_active_vector_rags() do
-        [] ->
-          ""
-
-        vector_rags ->
-          items =
-            vector_rags
-            |> Enum.map(fn rag ->
-              description =
-                if rag.description && rag.description != "" do
-                  " - #{rag.description}"
-                else
-                  ""
-                end
-
-              "- #{rag.name} (#{rag.chunk_count} chunks)#{description}"
-            end)
-            |> Enum.join("\n")
-
-          """
-          [사용 가능한 지식]
-          #{items}
-
-          사용자 요청이 위 지식과 관련될 수 있으면 답변 전에 `search_vector_rag` 도구로 관련 청크를 검색하고, 검색 결과를 근거로 분석하세요.
-          """
-      end
-    else
-      ""
-    end
+    if "search_vector_rag" in enabled_tools, do: active_knowledge_context(), else: ""
   end
 
   defp build_knowledge_context(_agent), do: ""
+
+  defp active_knowledge_context do
+    case VectorRags.list_active_vector_rags() do
+      [] -> ""
+      vector_rags -> knowledge_context(vector_rags)
+    end
+  end
+
+  defp knowledge_context(vector_rags) do
+    items =
+      Enum.map_join(vector_rags, "\n", fn rag ->
+        "- #{rag.name} (#{rag.chunk_count} chunks)#{rag_description(rag)}"
+      end)
+
+    """
+    [사용 가능한 지식]
+    #{items}
+
+    사용자 요청이 위 지식과 관련될 수 있으면 답변 전에 `search_vector_rag` 도구로 관련 청크를 검색하고, 검색 결과를 근거로 분석하세요.
+    """
+  end
+
+  defp rag_description(%{description: description})
+       when is_binary(description) and description != "" do
+    " - #{description}"
+  end
+
+  defp rag_description(_rag), do: ""
 
   # 사용자 프로필 기반 컨텍스트 생성
   defp build_user_context do

@@ -47,37 +47,35 @@ defmodule WebWeb.RagLive.Index do
   def handle_event("save", %{"vector_rag" => params}, socket) do
     entries = socket.assigns.uploads.document.entries
 
-    cond do
-      entries == [] ->
-        {:noreply, put_flash(socket, :error, "업로드할 문서를 선택하세요.")}
+    if Enum.empty?(entries) do
+      {:noreply, put_flash(socket, :error, "업로드할 문서를 선택하세요.")}
+    else
+      [entry | _] = entries
 
-      true ->
-        [entry | _] = entries
+      result =
+        consume_uploaded_entries(socket, :document, fn %{path: path}, consumed_entry ->
+          source = %{path: path, client_name: consumed_entry.client_name}
+          {:ok, VectorRags.create_vector_rag(params, source)}
+        end)
+        |> List.first()
 
-        result =
-          consume_uploaded_entries(socket, :document, fn %{path: path}, consumed_entry ->
-            source = %{path: path, client_name: consumed_entry.client_name}
-            {:ok, VectorRags.create_vector_rag(params, source)}
-          end)
-          |> List.first()
+      case result do
+        {:ok, _rag} ->
+          {:noreply,
+           socket
+           |> assign_rags()
+           |> assign(:form, to_form(VectorRags.change_vector_rag(%VectorRag{})))
+           |> put_flash(:info, "#{entry.client_name} 문서로 Vector RAG를 생성했습니다.")}
 
-        case result do
-          {:ok, _rag} ->
-            {:noreply,
-             socket
-             |> assign_rags()
-             |> assign(:form, to_form(VectorRags.change_vector_rag(%VectorRag{})))
-             |> put_flash(:info, "#{entry.client_name} 문서로 Vector RAG를 생성했습니다.")}
+        {:error, :empty_document} ->
+          {:noreply, put_flash(socket, :error, "문서에서 인덱싱할 텍스트를 찾지 못했습니다.")}
 
-          {:error, :empty_document} ->
-            {:noreply, put_flash(socket, :error, "문서에서 인덱싱할 텍스트를 찾지 못했습니다.")}
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:noreply, assign(socket, :form, to_form(changeset))}
 
-          {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply, assign(socket, :form, to_form(changeset))}
-
-          {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "Vector RAG 생성 실패: #{inspect(reason)}")}
-        end
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Vector RAG 생성 실패: #{inspect(reason)}")}
+      end
     end
   end
 

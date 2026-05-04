@@ -105,7 +105,7 @@ defmodule Core.MCP.ServerTest do
 
       assert response["jsonrpc"] == "2.0"
       assert response["id"] == 4
-      assert response["error"]["code"] == -32602
+      assert response["error"]["code"] == -32_602
       assert response["error"]["message"] =~ "Tool not found"
     end
   end
@@ -141,7 +141,7 @@ defmodule Core.MCP.ServerTest do
 
       assert response["jsonrpc"] == "2.0"
       assert response["id"] == 6
-      assert response["error"]["code"] == -32602
+      assert response["error"]["code"] == -32_602
     end
   end
 
@@ -202,7 +202,7 @@ defmodule Core.MCP.ServerTest do
 
       assert response["jsonrpc"] == "2.0"
       assert response["id"] == 9
-      assert response["error"]["code"] == -32602
+      assert response["error"]["code"] == -32_602
     end
   end
 
@@ -218,7 +218,7 @@ defmodule Core.MCP.ServerTest do
 
       assert response["jsonrpc"] == "2.0"
       assert response["id"] == 10
-      assert response["error"]["code"] == -32601
+      assert response["error"]["code"] == -32_601
       assert response["error"]["message"] == "Method not found"
     end
   end

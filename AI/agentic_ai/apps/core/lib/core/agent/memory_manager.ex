@@ -10,8 +10,8 @@ defmodule Core.Agent.MemoryManager do
   """
 
   require Logger
-  alias Core.Schema.AgentMemory
   alias Core.Repo
+  alias Core.Schema.AgentMemory
   import Ecto.Query
 
   @memory_dir "data/memories"
@@ -241,9 +241,7 @@ defmodule Core.Agent.MemoryManager do
   def export_to_markdown(agent_id) do
     agent = Core.Repo.get(Core.Schema.Agent, agent_id)
 
-    if !agent do
-      {:error, :agent_not_found}
-    else
+    if agent do
       memories_by_type = %{
         conversation_summary: retrieve(agent_id, :conversation_summary),
         learned_pattern: retrieve(agent_id, :learned_pattern),
@@ -272,6 +270,8 @@ defmodule Core.Agent.MemoryManager do
           Logger.error("Failed to export memories: #{inspect(reason)}")
           {:error, reason}
       end
+    else
+      {:error, :agent_not_found}
     end
   end
 
@@ -286,9 +286,7 @@ defmodule Core.Agent.MemoryManager do
   def import_from_markdown(agent_id, file_path \\ nil) do
     agent = Core.Repo.get(Core.Schema.Agent, agent_id)
 
-    if !agent do
-      {:error, :agent_not_found}
-    else
+    if agent do
       path = file_path || get_memory_file_path(agent.name)
 
       case File.read(path) do
@@ -299,6 +297,8 @@ defmodule Core.Agent.MemoryManager do
           Logger.error("Failed to import memories from #{path}: #{inspect(reason)}")
           {:error, reason}
       end
+    else
+      {:error, :agent_not_found}
     end
   end
 
@@ -361,8 +361,7 @@ defmodule Core.Agent.MemoryManager do
   end
 
   defp format_memories(memories) do
-    memories
-    |> Enum.map(fn memory ->
+    Enum.map_join(memories, "\n", fn memory ->
       relevance =
         if memory.relevance_score, do: " (#{Float.round(memory.relevance_score, 2)})", else: ""
 
@@ -374,13 +373,10 @@ defmodule Core.Agent.MemoryManager do
       #{if memory.metadata, do: "_Metadata: #{inspect(memory.metadata)}_", else: ""}
       """
     end)
-    |> Enum.join("\n")
   end
 
   defp format_value(value) when is_map(value) do
-    value
-    |> Enum.map(fn {k, v} -> "- **#{k}**: #{inspect(v)}" end)
-    |> Enum.join("\n")
+    Enum.map_join(value, "\n", fn {k, v} -> "- **#{k}**: #{inspect(v)}" end)
   end
 
   defp format_value(value), do: inspect(value)
@@ -437,21 +433,18 @@ defmodule Core.Agent.MemoryManager do
     ]
 
     Enum.reduce(patterns, %{}, fn {regex, key}, acc ->
-      case Regex.run(regex, section_content) do
-        [_, value] ->
-          trimmed = String.trim(value)
-
-          if trimmed != "_Unknown_" do
-            Map.put(acc, key, trimmed)
-          else
-            acc
-          end
-
-        _ ->
-          acc
-      end
+      put_profile_value(acc, key, Regex.run(regex, section_content))
     end)
   end
+
+  defp put_profile_value(acc, key, [_, value]) do
+    case String.trim(value) do
+      "_Unknown_" -> acc
+      trimmed -> Map.put(acc, key, trimmed)
+    end
+  end
+
+  defp put_profile_value(acc, _key, _match), do: acc
 
   defp extract_section(content, section_name) do
     case Regex.run(~r/## #{section_name}\n\n(.*?)(?=\n## |\z)/s, content) do

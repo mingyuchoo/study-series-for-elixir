@@ -19,7 +19,7 @@ defmodule Core.MCP.Transport.Stdio do
   use GenServer
   require Logger
 
-  alias Core.MCP.{Server, Protocol}
+  alias Core.MCP.{Protocol, Server}
 
   @doc """
   STDIO 트랜스포트를 시작합니다.

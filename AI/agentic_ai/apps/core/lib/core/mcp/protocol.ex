@@ -6,11 +6,11 @@ defmodule Core.MCP.Protocol do
   """
 
   # JSON-RPC 2.0 표준 에러 코드
-  @parse_error -32700
-  @invalid_request -32600
-  @method_not_found -32601
-  @invalid_params -32602
-  @internal_error -32603
+  @parse_error -32_700
+  @invalid_request -32_600
+  @method_not_found -32_601
+  @invalid_params -32_602
+  @internal_error -32_603
 
   @doc """
   JSON 파싱 에러.

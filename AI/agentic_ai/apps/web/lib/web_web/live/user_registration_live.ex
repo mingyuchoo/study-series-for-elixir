@@ -2,6 +2,7 @@ defmodule WebWeb.UserRegistrationLive do
   use WebWeb, :live_view
 
   alias Core.Contexts.Accounts
+  alias Core.Repo
   alias Core.Schema.User
 
   def render(assigns) do
@@ -70,8 +71,9 @@ defmodule WebWeb.UserRegistrationLive do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
         {:ok, _} =
-          Core.Schema.User.confirm_changeset(user)
-          |> Core.Repo.update()
+          user
+          |> User.confirm_changeset()
+          |> Repo.update()
 
         changeset = Accounts.change_user_registration(user)
         {:noreply, socket |> assign(trigger_submit: true) |> assign_form(changeset)}

@@ -129,8 +129,7 @@ defmodule Core.MCP.Tools do
     name
     |> String.replace("_", " ")
     |> String.split(" ")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   defp format_tool_result(result) when is_binary(result) do

@@ -86,17 +86,15 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp loop(state) do
-    cond do
-      state.round >= state.max_rounds ->
-        # 강제 종료: 모더레이터에게 final만 산출하도록 지시
-        force_finalize(state)
-
-      true ->
-        case run_round(state) do
-          {:final, final_answer, state} -> {:ok, final_answer, state}
-          {:ok, final_answer, state} -> {:ok, final_answer, state}
-          {:continue, state} -> loop(state)
-        end
+    if state.round >= state.max_rounds do
+      # 강제 종료: 모더레이터에게 final만 산출하도록 지시
+      force_finalize(state)
+    else
+      case run_round(state) do
+        {:final, final_answer, state} -> {:ok, final_answer, state}
+        {:ok, final_answer, state} -> {:ok, final_answer, state}
+        {:continue, state} -> loop(state)
+      end
     end
   end
 
@@ -104,7 +102,7 @@ defmodule Core.Agent.GroupChat do
     state = %{state | round: state.round + 1}
     notify(state, {:agent_status, state.conversation_id, state.supervisor.name, :running})
 
-    if state.transcript != [] do
+    unless Enum.empty?(state.transcript) do
       notify(state, {:stream_postprocess, state.conversation_id})
     end
 
@@ -115,35 +113,7 @@ defmodule Core.Agent.GroupChat do
 
       {:ok,
        %{decision: "speak", next_speaker: name, instruction: instruction, reasoning: reasoning}} ->
-        case find_worker(state, name) do
-          nil ->
-            Logger.warning("Moderator picked unknown worker: #{inspect(name)}; finalizing")
-            force_finalize(state)
-
-          {worker_agent, worker_pid} ->
-            state = announce_moderator_pick(state, worker_agent, instruction, reasoning)
-
-            case run_worker_turn(state, worker_agent, worker_pid, instruction) do
-              {:ok, _output, state} ->
-                {:continue, state}
-
-              {:error, reason, state} ->
-                # 워커가 실패해도 토론을 강제 종료해 부분 답변이라도 반환
-                Logger.warning(
-                  "Worker #{worker_agent.name} failed: #{inspect(reason)}; finalizing"
-                )
-
-                state =
-                  append_transcript(state, %{
-                    kind: :worker_error,
-                    speaker: worker_agent.name,
-                    display_name: worker_agent.display_name || worker_agent.name,
-                    content: "워커 실행 오류: #{inspect(reason)}"
-                  })
-
-                force_finalize(state)
-            end
-        end
+        run_speaker_decision(state, name, instruction, reasoning)
 
       {:ok, decision} ->
         Logger.warning("Moderator returned malformed decision: #{inspect(decision)}; finalizing")
@@ -153,6 +123,39 @@ defmodule Core.Agent.GroupChat do
         Logger.warning("Moderator LLM failed: #{inspect(reason)}; finalizing")
         force_finalize(state)
     end
+  end
+
+  defp run_speaker_decision(state, name, instruction, reasoning) do
+    case find_worker(state, name) do
+      nil ->
+        Logger.warning("Moderator picked unknown worker: #{inspect(name)}; finalizing")
+        force_finalize(state)
+
+      {worker_agent, worker_pid} ->
+        state = announce_moderator_pick(state, worker_agent, instruction, reasoning)
+
+        handle_worker_turn(
+          run_worker_turn(state, worker_agent, worker_pid, instruction),
+          worker_agent
+        )
+    end
+  end
+
+  defp handle_worker_turn({:ok, _output, state}, _worker_agent), do: {:continue, state}
+
+  defp handle_worker_turn({:error, reason, state}, worker_agent) do
+    # 워커가 실패해도 토론을 강제 종료해 부분 답변이라도 반환
+    Logger.warning("Worker #{worker_agent.name} failed: #{inspect(reason)}; finalizing")
+
+    state =
+      append_transcript(state, %{
+        kind: :worker_error,
+        speaker: worker_agent.name,
+        display_name: worker_agent.display_name || worker_agent.name,
+        content: "워커 실행 오류: #{inspect(reason)}"
+      })
+
+    force_finalize(state)
   end
 
   defp finalize(state, answer, reasoning) do
@@ -340,8 +343,7 @@ defmodule Core.Agent.GroupChat do
   defp format_transcript_for_moderator([]), do: "(아직 발언 없음 — 토론 시작)"
 
   defp format_transcript_for_moderator(transcript) do
-    transcript
-    |> Enum.map(fn entry ->
+    Enum.map_join(transcript, "\n\n", fn entry ->
       content = String.slice(entry.content || "", 0, @transcript_excerpt_chars)
 
       tag =
@@ -355,7 +357,6 @@ defmodule Core.Agent.GroupChat do
 
       "라운드 #{entry.round} #{tag}: #{content}"
     end)
-    |> Enum.join("\n\n")
   end
 
   defp parse_moderator_output(content) do
@@ -499,12 +500,10 @@ defmodule Core.Agent.GroupChat do
         "(워커 발언 아직 없음)"
 
       entries ->
-        entries
-        |> Enum.map(fn entry ->
+        Enum.map_join(entries, "\n", fn entry ->
           excerpt = String.slice(entry.content || "", 0, @transcript_excerpt_chars)
           "- [#{entry.display_name}] #{excerpt}"
         end)
-        |> Enum.join("\n")
     end
   end
 
@@ -514,20 +513,18 @@ defmodule Core.Agent.GroupChat do
         "(사용 가능한 Vector RAG 지식 없음)"
 
       vector_rags ->
-        vector_rags
-        |> Enum.map(fn rag ->
-          description =
-            if rag.description && rag.description != "" do
-              " - #{rag.description}"
-            else
-              ""
-            end
-
-          "- #{rag.name} (#{rag.chunk_count} chunks)#{description}"
+        Enum.map_join(vector_rags, "\n", fn rag ->
+          "- #{rag.name} (#{rag.chunk_count} chunks)#{rag_description(rag)}"
         end)
-        |> Enum.join("\n")
     end
   end
+
+  defp rag_description(%{description: description})
+       when is_binary(description) and description != "" do
+    " - #{description}"
+  end
+
+  defp rag_description(_rag), do: ""
 
   defp build_stream_callback(state, worker_agent) do
     fn

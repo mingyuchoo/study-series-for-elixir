@@ -1,10 +1,10 @@
 defmodule WebWeb.ChatLive do
   use WebWeb, :live_view
 
-  alias Core.Schema.{Conversation, Message}
-  alias Core.Repo
   alias Core.Agent.{Supervisor, SupervisorAgent}
   alias Core.Contexts.{Agents, Conversations, Mcps, VectorRags}
+  alias Core.Repo
+  alias Core.Schema.{Conversation, Message}
 
   import Ecto.Query
 
@@ -752,11 +752,9 @@ defmodule WebWeb.ChatLive do
 
   defp build_llm_message(input, attachments) do
     file_list =
-      attachments
-      |> Enum.map(fn a ->
+      Enum.map_join(attachments, "\n", fn a ->
         "- #{a["filename"]} (#{a["content_type"]}, #{format_bytes(a["size"])})\n  경로: #{a["stored_path"]}"
       end)
-      |> Enum.join("\n")
 
     """
     #{input}
@@ -1205,30 +1203,28 @@ defmodule WebWeb.ChatLive do
     role = message_role(message)
     agent = message_agent(message)
     visibility = message_visibility(message)
-
-    cond do
-      role in [:user, "user"] ->
-        "You"
-
-      role in [:tool, "tool"] ->
-        "Tool"
-
-      is_map(agent) and Map.get(agent, :type) == :supervisor and visibility == :debate_turn ->
-        "🎯 Moderator (#{agent.display_name || agent.name})"
-
-      is_map(agent) and Map.get(agent, :display_name) ->
-        agent.display_name
-
-      is_map(agent) and Map.get(agent, :name) ->
-        agent.name
-
-      role in [:assistant, "assistant"] ->
-        "Assistant"
-
-      true ->
-        "System"
-    end
+    speaker_label(role, agent, visibility)
   end
+
+  defp speaker_label(role, _agent, _visibility) when role in [:user, "user"], do: "You"
+  defp speaker_label(role, _agent, _visibility) when role in [:tool, "tool"], do: "Tool"
+
+  defp speaker_label(_role, %{type: :supervisor} = agent, :debate_turn) do
+    "🎯 Moderator (#{agent.display_name || agent.name})"
+  end
+
+  defp speaker_label(_role, %{display_name: display_name}, _visibility)
+       when is_binary(display_name) and display_name != "" do
+    display_name
+  end
+
+  defp speaker_label(_role, %{name: name}, _visibility) when is_binary(name) and name != "",
+    do: name
+
+  defp speaker_label(role, _agent, _visibility) when role in [:assistant, "assistant"],
+    do: "Assistant"
+
+  defp speaker_label(_role, _agent, _visibility), do: "System"
 
   defp message_speaker_class(message) do
     case message_visibility(message) do

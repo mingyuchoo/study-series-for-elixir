@@ -321,7 +321,7 @@ defmodule Core.MCP.Resources do
   end
 
   defp parse_uri("skill://" <> name) do
-    if String.length(name) > 0 do
+    if name != "" do
       {:skill, name}
     else
       {:error, "Invalid skill URI format"}
@@ -344,7 +344,6 @@ defmodule Core.MCP.Resources do
     name
     |> String.replace(~r/[-_]/, " ")
     |> String.split(" ")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 end

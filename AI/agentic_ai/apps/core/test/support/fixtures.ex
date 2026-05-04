@@ -3,9 +3,9 @@ defmodule Core.Fixtures do
   테스트용 데이터 픽스처를 생성하는 헬퍼 모듈입니다.
   """
 
-  alias Core.Repo
   alias Core.Contexts.Accounts
-  alias Core.Schema.{Agent, Conversation, AgentMemory, AgentTask, AgentInteraction, User}
+  alias Core.Repo
+  alias Core.Schema.{Agent, AgentInteraction, AgentMemory, AgentTask, Conversation, User}
 
   @doc """
   테스트용 Agent를 생성합니다.

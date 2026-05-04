@@ -128,10 +128,7 @@ defmodule Core.Agent.SkillRegistry do
     if Enum.empty?(skills) do
       ""
     else
-      skill_sections =
-        skills
-        |> Enum.map(&format_skill_for_prompt/1)
-        |> Enum.join("\n\n---\n\n")
+      skill_sections = Enum.map_join(skills, "\n\n---\n\n", &format_skill_for_prompt/1)
 
       """
       ## 사용 가능한 스킬 (워크플로우 레시피)
@@ -212,25 +209,7 @@ defmodule Core.Agent.SkillRegistry do
   defp do_load_all(dir) do
     case File.ls(dir) do
       {:ok, entries} ->
-        skills =
-          entries
-          |> Enum.filter(fn entry ->
-            Path.join(dir, entry) |> File.dir?()
-          end)
-          |> Enum.reduce(%{}, fn subdir, acc ->
-            skill_file = Path.join([dir, subdir, "SKILL.md"])
-
-            case load_skill(skill_file) do
-              {:ok, skill} ->
-                Map.put(acc, skill.name, skill)
-
-              {:error, reason} ->
-                Logger.warning("스킬 로드 실패: #{skill_file} - #{inspect(reason)}")
-                acc
-            end
-          end)
-
-        {:ok, skills}
+        {:ok, load_skill_entries(entries, dir)}
 
       {:error, :enoent} ->
         Logger.info("스킬 디렉토리가 없습니다: #{dir}")
@@ -238,6 +217,28 @@ defmodule Core.Agent.SkillRegistry do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp load_skill_entries(entries, dir) do
+    entries
+    |> Enum.filter(fn entry ->
+      Path.join(dir, entry) |> File.dir?()
+    end)
+    |> Enum.reduce(%{}, fn subdir, acc ->
+      skill_file = Path.join([dir, subdir, "SKILL.md"])
+      put_loaded_skill(acc, skill_file)
+    end)
+  end
+
+  defp put_loaded_skill(acc, skill_file) do
+    case load_skill(skill_file) do
+      {:ok, skill} ->
+        Map.put(acc, skill.name, skill)
+
+      {:error, reason} ->
+        Logger.warning("스킬 로드 실패: #{skill_file} - #{inspect(reason)}")
+        acc
     end
   end
 

@@ -7,8 +7,8 @@ defmodule Core.Agent.Worker do
   require Logger
 
   alias Core.Agent.{ReactEngine, ToolRegistry}
-  alias Core.Schema.{Conversation, Message}
   alias Core.Repo
+  alias Core.Schema.{Conversation, Message}
 
   defstruct [:conversation_id, :messages, :tools]
 

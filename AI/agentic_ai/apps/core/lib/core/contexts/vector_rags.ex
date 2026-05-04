@@ -100,14 +100,12 @@ defmodule Core.Contexts.VectorRags do
 
       results ->
         items =
-          results
-          |> Enum.map(fn result ->
+          Enum.map_join(results, "\n", fn result ->
             """
             [#{result.rag_name} ##{result.position + 1}]
             #{result.content}
             """
           end)
-          |> Enum.join("\n")
 
         """
 
@@ -181,25 +179,27 @@ defmodule Core.Contexts.VectorRags do
 
       ids
       |> Enum.zip(dists)
-      |> Enum.flat_map(fn {position, distance} ->
-        case Map.get(chunks, position) do
-          nil ->
-            []
-
-          chunk ->
-            [
-              %{
-                rag_id: vector_rag.id,
-                rag_name: vector_rag.name,
-                position: position,
-                distance: distance,
-                content: chunk.content
-              }
-            ]
-        end
-      end)
+      |> Enum.flat_map(&search_result_for_chunk(&1, chunks, vector_rag))
     else
       _ -> []
+    end
+  end
+
+  defp search_result_for_chunk({position, distance}, chunks, vector_rag) do
+    case Map.get(chunks, position) do
+      nil ->
+        []
+
+      chunk ->
+        [
+          %{
+            rag_id: vector_rag.id,
+            rag_name: vector_rag.name,
+            position: position,
+            distance: distance,
+            content: chunk.content
+          }
+        ]
     end
   end
 
@@ -293,8 +293,7 @@ defmodule Core.Contexts.VectorRags do
       Regex.scan(~r/<w:t\b[^>]*>(.*?)<\/w:t>/su, content, capture: :all_but_first)
     end)
     |> List.flatten()
-    |> Enum.map(&decode_xml_entities/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &decode_xml_entities/1)
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end

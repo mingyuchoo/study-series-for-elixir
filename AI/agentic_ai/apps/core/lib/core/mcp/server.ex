@@ -25,7 +25,7 @@ defmodule Core.MCP.Server do
   use GenServer
   require Logger
 
-  alias Core.MCP.{Protocol, Tools, Prompts, Resources}
+  alias Core.MCP.{Prompts, Protocol, Resources, Tools}
 
   @protocol_version "2025-06-18"
   @server_name "agentic-ai-mcp-server"
@@ -126,41 +126,17 @@ defmodule Core.MCP.Server do
   defp get_id(%{"id" => id}), do: {:ok, id}
   defp get_id(_), do: {:ok, nil}
 
-  defp dispatch_method(method, params, state) do
-    case method do
-      # 수명주기 관리
-      "initialize" ->
-        handle_initialize(params, state)
+  defp dispatch_method("initialize", params, state), do: handle_initialize(params, state)
+  defp dispatch_method("notifications/initialized", _params, state), do: handle_initialized(state)
+  defp dispatch_method("tools/list", _params, state), do: {Tools.list(), state}
+  defp dispatch_method("tools/call", params, state), do: {Tools.call(params), state}
+  defp dispatch_method("prompts/list", _params, state), do: {Prompts.list(), state}
+  defp dispatch_method("prompts/get", params, state), do: {Prompts.get(params), state}
+  defp dispatch_method("resources/list", _params, state), do: {Resources.list(), state}
+  defp dispatch_method("resources/read", params, state), do: {Resources.read(params), state}
 
-      "notifications/initialized" ->
-        handle_initialized(state)
-
-      # 도구 (Tools)
-      "tools/list" ->
-        {Tools.list(), state}
-
-      "tools/call" ->
-        {Tools.call(params), state}
-
-      # 프롬프트 (Prompts) - Skills 연동
-      "prompts/list" ->
-        {Prompts.list(), state}
-
-      "prompts/get" ->
-        {Prompts.get(params), state}
-
-      # 리소스 (Resources) - 에이전트 설정
-      "resources/list" ->
-        {Resources.list(), state}
-
-      "resources/read" ->
-        {Resources.read(params), state}
-
-      # 알 수 없는 메서드
-      _ ->
-        {{:error, Protocol.method_not_found_error(method)}, state}
-    end
-  end
+  defp dispatch_method(method, _params, state),
+    do: {{:error, Protocol.method_not_found_error(method)}, state}
 
   defp handle_initialize(params, state) do
     client_info = Map.get(params, "clientInfo")

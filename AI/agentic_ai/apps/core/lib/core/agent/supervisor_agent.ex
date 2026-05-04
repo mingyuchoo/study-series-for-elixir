@@ -12,8 +12,8 @@ defmodule Core.Agent.SupervisorAgent do
 
   alias Core.Agent.{GroupChat, MemoryManager, WorkerAgent}
   alias Core.Contexts.{Agents, Conversations}
-  alias Core.Schema.{Agent, Message}
   alias Core.Repo
+  alias Core.Schema.{Agent, Message}
 
   # 프로필 수집 상태
   # :idle - 프로필 수집 중이 아님
@@ -225,48 +225,7 @@ defmodule Core.Agent.SupervisorAgent do
   defp check_and_start_profile_collection(state) do
     case MemoryManager.get_user_profile() do
       {:ok, profile} ->
-        user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name)
-        agent_name = Map.get(profile, "agent_name") || Map.get(profile, :agent_name)
-        city = Map.get(profile, "city") || Map.get(profile, :city)
-
-        cond do
-          !user_name ->
-            greeting = """
-            안녕하세요! 👋 저는 당신의 AI 비서입니다.
-
-            더 나은 서비스를 제공하기 위해 몇 가지 정보를 알고 싶어요.
-
-            먼저, **어떻게 불러드리면 될까요?** 이름이나 별명을 알려주세요.
-            """
-
-            {:collecting,
-             %{state | profile_state: :collecting_user_name, partial_profile: profile}, greeting}
-
-          !agent_name ->
-            greeting = """
-            #{user_name}님, 반가워요! 😊
-
-            저에게도 이름을 지어주실 수 있나요? **저를 뭐라고 부르고 싶으세요?**
-            (예: 아리, 제이, 클로버 등)
-            """
-
-            {:collecting,
-             %{state | profile_state: :collecting_agent_name, partial_profile: profile}, greeting}
-
-          !city ->
-            greeting = """
-            좋아요, #{user_name}님! 저는 이제 #{agent_name}(이)에요. 🎉
-
-            마지막으로, **현재 어느 도시에 계신가요?**
-            날씨나 시간 등 맞춤 정보를 제공하는 데 도움이 됩니다.
-            """
-
-            {:collecting, %{state | profile_state: :collecting_city, partial_profile: profile},
-             greeting}
-
-          true ->
-            {:complete, %{state | profile_state: :complete}}
-        end
+        continue_profile_collection(state, profile)
 
       {:error, _} ->
         # 프로필 없음 - 처음부터 시작
@@ -281,6 +240,55 @@ defmodule Core.Agent.SupervisorAgent do
         {:collecting, %{state | profile_state: :collecting_user_name, partial_profile: %{}},
          greeting}
     end
+  end
+
+  defp continue_profile_collection(state, profile) do
+    user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name)
+    agent_name = Map.get(profile, "agent_name") || Map.get(profile, :agent_name)
+    city = Map.get(profile, "city") || Map.get(profile, :city)
+
+    cond do
+      !user_name -> ask_user_name(state, profile)
+      !agent_name -> ask_agent_name(state, profile, user_name)
+      !city -> ask_city(state, profile, user_name, agent_name)
+      true -> {:complete, %{state | profile_state: :complete}}
+    end
+  end
+
+  defp ask_user_name(state, profile) do
+    greeting = """
+    안녕하세요! 👋 저는 당신의 AI 비서입니다.
+
+    더 나은 서비스를 제공하기 위해 몇 가지 정보를 알고 싶어요.
+
+    먼저, **어떻게 불러드리면 될까요?** 이름이나 별명을 알려주세요.
+    """
+
+    {:collecting, %{state | profile_state: :collecting_user_name, partial_profile: profile},
+     greeting}
+  end
+
+  defp ask_agent_name(state, profile, user_name) do
+    greeting = """
+    #{user_name}님, 반가워요! 😊
+
+    저에게도 이름을 지어주실 수 있나요? **저를 뭐라고 부르고 싶으세요?**
+    (예: 아리, 제이, 클로버 등)
+    """
+
+    {:collecting, %{state | profile_state: :collecting_agent_name, partial_profile: profile},
+     greeting}
+  end
+
+  defp ask_city(state, profile, user_name, agent_name) do
+    greeting = """
+    좋아요, #{user_name}님! 저는 이제 #{agent_name}(이)에요. 🎉
+
+    마지막으로, **현재 어느 도시에 계신가요?**
+    날씨나 시간 등 맞춤 정보를 제공하는 데 도움이 됩니다.
+    """
+
+    {:collecting, %{state | profile_state: :collecting_city, partial_profile: profile}, greeting}
   end
 
   # 프로필 응답 처리 (스트리밍 컨텍스트가 아닌 일반 호출용)

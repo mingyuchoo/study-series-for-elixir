@@ -133,19 +133,22 @@ defmodule Core.LLM.AzureOpenAI do
     chunk
     |> String.split("\n")
     |> Enum.filter(&String.starts_with?(&1, "data: "))
-    |> Enum.each(fn line ->
-      case String.trim_leading(line, "data: ") do
-        "[DONE]" ->
-          :ok
-
-        json_str ->
-          case Jason.decode(json_str) do
-            {:ok, data} -> callback.(data)
-            _ -> :ok
-          end
-      end
-    end)
+    |> Enum.each(&process_stream_line(&1, callback))
 
     {:cont, acc}
+  end
+
+  defp process_stream_line(line, callback) do
+    case String.trim_leading(line, "data: ") do
+      "[DONE]" -> :ok
+      json_str -> decode_stream_json(json_str, callback)
+    end
+  end
+
+  defp decode_stream_json(json_str, callback) do
+    case Jason.decode(json_str) do
+      {:ok, data} -> callback.(data)
+      _ -> :ok
+    end
   end
 end

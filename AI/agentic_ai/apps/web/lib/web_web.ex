@@ -101,7 +101,11 @@ defmodule WebWeb do
   @doc """
   사용될 때 적절한 controller/live_view/etc로 디스패치합니다.
   """
-  defmacro __using__(which) when is_atom(which) do
-    apply(__MODULE__, which, [])
-  end
+  defmacro __using__(:router), do: router()
+  defmacro __using__(:channel), do: channel()
+  defmacro __using__(:controller), do: controller()
+  defmacro __using__(:live_view), do: live_view()
+  defmacro __using__(:live_component), do: live_component()
+  defmacro __using__(:html), do: html()
+  defmacro __using__(:verified_routes), do: verified_routes()
 end

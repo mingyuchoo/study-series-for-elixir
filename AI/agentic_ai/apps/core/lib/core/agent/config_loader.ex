@@ -42,26 +42,30 @@ defmodule Core.Agent.ConfigLoader do
   def load_all_configs(dir \\ @config_dir) do
     case File.ls(dir) do
       {:ok, files} ->
-        results =
-          files
-          |> Enum.filter(&String.ends_with?(&1, ".md"))
-          |> Enum.map(fn file ->
-            path = Path.join(dir, file)
-            load_config(path)
-          end)
-
-        errors = Enum.filter(results, &match?({:error, _}, &1))
-
-        if Enum.empty?(errors) do
-          agents = Enum.map(results, fn {:ok, agent} -> agent end)
-          {:ok, agents}
-        else
-          {:error, errors}
-        end
+        files
+        |> load_config_files(dir)
+        |> collect_load_results()
 
       {:error, reason} ->
         Logger.warning("설정 디렉토리를 읽을 수 없습니다: #{dir} - #{inspect(reason)}")
         {:error, "디렉토리를 읽을 수 없습니다: #{inspect(reason)}"}
+    end
+  end
+
+  defp load_config_files(files, dir) do
+    files
+    |> Enum.filter(&String.ends_with?(&1, ".md"))
+    |> Enum.map(fn file -> load_config(Path.join(dir, file)) end)
+  end
+
+  defp collect_load_results(results) do
+    errors = Enum.filter(results, &match?({:error, _}, &1))
+
+    if Enum.empty?(errors) do
+      agents = Enum.map(results, fn {:ok, agent} -> agent end)
+      {:ok, agents}
+    else
+      {:error, errors}
     end
   end
 

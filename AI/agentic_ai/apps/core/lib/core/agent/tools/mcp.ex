@@ -116,14 +116,16 @@ defmodule Core.Agent.Tools.Mcp do
   end
 
   defp resolve_env(env) when is_map(env) do
-    case Enum.reduce_while(env, {:ok, []}, fn {key, value}, {:ok, acc} ->
-           case resolve_placeholder(value) do
-             {:ok, resolved} -> {:cont, {:ok, [{to_charlist(key), to_charlist(resolved)} | acc]}}
-             {:error, _} = error -> {:halt, error}
-           end
-         end) do
+    case Enum.reduce_while(env, {:ok, []}, &resolve_env_item/2) do
       {:ok, resolved} -> {:ok, Enum.reverse(resolved)}
       {:error, _} = error -> error
+    end
+  end
+
+  defp resolve_env_item({key, value}, {:ok, acc}) do
+    case resolve_placeholder(value) do
+      {:ok, resolved} -> {:cont, {:ok, [{to_charlist(key), to_charlist(resolved)} | acc]}}
+      {:error, _} = error -> {:halt, error}
     end
   end
 
@@ -258,12 +260,10 @@ defmodule Core.Agent.Tools.Mcp do
 
   defp normalize_result(%{"content" => content} = result) when is_list(content) do
     text =
-      content
-      |> Enum.map(fn
+      Enum.map_join(content, "\n", fn
         %{"type" => "text", "text" => text} -> sanitize_tool_text(text)
         other -> Jason.encode!(other)
       end)
-      |> Enum.join("\n")
 
     result
     |> Map.put("content", sanitize_content(content))

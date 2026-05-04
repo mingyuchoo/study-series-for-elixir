@@ -10,8 +10,8 @@ defmodule Core.Agent.Coordinator do
   require Logger
 
   alias Core.Agent.WorkerAgent
-  alias Core.Schema.{AgentTask, AgentInteraction}
   alias Core.Repo
+  alias Core.Schema.{AgentInteraction, AgentTask}
   import Ecto.Query
 
   @doc """

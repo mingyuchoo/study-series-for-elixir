@@ -121,8 +121,7 @@ defmodule Core.Agent.ReactEngineIntegrationTest do
           assert is_binary(response)
           # 도구가 호출되었는지 확인
           tool_messages = Enum.filter(final_messages, fn m -> m.role == "tool" end)
-          # 계산 요청이면 tool 메시지가 있어야 함
-          assert length(tool_messages) >= 0
+          assert is_list(tool_messages)
 
         {:error, _reason} ->
           # API 문제로 실패할 수 있음

@@ -7,8 +7,8 @@ defmodule Core.Agent.ReactEngine do
   """
 
   require Logger
-  alias Core.LLM.AzureOpenAI
   alias Core.Agent.ToolRegistry
+  alias Core.LLM.AzureOpenAI
 
   @type message :: %{
           role: String.t(),
@@ -164,76 +164,93 @@ defmodule Core.Agent.ReactEngine do
     {final_state, http_result} =
       stream_with_callback(formatted_messages, formatted_tools, stream_callback, state)
 
-    cond do
-      # HTTP 레벨 오류 (네트워크/타임아웃 등) - 즉시 전파
-      match?({:error, _}, http_result) ->
-        {:error, reason} = http_result
+    case http_result do
+      {:error, reason} ->
         Logger.error("LLM streaming HTTP error: #{inspect(reason)}")
         {:error, reason}
 
-      # HTTP 200 이 아닌 응답 (인증/요금/모델 오류 등) - 본문을 사유로 전파
-      match?({:ok, %Req.Response{status: status}} when status >= 400, http_result) ->
-        {:ok, %Req.Response{status: status, body: body}} = http_result
-
+      {:ok, %Req.Response{status: status, body: body}} when status >= 400 ->
         Logger.error("LLM streaming responded with HTTP #{status}: #{inspect(body, limit: 500)}")
-
         {:error, {:http_error, status, body}}
 
-      true ->
-        case final_state do
-          %{tool_calls: [], content: content} when content != "" ->
-            # 도구 호출 없음 - 최종 응답 반환
-            assistant_message = %{
-              role: "assistant",
-              content: content,
-              tool_calls: nil,
-              tool_call_id: nil
-            }
-
-            {:ok, content, append_item(messages, assistant_message)}
-
-          %{tool_calls: tool_calls, content: content}
-          when is_list(tool_calls) and tool_calls != [] ->
-            # 도구 호출 존재 - 도구 실행 후 루프 계속
-            # 도구 실행 중임을 알림
-            stream_callback.({:tool_execution, tool_calls})
-
-            assistant_message = %{
-              role: "assistant",
-              content: content || "",
-              tool_calls: tool_calls,
-              tool_call_id: nil
-            }
-
-            messages_after_assistant = append_item(messages, assistant_message)
-
-            {messages_after_tools, failed_tool_names} =
-              execute_tool_calls(messages_after_assistant, tool_calls)
-
-            # 도구 실행 완료 알림
-            stream_callback.({:tool_completed, tool_calls, failed_tool_names})
-
-            agent_loop_stream(
-              messages_after_tools,
-              tools,
-              stream_callback,
-              iteration + 1,
-              max_iterations
-            )
-
-          %{error: reason} ->
-            {:error, reason}
-
-          _ ->
-            # 빈 응답: 빈 문자열을 그대로 돌려주면 UI 가 빈 말풍선으로 보이므로
-            # 명시적인 오류로 승격시켜 사용자에게 원인을 노출한다.
-            Logger.warning(
-              "LLM streaming returned empty response. final_state=#{inspect(final_state)}"
-            )
-
-            {:error, :empty_response}
-        end
+      _ ->
+        handle_stream_final_state(
+          final_state,
+          messages,
+          tools,
+          stream_callback,
+          iteration,
+          max_iterations
+        )
     end
+  end
+
+  defp handle_stream_final_state(
+         %{tool_calls: [], content: content},
+         messages,
+         _tools,
+         _stream_callback,
+         _iteration,
+         _max_iterations
+       )
+       when content != "" do
+    assistant_message = %{
+      role: "assistant",
+      content: content,
+      tool_calls: nil,
+      tool_call_id: nil
+    }
+
+    {:ok, content, append_item(messages, assistant_message)}
+  end
+
+  defp handle_stream_final_state(
+         %{tool_calls: [_ | _] = tool_calls, content: content},
+         messages,
+         tools,
+         stream_callback,
+         iteration,
+         max_iterations
+       ) do
+    stream_callback.({:tool_execution, tool_calls})
+
+    assistant_message = %{
+      role: "assistant",
+      content: content || "",
+      tool_calls: tool_calls,
+      tool_call_id: nil
+    }
+
+    messages_after_assistant = append_item(messages, assistant_message)
+
+    {messages_after_tools, failed_tool_names} =
+      execute_tool_calls(messages_after_assistant, tool_calls)
+
+    stream_callback.({:tool_completed, tool_calls, failed_tool_names})
+    agent_loop_stream(messages_after_tools, tools, stream_callback, iteration + 1, max_iterations)
+  end
+
+  defp handle_stream_final_state(
+         %{error: reason},
+         _messages,
+         _tools,
+         _stream_callback,
+         _iteration,
+         _max_iterations
+       ) do
+    {:error, reason}
+  end
+
+  defp handle_stream_final_state(
+         final_state,
+         _messages,
+         _tools,
+         _stream_callback,
+         _iteration,
+         _max_iterations
+       ) do
+    Logger.warning("LLM streaming returned empty response. final_state=#{inspect(final_state)}")
+    {:error, :empty_response}
   end
 
   defp stream_with_callback(messages, tools, stream_callback, initial_state) do
@@ -307,38 +324,10 @@ defmodule Core.Agent.ReactEngine do
 
   defp process_tool_call_delta(%{"index" => index} = tc, state) do
     existing = Enum.at(state.tool_calls, index)
+    updated_tc = merge_tool_call_delta(existing, tc)
 
-    updated_tc =
-      case existing do
-        nil ->
-          # 새로운 도구 호출 시작
-          %{
-            "id" => tc["id"] || "",
-            "type" => tc["type"] || "function",
-            "function" => %{
-              "name" => get_in(tc, ["function", "name"]) || "",
-              "arguments" => get_in(tc, ["function", "arguments"]) || ""
-            }
-          }
-
-        existing_tc ->
-          # 기존 도구 호출 업데이트
-          func = existing_tc["function"]
-          new_func = tc["function"] || %{}
-
-          %{
-            existing_tc
-            | "id" => tc["id"] || existing_tc["id"],
-              "function" => %{
-                "name" => (new_func["name"] || "") <> (func["name"] || ""),
-                "arguments" => (func["arguments"] || "") <> (new_func["arguments"] || "")
-              }
-          }
-      end
-
-    # 리스트 업데이트
     tool_calls =
-      if index >= length(state.tool_calls) do
+      if index >= Enum.count(state.tool_calls) do
         append_item(state.tool_calls, updated_tc)
       else
         List.replace_at(state.tool_calls, index, updated_tc)
@@ -348,6 +337,31 @@ defmodule Core.Agent.ReactEngine do
   end
 
   defp process_tool_call_delta(_tc, state), do: state
+
+  defp merge_tool_call_delta(nil, tc) do
+    %{
+      "id" => tc["id"] || "",
+      "type" => tc["type"] || "function",
+      "function" => %{
+        "name" => get_in(tc, ["function", "name"]) || "",
+        "arguments" => get_in(tc, ["function", "arguments"]) || ""
+      }
+    }
+  end
+
+  defp merge_tool_call_delta(existing_tc, tc) do
+    func = existing_tc["function"]
+    new_func = tc["function"] || %{}
+
+    %{
+      existing_tc
+      | "id" => tc["id"] || existing_tc["id"],
+        "function" => %{
+          "name" => (new_func["name"] || "") <> (func["name"] || ""),
+          "arguments" => (func["arguments"] || "") <> (new_func["arguments"] || "")
+        }
+    }
+  end
 
   defp append_item(list, item), do: List.insert_at(list, -1, item)
 
