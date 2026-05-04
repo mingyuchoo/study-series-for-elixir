@@ -24,8 +24,8 @@ defmodule Core.LLM.AzureOpenAI do
     config = get_config()
     model = Keyword.get(opts, :model, config.deployment)
 
-    # GPT-5-mini는 temperature 1.0만 지원
-    default_temperature = if model == "gpt-5-mini", do: 1.0, else: 0.7
+    # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
+    default_temperature = 1.0
 
     body =
       %{
@@ -65,8 +65,8 @@ defmodule Core.LLM.AzureOpenAI do
     config = get_config()
     model = Keyword.get(opts, :model, config.deployment)
 
-    # GPT-5-mini는 temperature 1.0만 지원
-    default_temperature = if model == "gpt-5-mini", do: 1.0, else: 0.7
+    # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
+    default_temperature = 1.0
 
     body =
       %{

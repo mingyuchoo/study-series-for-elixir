@@ -30,17 +30,6 @@ defmodule WebWeb.Layouts do
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
 
-      <.flash
-        id="server-error"
-        kind={:error}
-        title="Something went wrong!"
-        phx-disconnected={show(".phx-server-error #server-error") |> JS.remove_attribute("hidden", to: ".phx-server-error #server-error")}
-        phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""}, to: "#server-error")}
-        hidden
-      >
-        Attempting to reconnect
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-      </.flash>
     </div>
     """
   end
