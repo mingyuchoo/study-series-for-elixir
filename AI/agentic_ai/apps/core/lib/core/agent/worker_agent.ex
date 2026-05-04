@@ -10,7 +10,7 @@ defmodule Core.Agent.WorkerAgent do
   require Logger
 
   alias Core.Agent.{MemoryManager, ReactEngine, ToolRegistry, SkillRegistry}
-  alias Core.Contexts.Agents
+  alias Core.Contexts.{Agents, Conversations}
   alias Core.Schema.{Agent, AgentTask}
   alias Core.Repo
 
@@ -247,7 +247,7 @@ defmodule Core.Agent.WorkerAgent do
     context = task_attrs[:context]
 
     # 초기 메시지 구성
-    messages = build_initial_messages(user_request, context)
+    messages = build_initial_messages(user_request, context, task_attrs[:conversation_id])
 
     # 스킬이 포함된 시스템 프롬프트 구성
     system_prompt = build_system_prompt_with_skills(state.agent)
@@ -273,7 +273,7 @@ defmodule Core.Agent.WorkerAgent do
     context = task_attrs[:context]
 
     # 초기 메시지 구성
-    messages = build_initial_messages(user_request, context)
+    messages = build_initial_messages(user_request, context, task_attrs[:conversation_id])
 
     # 스킬이 포함된 시스템 프롬프트 구성
     system_prompt = build_system_prompt_with_skills(state.agent)
@@ -355,7 +355,7 @@ defmodule Core.Agent.WorkerAgent do
     end
   end
 
-  defp build_initial_messages(user_request, context) do
+  defp build_initial_messages(user_request, context, conversation_id) do
     messages = []
 
     messages =
@@ -374,6 +374,7 @@ defmodule Core.Agent.WorkerAgent do
       end
 
     messages ++
+      conversation_history_messages(conversation_id, user_request) ++
       [
         %{
           role: "user",
@@ -383,6 +384,50 @@ defmodule Core.Agent.WorkerAgent do
         }
       ]
   end
+
+  defp conversation_history_messages(nil, _current_request), do: []
+
+  defp conversation_history_messages(conversation_id, current_request) do
+    conversation_id
+    |> Conversations.list_recent_messages(12)
+    |> drop_current_request_messages(current_request)
+    |> Enum.filter(&(&1.role in [:system, :user, :assistant]))
+    |> Enum.map(fn message ->
+      %{
+        role: Atom.to_string(message.role),
+        content: message.content || "",
+        tool_calls: nil,
+        tool_call_id: nil
+      }
+    end)
+  end
+
+  defp drop_current_request_messages(messages, current_request) do
+    case List.last(messages) do
+      %{role: :user, content: content} when is_binary(content) ->
+        if same_current_request?(content, current_request) do
+          messages
+          |> Enum.drop(-1)
+          |> drop_current_request_messages(current_request)
+        else
+          messages
+        end
+
+      _ ->
+        messages
+    end
+  end
+
+  defp same_current_request?(history_content, current_request)
+       when is_binary(history_content) and is_binary(current_request) do
+    trimmed_history = String.trim(history_content)
+    trimmed_current = String.trim(current_request)
+
+    trimmed_history == trimmed_current ||
+      (trimmed_history != "" && String.contains?(trimmed_current, trimmed_history))
+  end
+
+  defp same_current_request?(_history_content, _current_request), do: false
 
   # 작업 실행 결과를 메모리에 저장
   defp record_task_execution(state, task_attrs, result_or_error, duration_ms, success) do

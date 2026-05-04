@@ -35,11 +35,14 @@ defmodule WebWeb.ChatLive do
       |> assign(:loading, false)
       |> assign(:available_agents, available_agents)
       |> assign(:available_mcps, available_mcps)
+      |> assign(:mcp_statuses, %{})
       |> assign(:agent_usage_history, [])
       |> assign(:message_sent_at, nil)
       |> assign(:streaming_content, "")
       |> assign(:streaming_message_id, nil)
       |> assign(:streaming_status, nil)
+      |> assign(:agent_execution_failed, false)
+      |> assign(:agent_statuses, %{})
       |> allow_upload(:attachments,
         accept: @accepted_extensions,
         max_entries: @max_upload_entries,
@@ -69,6 +72,9 @@ defmodule WebWeb.ChatLive do
           |> assign(:current_conversation, conversation)
           |> assign(:messages, messages)
           |> assign(:agent_usage_history, [])
+          |> assign(:agent_execution_failed, false)
+          |> assign(:agent_statuses, %{})
+          |> assign(:mcp_statuses, %{})
           |> assign(:message_sent_at, nil)
 
         {:noreply, socket}
@@ -197,6 +203,9 @@ defmodule WebWeb.ChatLive do
           |> assign(:loading, true)
           |> assign(:message_sent_at, now)
           |> assign(:agent_usage_history, [])
+          |> assign(:agent_execution_failed, false)
+          |> assign(:agent_statuses, %{})
+          |> assign(:mcp_statuses, %{})
           |> assign(:streaming_content, "")
           |> assign(:streaming_message_id, streaming_message_id)
           |> assign(:streaming_status, :streaming)
@@ -249,7 +258,26 @@ defmodule WebWeb.ChatLive do
   @impl true
   def handle_info({:stream_tool_start, conversation_id, tool_names}, socket) do
     if current?(socket, conversation_id) do
-      {:noreply, assign(socket, :streaming_status, {:tool_executing, tool_names})}
+      socket =
+        socket
+        |> assign(:streaming_status, {:tool_executing, tool_names})
+        |> assign(:mcp_statuses, set_mcp_statuses(socket, tool_names, :running))
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:stream_tool_end, conversation_id, tool_names, failed_tool_names}, socket) do
+    if current?(socket, conversation_id) do
+      socket =
+        socket
+        |> assign(:streaming_status, :streaming)
+        |> assign(:mcp_statuses, complete_mcp_statuses(socket, tool_names, failed_tool_names))
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -258,7 +286,21 @@ defmodule WebWeb.ChatLive do
   @impl true
   def handle_info({:stream_tool_end, conversation_id}, socket) do
     if current?(socket, conversation_id) do
-      {:noreply, assign(socket, :streaming_status, :streaming)}
+      socket =
+        socket
+        |> assign(:streaming_status, :streaming)
+        |> assign(:mcp_statuses, mark_running_mcps_idle(socket.assigns.mcp_statuses))
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:agent_status, conversation_id, agent_name, status}, socket) do
+    if current?(socket, conversation_id) do
+      {:noreply, assign(socket, :agent_statuses, set_agent_status(socket, agent_name, status))}
     else
       {:noreply, socket}
     end
@@ -292,6 +334,9 @@ defmodule WebWeb.ChatLive do
         |> assign(:streaming_message_id, nil)
         |> assign(:streaming_status, nil)
         |> assign(:agent_usage_history, [])
+        |> assign(:agent_execution_failed, true)
+        |> assign(:agent_statuses, mark_running_agents_failed(socket.assigns.agent_statuses))
+        |> assign(:mcp_statuses, mark_running_mcps_failed(socket.assigns.mcp_statuses))
         |> put_flash(:error, "스트리밍 오류: #{inspect(reason)}")
 
       {:noreply, socket}
@@ -314,6 +359,8 @@ defmodule WebWeb.ChatLive do
       agent_usage_history =
         Agents.list_agent_usage_history(conversation_id, socket.assigns.message_sent_at)
 
+      agent_execution_failed = agent_response_error?(final_response)
+
       socket =
         socket
         |> assign(:messages, socket.assigns.messages ++ [assistant_message])
@@ -322,6 +369,9 @@ defmodule WebWeb.ChatLive do
         |> assign(:streaming_message_id, nil)
         |> assign(:streaming_status, nil)
         |> assign(:agent_usage_history, agent_usage_history)
+        |> assign(:agent_execution_failed, agent_execution_failed)
+        |> assign(:agent_statuses, finalize_agent_statuses(socket.assigns.agent_statuses, agent_execution_failed))
+        |> assign(:mcp_statuses, finalize_mcp_statuses(socket.assigns.mcp_statuses, agent_execution_failed))
 
       {:noreply, socket}
     else
@@ -335,6 +385,98 @@ defmodule WebWeb.ChatLive do
     socket.assigns.current_conversation &&
       socket.assigns.current_conversation.id == conversation_id
   end
+
+  defp set_agent_status(socket, agent_name, status)
+       when is_binary(agent_name) and status in [:running, :idle, :error] do
+    known_agent? = Enum.any?(socket.assigns.available_agents, &(&1.name == agent_name))
+
+    if known_agent? do
+      Map.put(socket.assigns.agent_statuses, agent_name, status)
+    else
+      socket.assigns.agent_statuses
+    end
+  end
+
+  defp set_agent_status(socket, _agent_name, _status), do: socket.assigns.agent_statuses
+
+  defp set_mcp_statuses(socket, tool_names, status) when is_list(tool_names) do
+    tool_names
+    |> Enum.map(&tool_mcp_name/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.filter(&known_mcp?(socket, &1))
+    |> Enum.reduce(socket.assigns.mcp_statuses, fn mcp_name, statuses ->
+      Map.put(statuses, mcp_name, status)
+    end)
+  end
+
+  defp set_mcp_statuses(socket, _tool_names, _status), do: socket.assigns.mcp_statuses
+
+  defp complete_mcp_statuses(socket, tool_names, failed_tool_names) do
+    failed_mcps =
+      failed_tool_names
+      |> Enum.map(&tool_mcp_name/1)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    tool_names
+    |> Enum.map(&tool_mcp_name/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.filter(&known_mcp?(socket, &1))
+    |> Enum.reduce(socket.assigns.mcp_statuses, fn mcp_name, statuses ->
+      if MapSet.member?(failed_mcps, mcp_name) do
+        Map.put(statuses, mcp_name, :error)
+      else
+        Map.put(statuses, mcp_name, :idle)
+      end
+    end)
+  end
+
+  defp known_mcp?(socket, mcp_name) do
+    Enum.any?(socket.assigns.available_mcps, &(&1.name == mcp_name))
+  end
+
+  defp tool_mcp_name(tool_name) when is_binary(tool_name) do
+    cond do
+      String.starts_with?(tool_name, "firecrawl_") -> "firecrawl"
+      String.starts_with?(tool_name, "mcp__firecrawl__") -> "firecrawl"
+      true -> nil
+    end
+  end
+
+  defp tool_mcp_name(_tool_name), do: nil
+
+  defp mark_running_agents_failed(agent_statuses) do
+    Map.new(agent_statuses, fn
+      {agent_name, :running} -> {agent_name, :error}
+      entry -> entry
+    end)
+  end
+
+  defp finalize_agent_statuses(agent_statuses, true), do: mark_running_agents_failed(agent_statuses)
+
+  defp finalize_agent_statuses(agent_statuses, false) do
+    Map.new(agent_statuses, fn
+      {agent_name, :running} -> {agent_name, :idle}
+      entry -> entry
+    end)
+  end
+
+  defp mark_running_mcps_failed(mcp_statuses) do
+    Map.new(mcp_statuses, fn
+      {mcp_name, :running} -> {mcp_name, :error}
+      entry -> entry
+    end)
+  end
+
+  defp mark_running_mcps_idle(mcp_statuses) do
+    Map.new(mcp_statuses, fn
+      {mcp_name, :running} -> {mcp_name, :idle}
+      entry -> entry
+    end)
+  end
+
+  defp finalize_mcp_statuses(mcp_statuses, true), do: mark_running_mcps_failed(mcp_statuses)
+  defp finalize_mcp_statuses(mcp_statuses, false), do: mark_running_mcps_idle(mcp_statuses)
 
   defp list_messages(conversation_id) do
     Message
@@ -452,6 +594,30 @@ defmodule WebWeb.ChatLive do
         </ul>
 
         <ul class="menu menu-xs border-t border-base-300 p-2">
+          <li class="menu-title">사용 가능한 에이전트</li>
+          <%= for agent <- @available_agents do %>
+            <% agent_status = Map.get(@agent_statuses, agent.name, :idle) %>
+            <li>
+              <div class="items-center">
+                <span
+                  class={[
+                    "status",
+                    agent_status_class(agent_status)
+                  ]}
+                  title={agent_status_label(agent_status)}
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="truncate font-medium">{agent.display_name || agent.name}</div>
+                  <div :if={agent.description} class="truncate text-xs opacity-50">
+                    {agent.description}
+                  </div>
+                </div>
+              </div>
+            </li>
+          <% end %>
+        </ul>
+
+        <ul class="menu menu-xs border-t border-base-300 p-2">
           <li class="menu-title">사용 가능한 MCP</li>
           <%= if @available_mcps == [] do %>
             <li class="disabled">
@@ -459,11 +625,12 @@ defmodule WebWeb.ChatLive do
             </li>
           <% else %>
             <%= for mcp <- @available_mcps do %>
+              <% mcp_runtime_status = Map.get(@mcp_statuses, mcp.name, :idle) %>
               <li>
                 <div class="items-center">
                   <span
-                    class={["status", mcp_status_class(mcp.status)]}
-                    title={mcp_status_label(mcp.status)}
+                    class={["status", mcp_status_class(mcp.status, mcp_runtime_status)]}
+                    title={mcp_status_label(mcp.status, mcp_runtime_status)}
                   />
                   <div class="flex-1 min-w-0">
                     <div class="truncate font-medium">{mcp.name}</div>
@@ -474,29 +641,6 @@ defmodule WebWeb.ChatLive do
                 </div>
               </li>
             <% end %>
-          <% end %>
-        </ul>
-
-        <ul class="menu menu-xs border-t border-base-300 p-2">
-          <li class="menu-title">사용 가능한 에이전트</li>
-          <%= for agent <- @available_agents do %>
-            <% usage_info = find_agent_usage(@agent_usage_history, agent.id) %>
-            <li>
-              <div class={["items-center", usage_info && "menu-active"]}>
-                <%= if usage_info do %>
-                  <span class="badge badge-primary badge-sm font-bold">{usage_info.order}</span>
-                <% else %>
-                  <span class="badge badge-ghost badge-sm">-</span>
-                <% end %>
-                <div class="flex-1 min-w-0">
-                  <div class="truncate font-medium">{agent.display_name || agent.name}</div>
-                  <div :if={agent.description} class="truncate text-xs opacity-50">
-                    {agent.description}
-                  </div>
-                </div>
-                <.icon :if={usage_info} name="hero-check-circle" class="size-4 text-success" />
-              </div>
-            </li>
           <% end %>
         </ul>
       </aside>
@@ -727,9 +871,19 @@ defmodule WebWeb.ChatLive do
   defp role_label(role) when role in [:tool, "tool"], do: "Tool Result"
   defp role_label(_), do: "System"
 
-  defp find_agent_usage(usage_history, agent_id) do
-    Enum.find(usage_history, fn usage -> usage.agent && usage.agent.id == agent_id end)
+  defp agent_response_error?(response) when is_binary(response) do
+    String.starts_with?(response, "작업 수행 중 오류가 발생했습니다:")
   end
+
+  defp agent_response_error?(_), do: false
+
+  defp agent_status_class(:running), do: ["bg-green-500", "text-green-500"]
+  defp agent_status_class(:error), do: ["bg-red-500", "text-red-500"]
+  defp agent_status_class(_), do: ["bg-orange-500", "text-orange-500"]
+
+  defp agent_status_label(:running), do: "동작"
+  defp agent_status_label(:error), do: "오류"
+  defp agent_status_label(_), do: "대기"
 
   defp render_markdown(nil), do: Phoenix.HTML.raw("")
 
@@ -741,13 +895,17 @@ defmodule WebWeb.ChatLive do
 
   defp render_markdown(_), do: Phoenix.HTML.raw("")
 
-  defp mcp_status_class(:ready), do: "status-success"
-  defp mcp_status_class(:unavailable), do: "status-error"
-  defp mcp_status_class(_), do: "status-neutral"
+  defp mcp_status_class(_configured_status, :running), do: ["bg-green-500", "text-green-500"]
+  defp mcp_status_class(_configured_status, :error), do: ["bg-red-500", "text-red-500"]
+  defp mcp_status_class(:ready, _runtime_status), do: ["bg-orange-500", "text-orange-500"]
+  defp mcp_status_class(:unavailable, _runtime_status), do: "status-error"
+  defp mcp_status_class(_configured_status, _runtime_status), do: "status-neutral"
 
-  defp mcp_status_label(:ready), do: "사용 가능"
-  defp mcp_status_label(:unavailable), do: "사용 불가"
-  defp mcp_status_label(_), do: "상태 미확인"
+  defp mcp_status_label(_configured_status, :running), do: "동작"
+  defp mcp_status_label(_configured_status, :error), do: "오류"
+  defp mcp_status_label(:ready, _runtime_status), do: "대기"
+  defp mcp_status_label(:unavailable, _runtime_status), do: "사용 불가"
+  defp mcp_status_label(_configured_status, _runtime_status), do: "상태 미확인"
 
   defp error_to_string(:too_large), do: "파일이 너무 큽니다 (최대 10MB)."
   defp error_to_string(:too_many_files), do: "파일이 너무 많습니다 (최대 5개)."

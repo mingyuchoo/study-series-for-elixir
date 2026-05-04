@@ -11,7 +11,8 @@ defmodule Core.Agent.SupervisorAgent do
   require Logger
 
   alias Core.Agent.{Coordinator, MemoryManager, TaskRouter, WorkerAgent}
-  alias Core.Contexts.Agents
+  alias Core.Contexts.{Agents, Conversations}
+  alias Core.LLM.AzureOpenAI
   alias Core.Schema.{Agent, Message}
   alias Core.Repo
 
@@ -142,11 +143,7 @@ defmodule Core.Agent.SupervisorAgent do
         case check_and_start_profile_collection(state) do
           {:collecting, new_state, greeting} ->
             # 사용자 메시지 저장
-            save_message(state.conversation_id, %{
-              role: :user,
-              content: user_message,
-              agent_id: nil
-            })
+            save_user_message(state.conversation_id, user_message)
 
             # 인사말 + 첫 질문 저장
             save_message(state.conversation_id, %{
@@ -182,11 +179,7 @@ defmodule Core.Agent.SupervisorAgent do
       :idle ->
         case check_and_start_profile_collection(state) do
           {:collecting, new_state, greeting} ->
-            save_message(state.conversation_id, %{
-              role: :user,
-              content: user_message,
-              agent_id: nil
-            })
+            save_user_message(state.conversation_id, user_message)
 
             save_message(state.conversation_id, %{
               role: :assistant,
@@ -221,6 +214,13 @@ defmodule Core.Agent.SupervisorAgent do
   end
 
   defp notify_stream_complete(_liveview_pid, _conversation_id, _response), do: :ok
+
+  defp notify_agent_status(liveview_pid, conversation_id, agent_name, status)
+       when is_pid(liveview_pid) and is_binary(agent_name) do
+    send(liveview_pid, {:agent_status, conversation_id, agent_name, status})
+  end
+
+  defp notify_agent_status(_liveview_pid, _conversation_id, _agent_name, _status), do: :ok
 
   # 프로필 완료 여부 확인 및 수집 시작
   defp check_and_start_profile_collection(state) do
@@ -291,11 +291,7 @@ defmodule Core.Agent.SupervisorAgent do
   # 프로필 응답 처리
   defp process_profile_response(state, user_message, liveview_pid) do
     # 사용자 메시지 저장
-    save_message(state.conversation_id, %{
-      role: :user,
-      content: user_message,
-      agent_id: nil
-    })
+    save_user_message(state.conversation_id, user_message)
 
     trimmed_input = String.trim(user_message)
 
@@ -399,13 +395,10 @@ defmodule Core.Agent.SupervisorAgent do
   # 스트리밍 메시지 처리
   defp process_streaming_message(state, user_message, liveview_pid) do
     start_time = System.monotonic_time(:millisecond)
+    notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :running)
 
     # 사용자 메시지 저장
-    save_message(state.conversation_id, %{
-      role: :user,
-      content: user_message,
-      agent_id: nil
-    })
+    save_user_message(state.conversation_id, user_message)
 
     # Worker에게 스트리밍 작업 위임
     case delegate_to_worker_stream(state, user_message, liveview_pid) do
@@ -423,6 +416,7 @@ defmodule Core.Agent.SupervisorAgent do
         record_performance_metric(state, worker_name, duration_ms, true)
 
         # LiveView에 완료 알림 (최종 응답 포함)
+        notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :idle)
         send(liveview_pid, {:stream_complete, state.conversation_id, result})
 
         {:reply, {:ok, result}, state}
@@ -447,6 +441,7 @@ defmodule Core.Agent.SupervisorAgent do
 
         # LiveView 스트리밍 상태가 영원히 "응답 중" 으로 남지 않도록
         # 오류 사유를 본문으로 담아 완료 알림을 전송한다.
+        notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :error)
         send(liveview_pid, {:stream_complete, state.conversation_id, error_message})
 
         {:reply, error, state}
@@ -458,11 +453,7 @@ defmodule Core.Agent.SupervisorAgent do
     start_time = System.monotonic_time(:millisecond)
 
     # 사용자 메시지 저장
-    save_message(state.conversation_id, %{
-      role: :user,
-      content: user_message,
-      agent_id: nil
-    })
+    save_user_message(state.conversation_id, user_message)
 
     # Worker에게 작업 위임
     case delegate_to_worker(state, user_message) do
@@ -564,160 +555,323 @@ defmodule Core.Agent.SupervisorAgent do
 
   # 스트리밍 모드로 Worker에게 작업 위임
   defp delegate_to_worker_stream(state, user_request, liveview_pid) do
-    # 후처리 Worker 제외한 핵심 Worker만 필터링
-    postprocess_workers = ["restructure_worker", "emoji_worker"]
-
-    available_workers =
-      state.worker_agents
-      |> Enum.map(fn {agent, _pid} -> agent end)
-      |> Enum.reject(fn agent -> agent.name in postprocess_workers end)
-
-    # 1단계: 핵심 Worker 선택 및 스트리밍 실행
-    case TaskRouter.select_worker(user_request, available_workers) do
-      {:ok, selected_worker} ->
-        Logger.info("[Streaming Pipeline] Selected primary worker: #{selected_worker.name}")
-
-        # 스트리밍 콜백 생성 - LiveView에 청크 전송
-        stream_callback = fn
-          {:chunk, text} ->
-            send(liveview_pid, {:stream_chunk, state.conversation_id, text})
-
-          {:tool_execution, tool_calls} ->
-            tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
-            send(liveview_pid, {:stream_tool_start, state.conversation_id, tool_names})
-
-          {:tool_completed, _tool_calls} ->
-            send(liveview_pid, {:stream_tool_end, state.conversation_id})
-
-          {:finish, _reason} ->
-            send(liveview_pid, {:stream_finish, state.conversation_id})
-
-          _ ->
-            :ok
-        end
-
-        case execute_worker_by_agent_stream(
-               state,
-               selected_worker,
-               user_request,
-               nil,
-               stream_callback
-             ) do
-          {:ok, primary_result} ->
-            Logger.info("[Streaming Pipeline] Primary worker completed")
-
-            # 후처리는 비스트리밍으로 처리 (짧은 응답)
-            # 스트리밍 완료 알림
-            send(liveview_pid, {:stream_postprocess, state.conversation_id})
-
-            # 2단계: restructure_worker로 구조 재편
-            case execute_postprocess_worker(state, "restructure_worker", primary_result) do
-              {:ok, restructured_result} ->
-                Logger.info("[Pipeline 2/3] Restructure worker completed")
-
-                # 3단계: emoji_worker로 스타일 개선
-                case execute_postprocess_worker(state, "emoji_worker", restructured_result) do
-                  {:ok, final_result} ->
-                    Logger.info("[Pipeline 3/3] Emoji worker completed")
-                    {:ok, final_result, selected_worker.name}
-
-                  {:error, :worker_not_found} ->
-                    {:ok, restructured_result, selected_worker.name}
-
-                  {:error, _reason} ->
-                    {:ok, restructured_result, selected_worker.name}
-                end
-
-              {:error, :worker_not_found} ->
-                {:ok, primary_result, selected_worker.name}
-
-              {:error, _reason} ->
-                {:ok, primary_result, selected_worker.name}
-            end
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      {:error, :no_workers_available} = error ->
-        Logger.error("No workers available for streaming")
-        error
+    with {:ok, plan} <- select_supervisor_worker_plan(state, user_request) do
+      execute_worker_plan_stream(state, plan, user_request, liveview_pid)
     end
   end
 
   defp delegate_to_worker(state, user_request) do
-    # 3단계 파이프라인 실행:
-    # 1단계: 핵심 Worker 선택 및 실행 (calculator, general 등)
-    # 2단계: restructure_worker로 구조 재편
-    # 3단계: emoji_worker로 스타일 개선
+    with {:ok, plan} <- select_supervisor_worker_plan(state, user_request) do
+      execute_worker_plan(state, plan, user_request)
+    end
+  end
 
-    # 후처리 Worker 제외한 핵심 Worker만 필터링
-    postprocess_workers = ["restructure_worker", "emoji_worker"]
+  defp select_supervisor_worker_plan(state, user_request) do
+    workers = Enum.map(state.worker_agents, fn {agent, _pid} -> agent end)
 
-    available_workers =
-      state.worker_agents
-      |> Enum.map(fn {agent, _pid} -> agent end)
-      |> Enum.reject(fn agent -> agent.name in postprocess_workers end)
+    case workers do
+      [] ->
+        Logger.error("No workers available")
+        {:error, :no_workers_available}
 
-    # 1단계: 핵심 Worker 선택 및 실행
-    case TaskRouter.select_worker(user_request, available_workers) do
-      {:ok, selected_worker} ->
-        Logger.info("[Pipeline 1/3] Selected primary worker: #{selected_worker.name}")
+      _ ->
+        case request_supervisor_worker_plan(state, user_request, workers) do
+          {:ok, plan} ->
+            Logger.info(
+              "Main Supervisor selected worker plan: #{inspect(Enum.map(plan, & &1.name))}"
+            )
 
-        case execute_worker_by_agent(state, selected_worker, user_request, nil) do
-          {:ok, primary_result} ->
-            Logger.info("[Pipeline 1/3] Primary worker completed")
-
-            # 2단계: restructure_worker로 구조 재편
-            case execute_postprocess_worker(state, "restructure_worker", primary_result) do
-              {:ok, restructured_result} ->
-                Logger.info("[Pipeline 2/3] Restructure worker completed")
-
-                # 3단계: emoji_worker로 스타일 개선
-                case execute_postprocess_worker(state, "emoji_worker", restructured_result) do
-                  {:ok, final_result} ->
-                    Logger.info("[Pipeline 3/3] Emoji worker completed - Pipeline finished")
-                    {:ok, final_result, selected_worker.name}
-
-                  {:error, :worker_not_found} ->
-                    Logger.warning(
-                      "[Pipeline 3/3] emoji_worker not found, using restructured result"
-                    )
-
-                    {:ok, restructured_result, selected_worker.name}
-
-                  {:error, reason} ->
-                    Logger.warning(
-                      "[Pipeline 3/3] emoji_worker failed: #{inspect(reason)}, using restructured result"
-                    )
-
-                    {:ok, restructured_result, selected_worker.name}
-                end
-
-              {:error, :worker_not_found} ->
-                Logger.warning(
-                  "[Pipeline 2/3] restructure_worker not found, using primary result"
-                )
-
-                {:ok, primary_result, selected_worker.name}
-
-              {:error, reason} ->
-                Logger.warning(
-                  "[Pipeline 2/3] restructure_worker failed: #{inspect(reason)}, using primary result"
-                )
-
-                {:ok, primary_result, selected_worker.name}
-            end
+            {:ok, plan}
 
           {:error, reason} ->
-            {:error, reason}
+            Logger.warning(
+              "Main Supervisor worker planning failed: #{inspect(reason)}. Falling back to router."
+            )
+
+            fallback_worker_plan(user_request, workers)
+        end
+    end
+  end
+
+  defp request_supervisor_worker_plan(state, user_request, workers) do
+    messages = [
+      %{role: "system", content: supervisor_planner_prompt(state, workers)}
+    ] ++ conversation_history_messages(state.conversation_id, user_request) ++
+      [
+        %{role: "user", content: user_request}
+      ]
+
+    try do
+      case AzureOpenAI.chat_completion(messages,
+             model: state.agent.model,
+             temperature: state.agent.temperature || 1.0,
+             max_completion_tokens: 800
+           ) do
+        {:ok, %{content: content}} when is_binary(content) ->
+          parse_worker_plan(content, workers)
+
+        {:ok, response} ->
+          {:error, {:invalid_planner_response, response}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    rescue
+      exception ->
+        {:error, {exception.__struct__, Exception.message(exception)}}
+    end
+  end
+
+  defp supervisor_planner_prompt(state, workers) do
+    worker_descriptions =
+      workers
+      |> Enum.map(fn worker ->
+        %{
+          name: worker.name,
+          display_name: worker.display_name,
+          description: worker.description,
+          enabled_tools: worker.enabled_tools || []
+        }
+      end)
+      |> Jason.encode!()
+
+    """
+    #{state.agent.system_prompt}
+
+    You are the Main Supervisor. You must directly choose which worker agents should run,
+    and in what order, for the user's request.
+
+    Available workers:
+    #{worker_descriptions}
+
+    Return only JSON. Do not include markdown fences or explanations.
+    Schema:
+    {
+      "workers": [
+        {
+          "name": "worker_name_from_available_workers",
+          "instruction": "specific instruction for that worker"
+        }
+      ]
+    }
+
+    Rules:
+    - Choose from every available worker when useful. No worker is preselected by code.
+    - Use only workers from the available list.
+    - Use the smallest useful number of workers.
+    - Use the conversation history when the user refers to previous turns.
+    - If a response should be rewritten or styled, explicitly include restructure_worker or emoji_worker in the order you want.
+    - The last worker's output becomes the final answer.
+    """
+  end
+
+  defp conversation_history_messages(conversation_id, current_request) do
+    conversation_id
+    |> Conversations.list_recent_messages(12)
+    |> drop_current_request_messages(current_request)
+    |> Enum.filter(&(&1.role in [:system, :user, :assistant]))
+    |> Enum.map(fn message ->
+      %{
+        role: Atom.to_string(message.role),
+        content: message.content || ""
+      }
+    end)
+  end
+
+  defp drop_current_request_messages(messages, current_request) do
+    case List.last(messages) do
+      %{role: :user, content: content} when is_binary(content) ->
+        if same_current_request?(content, current_request) do
+          messages
+          |> Enum.drop(-1)
+          |> drop_current_request_messages(current_request)
+        else
+          messages
         end
 
-      {:error, :no_workers_available} = error ->
-        Logger.error("No workers available")
+      _ ->
+        messages
+    end
+  end
+
+  defp same_current_request?(history_content, current_request)
+       when is_binary(history_content) and is_binary(current_request) do
+    trimmed_history = String.trim(history_content)
+    trimmed_current = String.trim(current_request)
+
+    trimmed_history == trimmed_current ||
+      (trimmed_history != "" && String.contains?(trimmed_current, trimmed_history))
+  end
+
+  defp same_current_request?(_history_content, _current_request), do: false
+
+  defp parse_worker_plan(content, workers) do
+    with {:ok, json} <- extract_json(content),
+         {:ok, decoded} <- Jason.decode(json),
+         {:ok, steps} <- normalize_worker_steps(decoded, workers) do
+      {:ok, steps}
+    end
+  end
+
+  defp extract_json(content) do
+    content = String.trim(content)
+
+    cond do
+      String.starts_with?(content, "{") ->
+        {:ok, content}
+
+      true ->
+        case Regex.run(~r/\{(?:.|\n)*\}/, content) do
+          [json] -> {:ok, json}
+          _ -> {:error, :no_json_plan}
+        end
+    end
+  end
+
+  defp normalize_worker_steps(%{"workers" => worker_steps}, workers)
+       when is_list(worker_steps) do
+    workers_by_name = Map.new(workers, &{&1.name, &1})
+
+    steps =
+      worker_steps
+      |> Enum.map(&normalize_worker_step(&1, workers_by_name))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq_by(& &1.name)
+
+    if steps == [] do
+      {:error, :empty_worker_plan}
+    else
+      {:ok, steps}
+    end
+  end
+
+  defp normalize_worker_steps(_decoded, _workers), do: {:error, :invalid_worker_plan}
+
+  defp normalize_worker_step(%{"name" => name} = step, workers_by_name) when is_binary(name) do
+    case Map.fetch(workers_by_name, name) do
+      {:ok, agent} ->
+        %{
+          agent: agent,
+          name: name,
+          instruction: Map.get(step, "instruction") || "사용자 요청을 처리하세요."
+        }
+
+      :error ->
+        nil
+    end
+  end
+
+  defp normalize_worker_step(name, workers_by_name) when is_binary(name) do
+    normalize_worker_step(%{"name" => name}, workers_by_name)
+  end
+
+  defp normalize_worker_step(_step, _workers_by_name), do: nil
+
+  defp fallback_worker_plan(user_request, workers) do
+    case TaskRouter.select_worker(user_request, workers) do
+      {:ok, worker} ->
+        {:ok,
+         [
+           %{
+             agent: worker,
+             name: worker.name,
+             instruction: "사용자 요청을 처리하세요."
+           }
+         ]}
+
+      {:error, _reason} = error ->
         error
     end
   end
+
+  defp execute_worker_plan_stream(state, plan, user_request, liveview_pid) do
+    stream_callback = fn
+      {:chunk, text} ->
+        send(liveview_pid, {:stream_chunk, state.conversation_id, text})
+
+      {:tool_execution, tool_calls} ->
+        tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
+        send(liveview_pid, {:stream_tool_start, state.conversation_id, tool_names})
+
+      {:tool_completed, tool_calls, failed_tool_names} ->
+        tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
+        send(liveview_pid, {:stream_tool_end, state.conversation_id, tool_names, failed_tool_names})
+
+      {:tool_completed, tool_calls} ->
+        tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
+        send(liveview_pid, {:stream_tool_end, state.conversation_id, tool_names, []})
+
+      {:finish, _reason} ->
+        send(liveview_pid, {:stream_finish, state.conversation_id})
+
+      _ ->
+        :ok
+    end
+
+    execute_worker_plan_steps(state, plan, user_request, stream_callback, liveview_pid)
+  end
+
+  defp execute_worker_plan(state, plan, user_request) do
+    execute_worker_plan_steps(state, plan, user_request, nil, nil)
+  end
+
+  defp execute_worker_plan_steps(state, plan, user_request, stream_callback, liveview_pid) do
+    plan
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, user_request, []}, fn {step, index}, {:ok, input, used_workers} ->
+      if index > 0 and is_pid(liveview_pid) do
+        send(liveview_pid, {:stream_postprocess, state.conversation_id})
+      end
+
+      notify_agent_status(liveview_pid, state.conversation_id, step.name, :running)
+
+      result =
+        if index == 0 and is_function(stream_callback, 1) do
+          execute_worker_step_stream(state, step, input, stream_callback)
+        else
+          execute_worker_step(state, step, input)
+        end
+
+      case result do
+        {:ok, output} ->
+          notify_agent_status(liveview_pid, state.conversation_id, step.name, :idle)
+          {:cont, {:ok, output, used_workers ++ [step.name]}}
+
+        {:error, reason} ->
+          notify_agent_status(liveview_pid, state.conversation_id, step.name, :error)
+          {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, final_result, used_workers} -> {:ok, final_result, Enum.join(used_workers, " -> ")}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp execute_worker_step(state, step, input) do
+    execute_worker_by_agent(state, step.agent, build_worker_input(step, input), step_context(step))
+  end
+
+  defp execute_worker_step_stream(state, step, input, stream_callback) do
+    execute_worker_by_agent_stream(
+      state,
+      step.agent,
+      build_worker_input(step, input),
+      step_context(step),
+      stream_callback
+    )
+  end
+
+  defp build_worker_input(step, input) do
+    """
+    #{step.instruction}
+
+    [입력]
+    #{input}
+    """
+  end
+
+  defp step_context(step), do: "Main Supervisor가 직접 선택한 작업 단계: #{step.name}"
 
   # 특정 Agent 구조체로 Worker 실행
   defp execute_worker_by_agent(state, agent, user_request, context) do
@@ -761,36 +915,9 @@ defmodule Core.Agent.SupervisorAgent do
     end
   end
 
-  # 이름으로 후처리 Worker 실행 (이전 단계 결과를 context로 전달)
-  defp execute_postprocess_worker(state, worker_name, previous_result) do
-    case find_worker_by_name(state, worker_name) do
-      {:ok, agent, worker_pid} ->
-        # 후처리 Worker에게는 이전 결과를 user_request로 전달
-        # (텍스트 변환이 주 목적이므로)
-        task_attrs = %{
-          conversation_id: state.conversation_id,
-          supervisor_id: state.agent_id,
-          user_request: previous_result,
-          context: "이전 단계의 결과를 처리해주세요."
-        }
-
-        Coordinator.send_task(state.agent_id, agent.id, worker_pid, task_attrs)
-
-      {:error, _} = error ->
-        error
-    end
-  end
-
   defp find_worker_pid(state, agent_id) do
     case Enum.find(state.worker_agents, fn {agent, _pid} -> agent.id == agent_id end) do
       {_agent, pid} -> {:ok, pid}
-      nil -> {:error, :worker_not_found}
-    end
-  end
-
-  defp find_worker_by_name(state, worker_name) do
-    case Enum.find(state.worker_agents, fn {agent, _pid} -> agent.name == worker_name end) do
-      {agent, pid} -> {:ok, agent, pid}
       nil -> {:error, :worker_not_found}
     end
   end
@@ -801,6 +928,26 @@ defmodule Core.Agent.SupervisorAgent do
     %Message{}
     |> Message.changeset(attrs_with_conv)
     |> Repo.insert()
+  end
+
+  defp save_user_message(conversation_id, user_message) do
+    duplicate? =
+      conversation_id
+      |> Conversations.list_recent_messages(2)
+      |> Enum.any?(fn
+        %{role: :user, content: content} -> same_current_request?(content, user_message)
+        _message -> false
+      end)
+
+    if duplicate? do
+      {:ok, :already_saved}
+    else
+      save_message(conversation_id, %{
+        role: :user,
+        content: user_message,
+        agent_id: nil
+      })
+    end
   end
 
   defp record_performance_metric(state, worker_name, duration_ms, success) do

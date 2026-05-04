@@ -129,7 +129,7 @@ defmodule Core.Agent.ReactEngine do
         }
 
         messages_after_assistant = messages ++ [assistant_message]
-        messages_after_tools = execute_tool_calls(messages_after_assistant, tool_calls)
+        {messages_after_tools, _failed_tool_names} = execute_tool_calls(messages_after_assistant, tool_calls)
 
         agent_loop(messages_after_tools, tools, iteration + 1, max_iterations)
 
@@ -206,10 +206,12 @@ defmodule Core.Agent.ReactEngine do
             }
 
             messages_after_assistant = messages ++ [assistant_message]
-            messages_after_tools = execute_tool_calls(messages_after_assistant, tool_calls)
+
+            {messages_after_tools, failed_tool_names} =
+              execute_tool_calls(messages_after_assistant, tool_calls)
 
             # 도구 실행 완료 알림
-            stream_callback.({:tool_completed, tool_calls})
+            stream_callback.({:tool_completed, tool_calls, failed_tool_names})
 
             agent_loop_stream(
               messages_after_tools,
@@ -348,32 +350,34 @@ defmodule Core.Agent.ReactEngine do
   defp process_tool_call_delta(_tc, state), do: state
 
   defp execute_tool_calls(messages, tool_calls) do
-    tool_messages =
-      Enum.map(tool_calls, fn tool_call ->
+    {tool_messages, failed_tool_names} =
+      Enum.map_reduce(tool_calls, [], fn tool_call, failed_tool_names ->
         function_name = tool_call["function"]["name"]
         arguments = Jason.decode!(tool_call["function"]["arguments"])
 
         Logger.info("Executing tool: #{function_name} with args: #{inspect(arguments)}")
 
-        result =
+        {result, failed_tool_names} =
           case ToolRegistry.execute(function_name, arguments) do
             {:ok, result} ->
-              Jason.encode!(result)
+              {Jason.encode!(result), failed_tool_names}
 
             {:error, reason} ->
               Logger.warning("Tool execution failed: #{inspect(reason)}")
-              Jason.encode!(%{error: inspect(reason)})
+              {Jason.encode!(%{error: inspect(reason)}), [function_name | failed_tool_names]}
           end
 
-        %{
+        tool_message = %{
           role: "tool",
           content: result,
           tool_calls: nil,
           tool_call_id: tool_call["id"]
         }
+
+        {tool_message, failed_tool_names}
       end)
 
-    messages ++ tool_messages
+    {messages ++ tool_messages, Enum.reverse(failed_tool_names)}
   end
 
   defp format_messages_for_api(messages) do
