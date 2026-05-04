@@ -334,7 +334,7 @@ defmodule WebWeb.ChatLive do
         |> assign(:debate_active, true)
         |> assign(:debate_round, 0)
         |> assign(:debate_max_rounds, max_rounds)
-        |> assign(:current_speaker, nil)
+        |> assign(:current_speaker, default_assistant_agent(socket))
 
       {:noreply, socket}
     else
@@ -1161,8 +1161,10 @@ defmodule WebWeb.ChatLive do
 
   # 비그룹채팅 응답 시 fallback. SupervisorAgent 가 DB 에 저장하는 agent_id 와
   # 동일한 main_supervisor 를 사용해 라벨/아바타가 일관되게 보이도록 한다.
+  # available_agents 가 stale 하거나 supervisor 가 비활성이면 DB 에서 직접 조회한다.
   defp default_assistant_agent(socket) do
-    Enum.find(socket.assigns.available_agents, &(&1.type == :supervisor))
+    Enum.find(socket.assigns.available_agents, &(&1.type == :supervisor)) ||
+      Agents.get_active_supervisor()
   end
 
   defp speaker_avatar_url(%{name: name}) when is_binary(name), do: agent_avatar_url(name)
