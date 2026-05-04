@@ -13,6 +13,7 @@ defmodule Core.Agent.ToolRegistry do
     "read_file" => Tools.FileSystem,
     "write_file" => Tools.FileSystem,
     "list_directory" => Tools.FileSystem,
+    "search_vector_rag" => Tools.VectorRagSearch,
     "execute_code" => Tools.CodeExecutor,
     # Firecrawl MCP 도구들
     "firecrawl_scrape" => Tools.Firecrawl,

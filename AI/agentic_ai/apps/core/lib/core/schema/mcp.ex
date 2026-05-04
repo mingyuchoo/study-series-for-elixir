@@ -6,11 +6,11 @@ defmodule Core.Schema.Mcp do
   @foreign_key_type :binary_id
 
   schema "mcps" do
-    field :name, :string
-    field :command, :string
-    field :args, {:array, :string}, default: []
-    field :env, :map, default: %{}
-    field :enabled, :boolean, default: true
+    field(:name, :string)
+    field(:command, :string)
+    field(:args, {:array, :string}, default: [])
+    field(:env, :map, default: %{})
+    field(:enabled, :boolean, default: true)
 
     timestamps(type: :utc_datetime)
   end

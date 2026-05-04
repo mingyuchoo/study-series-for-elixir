@@ -25,9 +25,63 @@ import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+const Hooks = {}
+
+Hooks.ChatInputFocus = {
+  mounted() {
+    this.focusInput(true)
+  },
+
+  updated() {
+    this.focusInput(false)
+  },
+
+  focusInput(force) {
+    requestAnimationFrame(() => {
+      if (this.el.disabled || this.el.readOnly || this.el.offsetParent === null) return
+
+      const activeElement = document.activeElement
+      const canFocus =
+        force ||
+        activeElement === document.body ||
+        activeElement === document.documentElement ||
+        activeElement === this.el
+
+      if (canFocus) {
+        this.el.focus({preventScroll: true})
+      }
+    })
+  }
+}
+
+Hooks.CloseOnOutsideClick = {
+  mounted() {
+    this.closeIfOutside = event => {
+      if (this.el.open && !this.el.contains(event.target)) {
+        this.el.open = false
+      }
+    }
+
+    this.closeOnEscape = event => {
+      if (event.key === "Escape" && this.el.open) {
+        this.el.open = false
+      }
+    }
+
+    document.addEventListener("click", this.closeIfOutside)
+    document.addEventListener("keydown", this.closeOnEscape)
+  },
+
+  destroyed() {
+    document.removeEventListener("click", this.closeIfOutside)
+    document.removeEventListener("keydown", this.closeOnEscape)
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken}
+  params: {_csrf_token: csrfToken},
+  hooks: Hooks
 })
 
 // 라이브 네비게이션 및 폼 제출 시 프로그레스 바 표시
@@ -77,4 +131,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

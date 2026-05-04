@@ -109,7 +109,9 @@ defmodule Core.Contexts.Conversations do
 
     query =
       case Keyword.get(opts, :visibility_in) do
-        nil -> base
+        nil ->
+          base
+
         visibilities when is_list(visibilities) ->
           from(m in base, where: m.visibility in ^visibilities)
       end

@@ -6,11 +6,11 @@ defmodule Core.Schema.User do
   @foreign_key_type :binary_id
 
   schema "users" do
-    field :email, :string
-    field :password, :string, virtual: true, redact: true
-    field :current_password, :string, virtual: true, redact: true
-    field :hashed_password, :string, redact: true
-    field :confirmed_at, :utc_datetime
+    field(:email, :string)
+    field(:password, :string, virtual: true, redact: true)
+    field(:current_password, :string, virtual: true, redact: true)
+    field(:hashed_password, :string, redact: true)
+    field(:confirmed_at, :utc_datetime)
 
     timestamps(type: :utc_datetime)
   end
@@ -85,9 +85,7 @@ defmodule Core.Schema.User do
   defp validate_email(changeset, opts) do
     changeset
     |> validate_required([:email])
-    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/,
-      message: "must have the @ sign and no spaces"
-    )
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
     |> validate_length(:email, max: 160)
     |> update_change(:email, &String.downcase/1)
     |> maybe_validate_unique_email(opts)

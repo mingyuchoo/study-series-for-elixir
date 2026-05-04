@@ -54,9 +54,10 @@ defmodule Core.Contexts.Mcps do
   상태와 함께 MCP 목록을 반환합니다 (UI용).
   """
   def list_mcps_with_status do
-    list_active_mcps()
+    list_mcps()
     |> Enum.map(fn mcp ->
-      Map.put(mcp, :status, check_mcp_status(mcp))
+      status = if mcp.enabled, do: check_mcp_status(mcp), else: :disabled
+      Map.put(mcp, :status, status)
     end)
   end
 

@@ -406,13 +406,14 @@ defmodule Core.Agent.SupervisorAgent do
   defp process_group_chat(state, user_message, liveview_pid) do
     start_time = System.monotonic_time(:millisecond)
     notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :running)
+    worker_agents = refresh_worker_agents(state.worker_agents)
 
     # 사용자 메시지 저장 (visibility: :user_facing — 기본값)
     save_user_message(state.conversation_id, user_message)
 
     case GroupChat.run(%{
            supervisor: state.agent,
-           workers: state.worker_agents,
+           workers: worker_agents,
            conversation_id: state.conversation_id,
            user_request: user_message,
            liveview_pid: liveview_pid
@@ -431,7 +432,7 @@ defmodule Core.Agent.SupervisorAgent do
           send(liveview_pid, {:stream_complete, state.conversation_id, result})
         end
 
-        {:reply, {:ok, result}, state}
+        {:reply, {:ok, result}, %{state | worker_agents: worker_agents}}
 
       {:error, reason} = error ->
         duration_ms = System.monotonic_time(:millisecond) - start_time
@@ -454,7 +455,7 @@ defmodule Core.Agent.SupervisorAgent do
           send(liveview_pid, {:stream_complete, state.conversation_id, error_message})
         end
 
-        {:reply, error, state}
+        {:reply, error, %{state | worker_agents: worker_agents}}
     end
   end
 
@@ -498,6 +499,12 @@ defmodule Core.Agent.SupervisorAgent do
     |> Enum.filter(fn {_agent, pid} -> pid != nil end)
   end
 
+  defp refresh_worker_agents(worker_agents) do
+    Enum.map(worker_agents, fn {agent, pid} ->
+      {Agents.get_agent(agent.id) || agent, pid}
+    end)
+  end
+
   # 프로필 상태 초기화
   defp init_profile_state do
     case MemoryManager.get_user_profile() do
@@ -528,6 +535,7 @@ defmodule Core.Agent.SupervisorAgent do
   end
 
   defp same_current_request?(_history_content, _current_request), do: false
+
   defp save_message(conversation_id, attrs) do
     attrs_with_conv = Map.put(attrs, :conversation_id, conversation_id)
 

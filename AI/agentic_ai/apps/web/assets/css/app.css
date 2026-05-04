@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 @import "tailwindcss/base";
 @import "tailwindcss/components";
@@ -27,8 +27,16 @@
   }
 
   html {
-    font-family: "IBM Plex Sans", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    font-family: "IBM Plex Sans", "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
     letter-spacing: 0.16px;
+  }
+
+  body,
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
   }
 
   body {
@@ -153,6 +161,11 @@
     font-weight: 400;
   }
 
+  .admin-agents-table tbody :where(td, div, span, button, a) {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
   .alert,
   .toast .alert,
   .dropdown-content,
@@ -164,6 +177,58 @@
   .navbar {
     min-height: 3.5rem;
     box-shadow: none;
+  }
+
+  .carbon-top-nav :where(.btn, .menu li > a, .menu li > details > summary) {
+    min-height: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background-color: transparent;
+    color: var(--carbon-ink);
+    font-size: 0.875rem;
+    font-weight: 400;
+    letter-spacing: 0.16px;
+    box-shadow: none;
+  }
+
+  .carbon-top-nav :where(.btn, .menu li > a, .menu li > details > summary):hover,
+  .carbon-top-nav :where(.btn, .menu li > a, .menu li > details > summary):focus-visible,
+  .carbon-top-nav .dropdown:focus-within > [role="button"] {
+    border-color: var(--carbon-hairline);
+    background-color: var(--carbon-surface);
+    color: var(--carbon-ink);
+    outline: none;
+    box-shadow: none;
+  }
+
+  .carbon-top-nav .btn-primary {
+    border-color: var(--carbon-blue);
+    background-color: var(--carbon-blue);
+    color: #ffffff;
+  }
+
+  .carbon-top-nav .btn-primary:hover,
+  .carbon-top-nav .btn-primary:focus-visible {
+    border-color: var(--carbon-blue-hover);
+    background-color: var(--carbon-blue-hover);
+    color: #ffffff;
+  }
+
+  .carbon-top-nav .dropdown-content {
+    margin-top: 0.5rem;
+    border: 1px solid var(--carbon-hairline);
+    border-radius: 0;
+    background-color: var(--carbon-canvas);
+    box-shadow: none;
+  }
+
+  [data-theme="dark"] .theme-toggle-light {
+    display: none;
+  }
+
+  [data-theme="dark"] .theme-toggle-dark {
+    display: inline-flex;
   }
 
   .chat-bubble {

@@ -19,7 +19,7 @@ defmodule Core.Agent.GroupChat do
   require Logger
 
   alias Core.Agent.{Coordinator, MemoryManager}
-  alias Core.Contexts.Conversations
+  alias Core.Contexts.{Conversations, VectorRags}
   alias Core.LLM.AzureOpenAI
   alias Core.Repo
   alias Core.Schema.Message
@@ -48,8 +48,11 @@ defmodule Core.Agent.GroupChat do
   def run(%{} = opts) do
     state = init_state(opts)
 
-    notify(state, {:debate_started, state.conversation_id,
-                    %{user_request: state.user_request, max_rounds: state.max_rounds}})
+    notify(
+      state,
+      {:debate_started, state.conversation_id,
+       %{user_request: state.user_request, max_rounds: state.max_rounds}}
+    )
 
     case loop(state) do
       {:ok, final_answer, _state} ->
@@ -99,13 +102,19 @@ defmodule Core.Agent.GroupChat do
 
   defp run_round(state) do
     state = %{state | round: state.round + 1}
+    notify(state, {:agent_status, state.conversation_id, state.supervisor.name, :running})
+
+    if state.transcript != [] do
+      notify(state, {:stream_postprocess, state.conversation_id})
+    end
 
     case call_moderator(state, force_final: false) do
       {:ok, %{decision: "final", final_answer: answer, reasoning: reasoning}}
       when is_binary(answer) and answer != "" ->
         finalize(state, answer, reasoning)
 
-      {:ok, %{decision: "speak", next_speaker: name, instruction: instruction, reasoning: reasoning}} ->
+      {:ok,
+       %{decision: "speak", next_speaker: name, instruction: instruction, reasoning: reasoning}} ->
         case find_worker(state, name) do
           nil ->
             Logger.warning("Moderator picked unknown worker: #{inspect(name)}; finalizing")
@@ -124,12 +133,13 @@ defmodule Core.Agent.GroupChat do
                   "Worker #{worker_agent.name} failed: #{inspect(reason)}; finalizing"
                 )
 
-                state = append_transcript(state, %{
-                  kind: :worker_error,
-                  speaker: worker_agent.name,
-                  display_name: worker_agent.display_name || worker_agent.name,
-                  content: "워커 실행 오류: #{inspect(reason)}"
-                })
+                state =
+                  append_transcript(state, %{
+                    kind: :worker_error,
+                    speaker: worker_agent.name,
+                    display_name: worker_agent.display_name || worker_agent.name,
+                    content: "워커 실행 오류: #{inspect(reason)}"
+                  })
 
                 force_finalize(state)
             end
@@ -275,9 +285,12 @@ defmodule Core.Agent.GroupChat do
     - Trivial questions: finalize early (round 1 or 2 is fine).
     - Avoid picking the same worker more than 2 rounds in a row.
     - For real-time data (prices, news, weather, URLs), pick `research_worker` first.
-    - `general_worker` has NO web access; never ask it to fetch external data.
-    - `restructure_worker` and `emoji_worker` are post-processors; only call them
-      after substantive content already exists in the transcript.
+    - If the request may benefit from AVAILABLE KNOWLEDGE, pick a worker that has
+      `search_vector_rag` and explicitly instruct it to search the relevant knowledge first.
+    - `knowledge_worker` has NO web access; never ask it to fetch external data.
+    - `restructure_worker` restructures existing content into a requested format;
+      only call it when there is substantive content to restructure or the user
+      explicitly requested a specific output structure.
     - If the user asked a simple greeting/social message, you may finalize round 1
       with a short, warm answer that uses the user's profile.
     - The final_answer is what the user sees — write it in Korean unless the user
@@ -300,6 +313,7 @@ defmodule Core.Agent.GroupChat do
       |> Jason.encode!()
 
     transcript_block = format_transcript_for_moderator(state.transcript)
+    knowledge_block = format_available_knowledge()
 
     """
     USER REQUEST:
@@ -309,6 +323,9 @@ defmodule Core.Agent.GroupChat do
 
     AVAILABLE WORKERS (JSON):
     #{workers_json}
+
+    AVAILABLE KNOWLEDGE:
+    #{knowledge_block}
 
     ROUND #{state.round} of #{state.max_rounds}
 
@@ -409,7 +426,8 @@ defmodule Core.Agent.GroupChat do
       conversation_id: state.conversation_id,
       supervisor_id: state.supervisor.id,
       user_request: build_worker_request(state, instruction),
-      context: "Round #{state.round}/#{state.max_rounds} of group chat. Stay focused on the moderator's instruction."
+      context:
+        "Round #{state.round}/#{state.max_rounds} of group chat. Stay focused on the moderator's instruction."
     }
 
     stream_callback = build_stream_callback(state, worker_agent)
@@ -422,8 +440,6 @@ defmodule Core.Agent.GroupChat do
            stream_callback
          ) do
       {:ok, output} ->
-        notify(state, {:agent_status, state.conversation_id, worker_agent.name, :idle})
-
         {:ok, message} =
           persist_message(state, %{
             role: :assistant,
@@ -433,6 +449,7 @@ defmodule Core.Agent.GroupChat do
           })
 
         notify(state, {:debate_message_inserted, state.conversation_id, message})
+        notify(state, {:agent_status, state.conversation_id, worker_agent.name, :idle})
 
         new_state =
           append_transcript(state, %{
@@ -483,6 +500,27 @@ defmodule Core.Agent.GroupChat do
         |> Enum.map(fn entry ->
           excerpt = String.slice(entry.content || "", 0, @transcript_excerpt_chars)
           "- [#{entry.display_name}] #{excerpt}"
+        end)
+        |> Enum.join("\n")
+    end
+  end
+
+  defp format_available_knowledge do
+    case VectorRags.list_active_vector_rags() do
+      [] ->
+        "(사용 가능한 Vector RAG 지식 없음)"
+
+      vector_rags ->
+        vector_rags
+        |> Enum.map(fn rag ->
+          description =
+            if rag.description && rag.description != "" do
+              " - #{rag.description}"
+            else
+              ""
+            end
+
+          "- #{rag.name} (#{rag.chunk_count} chunks)#{description}"
         end)
         |> Enum.join("\n")
     end

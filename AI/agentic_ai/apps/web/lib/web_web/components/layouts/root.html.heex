@@ -27,11 +27,16 @@
         window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
 
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+        window.addEventListener("phx:toggle-theme", () => {
+          const storedTheme = localStorage.getItem("phx:theme");
+          const currentTheme = storedTheme || document.documentElement.dataset.theme || "light";
+          setTheme(currentTheme === "dark" ? "light" : "dark");
+        });
       })();
     </script>
   </head>
   <body class="min-h-screen bg-base-100">
-    <div class="navbar bg-base-100 sticky top-0 z-30 border-b border-base-300 px-4">
+    <div class="carbon-top-nav navbar bg-base-100 sticky top-0 z-30 border-b border-base-300 px-4">
       <div class="navbar-start">
         <.link navigate={~p"/"} class="btn btn-ghost text-xl gap-2 normal-case">
           <span class="inline-block size-4 bg-primary" aria-hidden="true"></span>
@@ -41,12 +46,13 @@
           <ul class="menu menu-horizontal hidden md:flex px-1 gap-1">
             <li><.link navigate={~p"/chat"}>Chat</.link></li>
             <li>
-              <details>
+              <details id="admin-menu" phx-hook="CloseOnOutsideClick">
                 <summary>Admin</summary>
-                <ul class="bg-base-100 z-40 w-52 border border-base-300">
+                <ul class="dropdown-content menu bg-base-100 z-40 w-52 border border-base-300 p-2">
                   <li><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
                   <li><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
-                  <li><.link navigate={~p"/admin/dashboard"}>대시보드</.link></li>
+                  <li><.link navigate={~p"/admin/rag"}>RAG</.link></li>
+                  <li><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
                 </ul>
               </details>
             </li>
@@ -55,7 +61,7 @@
       </div>
 
       <div class="navbar-end gap-2">
-        <.theme_dropdown />
+        <.theme_toggle />
 
         <%= if assigns[:current_user] do %>
           <div class="dropdown dropdown-end">
@@ -80,7 +86,8 @@
               <li class="md:hidden"><.link navigate={~p"/chat"}>Chat</.link></li>
               <li class="md:hidden"><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
               <li class="md:hidden"><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
-              <li class="md:hidden"><.link navigate={~p"/admin/dashboard"}>대시보드</.link></li>
+              <li class="md:hidden"><.link navigate={~p"/admin/rag"}>RAG</.link></li>
+              <li class="md:hidden"><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
               <li></li>
               <li>
                 <.link href={~p"/users/log_out"} method="delete" class="text-error">

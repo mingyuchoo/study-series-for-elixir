@@ -47,7 +47,7 @@ defmodule WebWeb.AgentLive.Index do
       </.header>
 
       <div class="overflow-x-auto border border-base-300 bg-base-100">
-        <table class="table table-zebra">
+        <table class="table table-zebra admin-agents-table">
           <thead>
             <tr>
               <th>이름</th>
@@ -69,13 +69,15 @@ defmodule WebWeb.AgentLive.Index do
                     loading="lazy"
                   />
                   <div class="min-w-0">
-                    <div class="truncate font-semibold">{agent.display_name || agent.name}</div>
+                    <div class="truncate text-xs font-semibold">
+                      {agent.display_name || agent.name}
+                    </div>
                     <div class="truncate text-xs opacity-60">{agent.name}</div>
                   </div>
                 </div>
               </td>
               <td>
-                <span class={["badge", agent_type_badge(agent.type)]}>{agent.type}</span>
+                <span class={["badge text-xs", agent_type_badge(agent.type)]}>{agent.type}</span>
               </td>
               <td class="text-xs">{agent.model}</td>
               <td class="text-xs">
@@ -89,7 +91,7 @@ defmodule WebWeb.AgentLive.Index do
                 <button
                   phx-click="toggle_status"
                   phx-value-id={agent.id}
-                  class={["badge", agent_status_badge(agent.status)]}
+                  class={["badge text-xs", agent_status_badge(agent.status)]}
                   title="클릭하여 상태 변경"
                 >
                   {agent.status}
@@ -140,7 +142,7 @@ defmodule WebWeb.AgentLive.Index do
 
   defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
   defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
-  defp agent_avatar_filename("general_worker"), do: "avatar-03.png"
+  defp agent_avatar_filename("knowledge_worker"), do: "avatar-03.png"
   defp agent_avatar_filename("calculator_worker"), do: "avatar-04.png"
   defp agent_avatar_filename("restructure_worker"), do: "avatar-05.png"
   defp agent_avatar_filename("emoji_worker"), do: "avatar-06.png"

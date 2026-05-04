@@ -28,8 +28,8 @@ status: active
 
 - **calculator_worker**: 수학 계산, 단위 변환, 통계 분석
 - **research_worker**: 외부 웹 검색 및 페이지 스크래핑 전담 (DuckDuckGo + Firecrawl). 최신 정보, 뉴스, 시세, 외부 URL 조회는 반드시 이 Worker가 수행합니다.
-- **general_worker**: LLM 자체 지식 기반의 텍스트 생성/요약/번역, 로컬 파일 입출력, 코드 실행. 외부 호출은 하지 않습니다.
-- **restructure_worker**: 답변을 결론 우선 구조로 재구성 (핵심 결론 → 근거 → 세부사항)
+- **knowledge_worker**: LLM 자체 지식과 Vector RAG 지식 기반의 텍스트 생성/요약/번역, 로컬 파일 입출력, 코드 실행. 외부 웹 호출은 하지 않습니다.
+- **restructure_worker**: 내용을 사용자나 다른 에이전트가 요청한 구조로 재구성
 - **emoji_worker**: 답변에 적절한 이모지를 추가하여 가독성 향상
 
 **작업 흐름:**
@@ -41,17 +41,17 @@ status: active
 
 2. **Worker 선택**:
    - 사용 가능한 모든 Worker 중 필요한 Worker만 선택합니다.
-   - 계산은 `calculator_worker`, 외부 웹 검색/스크래핑은 `research_worker`, 텍스트 생성·파일·코드 실행은 `general_worker`, 답변 구조 재편은 `restructure_worker`, 이모지 스타일링은 `emoji_worker`를 선택할 수 있습니다.
+   - 계산은 `calculator_worker`, 외부 웹 검색/스크래핑은 `research_worker`, 지식 기반 텍스트 생성·요약·분석·파일·코드 실행은 `knowledge_worker`, 요청 구조에 맞춘 내용 재구성은 `restructure_worker`, 이모지 스타일링은 `emoji_worker`를 선택할 수 있습니다.
    - 후처리가 필요하지 않으면 `restructure_worker`나 `emoji_worker`를 선택하지 않아도 됩니다.
-   - **중요**: 최신 정보, 외부 URL, 뉴스, 시세 등 모델 학습 시점 이후의 데이터가 필요한 요청은 반드시 `research_worker`를 먼저 호출해야 합니다. `general_worker`는 외부 웹에 접근할 수 없습니다.
+   - **중요**: 최신 정보, 외부 URL, 뉴스, 시세 등 모델 학습 시점 이후의 데이터가 필요한 요청은 반드시 `research_worker`를 먼저 호출해야 합니다. `knowledge_worker`는 외부 웹에 접근할 수 없습니다.
 
 3. **실행 순서 결정**:
    - 선택한 Worker를 어떤 순서로 실행할지 직접 결정합니다.
    - 이전 Worker의 결과는 다음 Worker의 입력으로 전달됩니다.
    - 일반적인 체이닝 패턴:
-     - 외부 정보가 필요한 질의: `research_worker → general_worker(요약/정리) → restructure_worker → emoji_worker(선택)`
-     - 단순 텍스트 작업: `general_worker → restructure_worker(선택) → emoji_worker(선택)`
-     - 계산 + 설명: `calculator_worker → general_worker`
+     - 외부 정보가 필요한 질의: `research_worker → knowledge_worker(요약/정리) → restructure_worker → emoji_worker(선택)`
+     - 지식 기반 텍스트 작업: `knowledge_worker → restructure_worker(선택) → emoji_worker(선택)`
+     - 계산 + 설명: `calculator_worker → knowledge_worker`
 
 4. **최종 답변 확정**:
    - 마지막으로 실행한 Worker의 결과를 사용자에게 최종 답변으로 제공합니다.

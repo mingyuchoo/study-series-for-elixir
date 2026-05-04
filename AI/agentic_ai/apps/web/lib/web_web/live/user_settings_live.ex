@@ -29,6 +29,7 @@ defmodule WebWeb.UserSettingsLive do
             />
             <.input
               field={@email_form[:current_password]}
+              id="email_form_current_password"
               type="password"
               label="현재 비밀번호"
               value={@email_form_current_password}
@@ -76,6 +77,7 @@ defmodule WebWeb.UserSettingsLive do
             />
             <.input
               field={@password_form[:current_password]}
+              id="password_form_current_password"
               type="password"
               label="현재 비밀번호"
               value={@current_password}
@@ -110,7 +112,7 @@ defmodule WebWeb.UserSettingsLive do
   end
 
   def handle_event("validate_email", params, socket) do
-    %{"current_password" => password, "user" => user_params} = params
+    {password, user_params} = settings_form_params(params)
 
     email_form =
       socket.assigns.current_user
@@ -122,7 +124,7 @@ defmodule WebWeb.UserSettingsLive do
   end
 
   def handle_event("update_email", params, socket) do
-    %{"current_password" => password, "user" => user_params} = params
+    {password, user_params} = settings_form_params(params)
     user = socket.assigns.current_user
 
     case Accounts.apply_user_email(user, password, user_params) do
@@ -144,7 +146,7 @@ defmodule WebWeb.UserSettingsLive do
   end
 
   def handle_event("validate_password", params, socket) do
-    %{"current_password" => password, "user" => user_params} = params
+    {password, user_params} = settings_form_params(params)
 
     password_form =
       socket.assigns.current_user
@@ -156,7 +158,7 @@ defmodule WebWeb.UserSettingsLive do
   end
 
   def handle_event("update_password", params, socket) do
-    %{"current_password" => password, "user" => user_params} = params
+    {password, user_params} = settings_form_params(params)
     user = socket.assigns.current_user
 
     case Accounts.update_user_password(user, password, user_params) do
@@ -171,5 +173,10 @@ defmodule WebWeb.UserSettingsLive do
       {:error, changeset} ->
         {:noreply, assign(socket, password_form: to_form(changeset))}
     end
+  end
+
+  defp settings_form_params(%{"user" => user_params} = params) do
+    password = Map.get(user_params, "current_password") || Map.get(params, "current_password")
+    {password, user_params}
   end
 end

@@ -61,6 +61,10 @@ defmodule WebWeb.Router do
       live "/admin/mcps", McpLive.Index, :index
       live "/admin/mcps/new", McpLive.Form, :new
       live "/admin/mcps/:id/edit", McpLive.Form, :edit
+
+      live "/admin/rag", RagLive.Index, :index
+
+      live "/admin/dashboard/home", DashboardHomeLive, :home
     end
   end
 
@@ -79,6 +83,9 @@ defmodule WebWeb.Router do
 
   scope "/admin" do
     pipe_through [:browser, :require_authenticated_user]
-    live_dashboard "/dashboard", metrics: WebWeb.Telemetry
+
+    live_dashboard "/dashboard",
+      metrics: WebWeb.Telemetry,
+      on_mount: [WebWeb.LiveDashboardCarbonStyle]
   end
 end

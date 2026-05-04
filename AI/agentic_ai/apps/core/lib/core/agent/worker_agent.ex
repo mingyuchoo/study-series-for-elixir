@@ -10,7 +10,7 @@ defmodule Core.Agent.WorkerAgent do
   require Logger
 
   alias Core.Agent.{MemoryManager, ReactEngine, ToolRegistry, SkillRegistry}
-  alias Core.Contexts.{Agents, Conversations}
+  alias Core.Contexts.{Agents, Conversations, VectorRags}
   alias Core.Schema.{Agent, AgentTask}
   alias Core.Repo
 
@@ -96,6 +96,7 @@ defmodule Core.Agent.WorkerAgent do
 
   @impl true
   def handle_call({:execute_task, task_attrs}, _from, state) do
+    state = refresh_agent_config(state)
     Logger.info("WorkerAgent #{state.agent.name} received task: #{inspect(task_attrs)}")
 
     # AgentTask 레코드 생성
@@ -140,6 +141,7 @@ defmodule Core.Agent.WorkerAgent do
 
   @impl true
   def handle_call({:execute_task_stream, task_attrs, stream_callback}, _from, state) do
+    state = refresh_agent_config(state)
     Logger.info("WorkerAgent #{state.agent.name} received streaming task: #{inspect(task_attrs)}")
 
     # AgentTask 레코드 생성
@@ -190,6 +192,16 @@ defmodule Core.Agent.WorkerAgent do
     Enum.filter(all_tools, fn tool ->
       tool.name in enabled_tool_names
     end)
+  end
+
+  defp refresh_agent_config(state) do
+    case Agents.get_agent(state.agent_id) do
+      %Agent{type: :worker} = agent ->
+        %{state | agent: agent, tools: load_enabled_tools(agent)}
+
+      _ ->
+        state
+    end
   end
 
   defp create_agent_task(state, task_attrs) do
@@ -303,6 +315,7 @@ defmodule Core.Agent.WorkerAgent do
 
     # 사용자 프로필 정보 가져오기
     user_context = build_user_context()
+    knowledge_context = build_knowledge_context(agent)
 
     # 기본 시스템 프롬프트에 사용자 컨텍스트와 스킬 지식 결합
     base_prompt =
@@ -314,6 +327,17 @@ defmodule Core.Agent.WorkerAgent do
         """
       else
         agent.system_prompt
+      end
+
+    base_prompt =
+      if knowledge_context != "" do
+        """
+        #{base_prompt}
+
+        #{knowledge_context}
+        """
+      else
+        base_prompt
       end
 
     if skill_prompt == "" do
@@ -328,6 +352,42 @@ defmodule Core.Agent.WorkerAgent do
       """
     end
   end
+
+  defp build_knowledge_context(%Agent{enabled_tools: enabled_tools})
+       when is_list(enabled_tools) do
+    if "search_vector_rag" in enabled_tools do
+      case VectorRags.list_active_vector_rags() do
+        [] ->
+          ""
+
+        vector_rags ->
+          items =
+            vector_rags
+            |> Enum.map(fn rag ->
+              description =
+                if rag.description && rag.description != "" do
+                  " - #{rag.description}"
+                else
+                  ""
+                end
+
+              "- #{rag.name} (#{rag.chunk_count} chunks)#{description}"
+            end)
+            |> Enum.join("\n")
+
+          """
+          [사용 가능한 지식]
+          #{items}
+
+          사용자 요청이 위 지식과 관련될 수 있으면 답변 전에 `search_vector_rag` 도구로 관련 청크를 검색하고, 검색 결과를 근거로 분석하세요.
+          """
+      end
+    else
+      ""
+    end
+  end
+
+  defp build_knowledge_context(_agent), do: ""
 
   # 사용자 프로필 기반 컨텍스트 생성
   defp build_user_context do

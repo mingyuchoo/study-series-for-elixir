@@ -13,7 +13,7 @@ defmodule Core.MCP.Resources do
   ## 리소스 URI 형식
 
   - `agent://supervisor/main` - Supervisor 에이전트 설정
-  - `agent://worker/general` - General Worker 설정
+  - `agent://worker/knowledge` - Knowledge Worker 설정
   - `skill://research-report` - 스킬 정의
   - `config://agents` - 모든 에이전트 목록
   """

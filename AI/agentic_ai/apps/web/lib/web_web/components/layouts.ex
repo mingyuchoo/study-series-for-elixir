@@ -22,47 +22,30 @@ defmodule WebWeb.Layouts do
   end
 
   @doc """
-  테마(Light / Dark / System) 전환 드롭다운. daisyUI dropdown + heroicons 기반.
+  Light / Dark 테마 전환 토글 버튼.
   """
+  def theme_toggle(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click={JS.dispatch("phx:toggle-theme")}
+      class="btn btn-ghost btn-sm btn-circle"
+      title="테마 전환"
+      aria-label="테마 전환"
+    >
+      <span class="theme-toggle-light">
+        <.icon name="hero-sun-mini" class="size-5" />
+      </span>
+      <span class="theme-toggle-dark hidden">
+        <.icon name="hero-moon-mini" class="size-5" />
+      </span>
+    </button>
+    """
+  end
+
   def theme_dropdown(assigns) do
     ~H"""
-    <div class="dropdown dropdown-end">
-      <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle" title="테마">
-        <.icon name="hero-swatch" class="size-5" />
-      </div>
-      <ul
-        tabindex="0"
-        class="menu menu-sm dropdown-content bg-base-100 z-40 mt-3 w-44 border border-base-300 p-2"
-      >
-        <li>
-          <button
-            phx-click={JS.dispatch("phx:set-theme")}
-            data-phx-theme="light"
-            class="flex items-center gap-2"
-          >
-            <.icon name="hero-sun-mini" class="size-4" /> Light
-          </button>
-        </li>
-        <li>
-          <button
-            phx-click={JS.dispatch("phx:set-theme")}
-            data-phx-theme="dark"
-            class="flex items-center gap-2"
-          >
-            <.icon name="hero-moon-mini" class="size-4" /> Dark
-          </button>
-        </li>
-        <li>
-          <button
-            phx-click={JS.dispatch("phx:set-theme")}
-            data-phx-theme="system"
-            class="flex items-center gap-2"
-          >
-            <.icon name="hero-computer-desktop-mini" class="size-4" /> System
-          </button>
-        </li>
-      </ul>
-    </div>
+    <.theme_toggle />
     """
   end
 end

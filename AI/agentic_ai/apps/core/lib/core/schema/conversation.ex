@@ -23,7 +23,14 @@ defmodule Core.Schema.Conversation do
 
   def changeset(conversation, attrs) do
     conversation
-    |> cast(attrs, [:title, :system_prompt, :status, :supervisor_agent_id, :context_summary, :user_id])
+    |> cast(attrs, [
+      :title,
+      :system_prompt,
+      :status,
+      :supervisor_agent_id,
+      :context_summary,
+      :user_id
+    ])
     |> validate_required([:title, :user_id])
     |> foreign_key_constraint(:supervisor_agent_id)
     |> foreign_key_constraint(:user_id)

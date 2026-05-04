@@ -129,7 +129,9 @@ defmodule Core.Agent.ReactEngine do
         }
 
         messages_after_assistant = messages ++ [assistant_message]
-        {messages_after_tools, _failed_tool_names} = execute_tool_calls(messages_after_assistant, tool_calls)
+
+        {messages_after_tools, _failed_tool_names} =
+          execute_tool_calls(messages_after_assistant, tool_calls)
 
         agent_loop(messages_after_tools, tools, iteration + 1, max_iterations)
 
@@ -173,9 +175,7 @@ defmodule Core.Agent.ReactEngine do
       match?({:ok, %Req.Response{status: status}} when status >= 400, http_result) ->
         {:ok, %Req.Response{status: status, body: body}} = http_result
 
-        Logger.error(
-          "LLM streaming responded with HTTP #{status}: #{inspect(body, limit: 500)}"
-        )
+        Logger.error("LLM streaming responded with HTTP #{status}: #{inspect(body, limit: 500)}")
 
         {:error, {:http_error, status, body}}
 

@@ -4,7 +4,7 @@ defmodule WebWeb.ChatLive do
   alias Core.Schema.{Conversation, Message}
   alias Core.Repo
   alias Core.Agent.{Supervisor, SupervisorAgent}
-  alias Core.Contexts.{Agents, Conversations, Mcps}
+  alias Core.Contexts.{Agents, Conversations, Mcps, VectorRags}
 
   import Ecto.Query
 
@@ -25,6 +25,7 @@ defmodule WebWeb.ChatLive do
     conversations = Conversations.list_conversations(user.id)
     available_agents = Agents.list_agents(status: :active)
     available_mcps = Mcps.list_mcps_with_status()
+    available_knowledge = VectorRags.list_vector_rags_with_status()
 
     socket =
       socket
@@ -35,7 +36,9 @@ defmodule WebWeb.ChatLive do
       |> assign(:loading, false)
       |> assign(:available_agents, available_agents)
       |> assign(:available_mcps, available_mcps)
+      |> assign(:available_knowledge, available_knowledge)
       |> assign(:mcp_statuses, %{})
+      |> assign(:knowledge_statuses, %{})
       |> assign(:agent_usage_history, [])
       |> assign(:message_sent_at, nil)
       |> assign(:streaming_content, "")
@@ -79,6 +82,7 @@ defmodule WebWeb.ChatLive do
           |> assign(:agent_execution_failed, false)
           |> assign(:agent_statuses, %{})
           |> assign(:mcp_statuses, %{})
+          |> assign(:knowledge_statuses, %{})
           |> assign(:message_sent_at, nil)
           |> assign(:debate_active, false)
           |> assign(:debate_round, 0)
@@ -214,6 +218,7 @@ defmodule WebWeb.ChatLive do
           |> assign(:agent_execution_failed, false)
           |> assign(:agent_statuses, %{})
           |> assign(:mcp_statuses, %{})
+          |> assign(:knowledge_statuses, %{})
           |> assign(:streaming_content, "")
           |> assign(:streaming_message_id, streaming_message_id)
           |> assign(:streaming_status, :streaming)
@@ -274,6 +279,7 @@ defmodule WebWeb.ChatLive do
         socket
         |> assign(:streaming_status, {:tool_executing, tool_names})
         |> assign(:mcp_statuses, set_mcp_statuses(socket, tool_names, :running))
+        |> assign(:knowledge_statuses, set_knowledge_statuses(socket, tool_names, :running))
 
       {:noreply, socket}
     else
@@ -288,6 +294,10 @@ defmodule WebWeb.ChatLive do
         socket
         |> assign(:streaming_status, :streaming)
         |> assign(:mcp_statuses, complete_mcp_statuses(socket, tool_names, failed_tool_names))
+        |> assign(
+          :knowledge_statuses,
+          complete_knowledge_statuses(socket, tool_names, failed_tool_names)
+        )
 
       {:noreply, socket}
     else
@@ -302,6 +312,10 @@ defmodule WebWeb.ChatLive do
         socket
         |> assign(:streaming_status, :streaming)
         |> assign(:mcp_statuses, mark_running_mcps_idle(socket.assigns.mcp_statuses))
+        |> assign(
+          :knowledge_statuses,
+          mark_running_knowledge_idle(socket.assigns.knowledge_statuses)
+        )
 
       {:noreply, socket}
     else
@@ -388,6 +402,10 @@ defmodule WebWeb.ChatLive do
           :mcp_statuses,
           finalize_mcp_statuses(socket.assigns.mcp_statuses, false)
         )
+        |> assign(
+          :knowledge_statuses,
+          finalize_knowledge_statuses(socket.assigns.knowledge_statuses, false)
+        )
 
       {:noreply, socket}
     else
@@ -396,9 +414,18 @@ defmodule WebWeb.ChatLive do
   end
 
   @impl true
-  def handle_info({:debate_speaker_finishing, conversation_id, _agent_name}, socket) do
+  def handle_info({:debate_speaker_finishing, conversation_id, agent_name}, socket) do
     if current?(socket, conversation_id) do
-      {:noreply, assign(socket, :streaming_status, :finishing)}
+      socket =
+        socket
+        |> assign(:streaming_status, :finishing)
+        |> assign(
+          :agent_statuses,
+          set_agent_status(socket, agent_name, :finishing)
+        )
+        |> maybe_set_current_speaker(agent_name, :finishing)
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -435,6 +462,10 @@ defmodule WebWeb.ChatLive do
         |> assign(:agent_execution_failed, true)
         |> assign(:agent_statuses, mark_running_agents_failed(socket.assigns.agent_statuses))
         |> assign(:mcp_statuses, mark_running_mcps_failed(socket.assigns.mcp_statuses))
+        |> assign(
+          :knowledge_statuses,
+          mark_running_knowledge_failed(socket.assigns.knowledge_statuses)
+        )
         |> put_flash(:error, "스트리밍 오류: #{inspect(reason)}")
 
       {:noreply, socket}
@@ -490,6 +521,10 @@ defmodule WebWeb.ChatLive do
           :mcp_statuses,
           finalize_mcp_statuses(socket.assigns.mcp_statuses, agent_execution_failed)
         )
+        |> assign(
+          :knowledge_statuses,
+          finalize_knowledge_statuses(socket.assigns.knowledge_statuses, agent_execution_failed)
+        )
 
       {:noreply, socket}
     else
@@ -504,7 +539,8 @@ defmodule WebWeb.ChatLive do
     end
   end
 
-  defp maybe_set_current_speaker(socket, agent_name, :running) do
+  defp maybe_set_current_speaker(socket, agent_name, status)
+       when status in [:running, :finishing] do
     speaker = Enum.find(socket.assigns.available_agents, &(&1.name == agent_name))
     assign(socket, :current_speaker, speaker)
   end
@@ -522,7 +558,7 @@ defmodule WebWeb.ChatLive do
   end
 
   defp set_agent_status(socket, agent_name, status)
-       when is_binary(agent_name) and status in [:running, :idle, :error] do
+       when is_binary(agent_name) and status in [:running, :finishing, :idle, :error] do
     known_agent? = Enum.any?(socket.assigns.available_agents, &(&1.name == agent_name))
 
     if known_agent? do
@@ -570,6 +606,33 @@ defmodule WebWeb.ChatLive do
     Enum.any?(socket.assigns.available_mcps, &(&1.name == mcp_name))
   end
 
+  defp set_knowledge_statuses(socket, tool_names, status) when is_list(tool_names) do
+    if Enum.any?(tool_names, &(&1 == "search_vector_rag")) do
+      socket.assigns.available_knowledge
+      |> Enum.filter(&(&1.status == :ready))
+      |> Enum.reduce(socket.assigns.knowledge_statuses, fn knowledge, statuses ->
+        Map.put(statuses, knowledge.name, status)
+      end)
+    else
+      socket.assigns.knowledge_statuses
+    end
+  end
+
+  defp set_knowledge_statuses(socket, _tool_names, _status), do: socket.assigns.knowledge_statuses
+
+  defp complete_knowledge_statuses(socket, tool_names, failed_tool_names) do
+    cond do
+      not Enum.any?(tool_names, &(&1 == "search_vector_rag")) ->
+        socket.assigns.knowledge_statuses
+
+      Enum.any?(failed_tool_names, &(&1 == "search_vector_rag")) ->
+        mark_running_knowledge_failed(socket.assigns.knowledge_statuses)
+
+      true ->
+        mark_running_knowledge_idle(socket.assigns.knowledge_statuses)
+    end
+  end
+
   defp tool_mcp_name(tool_name) when is_binary(tool_name) do
     cond do
       String.starts_with?(tool_name, "firecrawl_") -> "firecrawl"
@@ -582,7 +645,7 @@ defmodule WebWeb.ChatLive do
 
   defp mark_running_agents_failed(agent_statuses) do
     Map.new(agent_statuses, fn
-      {agent_name, :running} -> {agent_name, :error}
+      {agent_name, status} when status in [:running, :finishing] -> {agent_name, :error}
       entry -> entry
     end)
   end
@@ -592,7 +655,7 @@ defmodule WebWeb.ChatLive do
 
   defp finalize_agent_statuses(agent_statuses, false) do
     Map.new(agent_statuses, fn
-      {agent_name, :running} -> {agent_name, :idle}
+      {agent_name, status} when status in [:running, :finishing] -> {agent_name, :idle}
       entry -> entry
     end)
   end
@@ -613,6 +676,26 @@ defmodule WebWeb.ChatLive do
 
   defp finalize_mcp_statuses(mcp_statuses, true), do: mark_running_mcps_failed(mcp_statuses)
   defp finalize_mcp_statuses(mcp_statuses, false), do: mark_running_mcps_idle(mcp_statuses)
+
+  defp mark_running_knowledge_failed(knowledge_statuses) do
+    Map.new(knowledge_statuses, fn
+      {knowledge_name, :running} -> {knowledge_name, :error}
+      entry -> entry
+    end)
+  end
+
+  defp mark_running_knowledge_idle(knowledge_statuses) do
+    Map.new(knowledge_statuses, fn
+      {knowledge_name, :running} -> {knowledge_name, :idle}
+      entry -> entry
+    end)
+  end
+
+  defp finalize_knowledge_statuses(knowledge_statuses, true),
+    do: mark_running_knowledge_failed(knowledge_statuses)
+
+  defp finalize_knowledge_statuses(knowledge_statuses, false),
+    do: mark_running_knowledge_idle(knowledge_statuses)
 
   defp list_messages(conversation_id) do
     Message
@@ -760,6 +843,36 @@ defmodule WebWeb.ChatLive do
         </ul>
 
         <ul class="menu menu-xs w-full border-t border-base-300 p-2">
+          <li class="menu-title">사용 가능한 지식</li>
+          <%= if @available_knowledge == [] do %>
+            <li class="disabled">
+              <span class="italic opacity-50">설정된 지식이 없습니다</span>
+            </li>
+          <% else %>
+            <%= for knowledge <- @available_knowledge do %>
+              <% knowledge_runtime_status = Map.get(@knowledge_statuses, knowledge.name, :idle) %>
+              <li class="w-full">
+                <div class="flex items-center gap-2 w-full">
+                  <span
+                    class={[
+                      "status shrink-0",
+                      knowledge_status_class(knowledge.status, knowledge_runtime_status)
+                    ]}
+                    title={knowledge_status_label(knowledge.status, knowledge_runtime_status)}
+                  />
+                  <div class="flex-1 min-w-0">
+                    <div class="truncate font-medium">{knowledge.name}</div>
+                    <div class="truncate text-xs opacity-50">
+                      {knowledge.chunk_count} chunks · {knowledge.source_filename || "문서"}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            <% end %>
+          <% end %>
+        </ul>
+
+        <ul class="menu menu-xs w-full border-t border-base-300 p-2">
           <li class="menu-title">사용 가능한 MCP</li>
           <%= if @available_mcps == [] do %>
             <li class="disabled">
@@ -881,7 +994,7 @@ defmodule WebWeb.ChatLive do
                   </span>
                   <.streaming_status_badge status={@streaming_status} />
                 </div>
-                <div class="chat-bubble chat-bubble-info">
+                <div class={["chat-bubble", speaker_chat_bubble_class(@current_speaker)]}>
                   <%= if @streaming_content != "" do %>
                     <div class="prose prose-sm max-w-none">
                       {render_markdown(@streaming_content)}
@@ -902,7 +1015,7 @@ defmodule WebWeb.ChatLive do
                     />
                   </div>
                 </div>
-                <div class="chat-bubble chat-bubble-accent">
+                <div class={["chat-bubble", speaker_chat_bubble_class(@current_speaker)]}>
                   <span class="loading loading-dots loading-md" />
                 </div>
               </div>
@@ -954,6 +1067,8 @@ defmodule WebWeb.ChatLive do
                   <.live_file_input upload={@uploads.attachments} class="hidden" />
                 </label>
                 <input
+                  id="chat-message-input"
+                  phx-hook="ChatInputFocus"
                   type="text"
                   name="message"
                   value={@input}
@@ -1137,6 +1252,12 @@ defmodule WebWeb.ChatLive do
 
   defp speaker_streaming_label(_), do: "Assistant"
 
+  defp speaker_chat_bubble_class(%{type: :supervisor}), do: "chat-bubble-info"
+  defp speaker_chat_bubble_class(%{type: "supervisor"}), do: "chat-bubble-info"
+  defp speaker_chat_bubble_class(%{type: :worker}), do: "chat-bubble-secondary"
+  defp speaker_chat_bubble_class(%{type: "worker"}), do: "chat-bubble-secondary"
+  defp speaker_chat_bubble_class(_), do: "chat-bubble-accent"
+
   defp agent_response_error?(response) when is_binary(response) do
     String.starts_with?(response, "작업 수행 중 오류가 발생했습니다:")
   end
@@ -1144,8 +1265,25 @@ defmodule WebWeb.ChatLive do
   defp agent_response_error?(_), do: false
 
   defp agent_status_class(:running), do: ["bg-green-500", "text-green-500"]
+  defp agent_status_class(:finishing), do: ["bg-green-500", "text-green-500"]
   defp agent_status_class(:error), do: ["bg-red-500", "text-red-500"]
   defp agent_status_class(_), do: ["bg-orange-500", "text-orange-500"]
+
+  defp knowledge_status_class(_configured_status, :running),
+    do: ["bg-green-500", "text-green-500"]
+
+  defp knowledge_status_class(_configured_status, :error), do: ["bg-red-500", "text-red-500"]
+  defp knowledge_status_class(:ready, _runtime_status), do: ["bg-orange-500", "text-orange-500"]
+  defp knowledge_status_class(:missing_index, _runtime_status), do: ["bg-red-500", "text-red-500"]
+  defp knowledge_status_class(:disabled, _runtime_status), do: "status-neutral"
+  defp knowledge_status_class(_configured_status, _runtime_status), do: "status-neutral"
+
+  defp knowledge_status_label(_configured_status, :running), do: "검색 중"
+  defp knowledge_status_label(_configured_status, :error), do: "오류"
+  defp knowledge_status_label(:ready, _runtime_status), do: "대기"
+  defp knowledge_status_label(:missing_index, _runtime_status), do: "인덱스 파일 없음"
+  defp knowledge_status_label(:disabled, _runtime_status), do: "비활성"
+  defp knowledge_status_label(_configured_status, _runtime_status), do: "비어 있음"
 
   # 에이전트별 프로필 사진 매핑.
   # 파일은 priv/static/images/profiles/ 에 위치하며 /images/profiles/ 경로로 서빙됩니다.
@@ -1173,13 +1311,14 @@ defmodule WebWeb.ChatLive do
 
   defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
   defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
-  defp agent_avatar_filename("general_worker"), do: "avatar-03.png"
+  defp agent_avatar_filename("knowledge_worker"), do: "avatar-03.png"
   defp agent_avatar_filename("calculator_worker"), do: "avatar-04.png"
   defp agent_avatar_filename("restructure_worker"), do: "avatar-05.png"
   defp agent_avatar_filename("emoji_worker"), do: "avatar-06.png"
   defp agent_avatar_filename(_), do: "avatar-07.png"
 
   defp agent_status_label(:running), do: "동작"
+  defp agent_status_label(:finishing), do: "완료 중"
   defp agent_status_label(:error), do: "오류"
   defp agent_status_label(_), do: "대기"
 

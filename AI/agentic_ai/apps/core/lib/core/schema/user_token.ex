@@ -15,11 +15,11 @@ defmodule Core.Schema.UserToken do
   @foreign_key_type :binary_id
 
   schema "users_tokens" do
-    field :token, :binary
-    field :context, :string
-    field :sent_to, :string
+    field(:token, :binary)
+    field(:context, :string)
+    field(:sent_to, :string)
 
-    belongs_to :user, Core.Schema.User
+    belongs_to(:user, Core.Schema.User)
 
     timestamps(type: :utc_datetime, updated_at: false)
   end
@@ -38,10 +38,11 @@ defmodule Core.Schema.UserToken do
   """
   def verify_session_token_query(token) do
     query =
-      from token in by_token_and_context_query(token, "session"),
+      from(token in by_token_and_context_query(token, "session"),
         join: user in assoc(token, :user),
         where: token.inserted_at > ago(@session_validity_in_days, "day"),
         select: user
+      )
 
     {:ok, query}
   end
@@ -76,10 +77,11 @@ defmodule Core.Schema.UserToken do
         days = days_for_context(context)
 
         query =
-          from token in by_token_and_context_query(hashed_token, context),
+          from(token in by_token_and_context_query(hashed_token, context),
             join: user in assoc(token, :user),
             where: token.inserted_at > ago(^days, "day") and token.sent_to == user.email,
             select: user
+          )
 
         {:ok, query}
 
@@ -100,8 +102,9 @@ defmodule Core.Schema.UserToken do
         hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
 
         query =
-          from token in by_token_and_context_query(hashed_token, context),
+          from(token in by_token_and_context_query(hashed_token, context),
             where: token.inserted_at > ago(@change_email_validity_in_days, "day")
+          )
 
         {:ok, query}
 
@@ -114,17 +117,17 @@ defmodule Core.Schema.UserToken do
   토큰과 컨텍스트로 조회.
   """
   def by_token_and_context_query(token, context) do
-    from UserToken, where: [token: ^token, context: ^context]
+    from(UserToken, where: [token: ^token, context: ^context])
   end
 
   @doc """
   주어진 사용자의 모든 토큰을 조회.
   """
   def by_user_and_contexts_query(user, :all) do
-    from t in UserToken, where: t.user_id == ^user.id
+    from(t in UserToken, where: t.user_id == ^user.id)
   end
 
   def by_user_and_contexts_query(user, [_ | _] = contexts) do
-    from t in UserToken, where: t.user_id == ^user.id and t.context in ^contexts
+    from(t in UserToken, where: t.user_id == ^user.id and t.context in ^contexts)
   end
 end

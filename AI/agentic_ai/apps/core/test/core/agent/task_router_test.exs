@@ -39,15 +39,15 @@ defmodule Core.Agent.TaskRouterTest do
           enabled_tools: ["calculator"]
         })
 
-      general_worker =
+      knowledge_worker =
         create_worker(%{
-          name: "general_worker",
+          name: "knowledge_worker",
           description: "일반적인 작업을 수행합니다",
           enabled_tools: ["web_search"]
         })
 
       assert {:ok, selected} =
-               TaskRouter.select_worker("2 + 2를 계산해줘", [general_worker, calc_worker])
+               TaskRouter.select_worker("2 + 2를 계산해줘", [knowledge_worker, calc_worker])
 
       assert selected.name == "calculator_worker"
     end

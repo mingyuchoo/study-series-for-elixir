@@ -110,7 +110,7 @@ defmodule Core.Agent.TaskRouter do
       {:ok, %Agent{name: "calculator_worker", ...}}
 
       iex> TaskRouter.select_worker("최신 뉴스 검색해줘", workers)
-      {:ok, %Agent{name: "general_worker", ...}}
+      {:ok, %Agent{name: "knowledge_worker", ...}}
   """
   @spec select_worker(String.t(), list(Agent.t())) ::
           {:ok, Agent.t()} | {:error, :no_workers_available}
