@@ -220,7 +220,7 @@ defmodule WebWeb.ChatLive do
           |> assign(:debate_active, false)
           |> assign(:debate_round, 0)
           |> assign(:debate_max_rounds, 0)
-          |> assign(:current_speaker, nil)
+          |> assign(:current_speaker, default_assistant_agent(socket))
 
         send(self(), {:process_message_stream, conversation_id, full_message})
         {:noreply, socket}
@@ -463,6 +463,7 @@ defmodule WebWeb.ChatLive do
             role: :assistant,
             content: final_response,
             attachments: [],
+            agent: socket.assigns.current_speaker || default_assistant_agent(socket),
             inserted_at: DateTime.utc_now()
           }
 
@@ -824,6 +825,14 @@ defmodule WebWeb.ChatLive do
             :for={message <- @messages}
             class={["chat", chat_align_class(message)]}
           >
+            <div :if={message_role(message) in [:assistant, "assistant"]} class="chat-image avatar">
+              <div class="w-8 rounded-full">
+                <img
+                  src={message_avatar_url(message)}
+                  alt={message_speaker_label(message)}
+                />
+              </div>
+            </div>
             <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-1">
               <span class={message_speaker_class(message)}>{message_speaker_label(message)}</span>
               <span :if={debate_visibility_label(message)} class="badge badge-xs badge-ghost">
@@ -857,6 +866,14 @@ defmodule WebWeb.ChatLive do
           <%= if @loading do %>
             <%= if @streaming_content != "" or @streaming_status do %>
               <div class="chat chat-start">
+                <div class="chat-image avatar">
+                  <div class="w-8 rounded-full">
+                    <img
+                      src={speaker_avatar_url(@current_speaker)}
+                      alt={speaker_streaming_label(@current_speaker)}
+                    />
+                  </div>
+                </div>
                 <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-2">
                   <span class="font-semibold text-info">
                     {speaker_streaming_label(@current_speaker)}
@@ -876,6 +893,14 @@ defmodule WebWeb.ChatLive do
               </div>
             <% else %>
               <div class="chat chat-start">
+                <div class="chat-image avatar">
+                  <div class="w-8 rounded-full">
+                    <img
+                      src={speaker_avatar_url(@current_speaker)}
+                      alt={speaker_streaming_label(@current_speaker)}
+                    />
+                  </div>
+                </div>
                 <div class="chat-bubble chat-bubble-accent">
                   <span class="loading loading-dots loading-md" />
                 </div>
@@ -1126,6 +1151,22 @@ defmodule WebWeb.ChatLive do
   defp agent_avatar_url(agent_name) do
     "/images/profiles/" <> agent_avatar_filename(agent_name)
   end
+
+  defp message_avatar_url(message) do
+    case message_agent(message) do
+      %{name: name} when is_binary(name) -> agent_avatar_url(name)
+      _ -> agent_avatar_url(nil)
+    end
+  end
+
+  # 비그룹채팅 응답 시 fallback. SupervisorAgent 가 DB 에 저장하는 agent_id 와
+  # 동일한 main_supervisor 를 사용해 라벨/아바타가 일관되게 보이도록 한다.
+  defp default_assistant_agent(socket) do
+    Enum.find(socket.assigns.available_agents, &(&1.type == :supervisor))
+  end
+
+  defp speaker_avatar_url(%{name: name}) when is_binary(name), do: agent_avatar_url(name)
+  defp speaker_avatar_url(_), do: agent_avatar_url(nil)
 
   defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
   defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
