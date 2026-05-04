@@ -18,8 +18,8 @@ defmodule Core.Agent.ToolRegistry do
     |> order_by([t], asc: t.name)
     |> Repo.all()
     |> Enum.map(fn tool ->
-      with {:ok, module} <- module_from_tool(tool) do
-        apply(module, :definition, [tool.name])
+      with {:ok, module} <- fetch_tool_module(tool) do
+        module.definition(tool.name)
       else
         _ -> nil
       end
@@ -36,9 +36,9 @@ defmodule Core.Agent.ToolRegistry do
         {:error, :tool_not_found}
 
       tool ->
-        with {:ok, module} <- module_from_tool(tool) do
+        with {:ok, module} <- fetch_tool_module(tool) do
           try do
-            apply(module, :execute, [tool_name, arguments])
+            module.execute(tool_name, arguments)
           rescue
             e -> {:error, Exception.message(e)}
           end
@@ -53,7 +53,7 @@ defmodule Core.Agent.ToolRegistry do
     Repo.exists?(from(t in Tool, where: t.name == ^tool_name and t.enabled == true))
   end
 
-  defp module_from_tool(%Tool{module_name: module_name}) when is_binary(module_name) do
+  defp fetch_tool_module(%Tool{module_name: module_name}) when is_binary(module_name) do
     module =
       module_name
       |> String.trim_leading("Elixir.")
@@ -70,5 +70,5 @@ defmodule Core.Agent.ToolRegistry do
     ArgumentError -> {:error, :invalid_tool_module}
   end
 
-  defp module_from_tool(_tool), do: {:error, :invalid_tool_module}
+  defp fetch_tool_module(_tool), do: {:error, :invalid_tool_module}
 end

@@ -4,6 +4,8 @@ defmodule Core.Agent.Tools.CodeExecutor do
   타임아웃이 있는 샌드박스 환경에서 실행됩니다.
   """
 
+  @behaviour Core.Agent.Tool
+
   @timeout 5_000
 
   def definition("execute_code") do

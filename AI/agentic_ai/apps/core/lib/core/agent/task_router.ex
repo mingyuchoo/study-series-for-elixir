@@ -6,11 +6,9 @@ defmodule Core.Agent.TaskRouter do
   분석하여 가장 적합한 Worker를 반환합니다.
   """
 
-  import Ecto.Query
-
   require Logger
-  alias Core.Repo
-  alias Core.Schema.{Agent, AgentRoutingRule}
+  alias Core.Agent.RoutingRules
+  alias Core.Schema.Agent
 
   @doc """
   사용자 요청에 가장 적합한 Worker를 선택합니다.
@@ -41,20 +39,19 @@ defmodule Core.Agent.TaskRouter do
   end
 
   def select_worker(user_request, workers) do
+    route_worker(user_request, workers, RoutingRules.list_active_rules())
+  end
+
+  defp route_worker(user_request, workers, rules) do
     Logger.info("Routing task: #{user_request}")
     Logger.info("Available workers: #{inspect(Enum.map(workers, & &1.name))}")
 
-    # Calculate match score for each worker
     scored_workers =
       Enum.map(workers, fn worker ->
-        score = calculate_match_score(user_request, worker, routing_rules())
-        {worker, score}
+        {worker, calculate_match_score(user_request, worker, rules)}
       end)
 
-    # Sort by score (highest first)
-    sorted_workers = Enum.sort_by(scored_workers, fn {_worker, score} -> score end, :desc)
-
-    case sorted_workers do
+    case Enum.sort_by(scored_workers, fn {_worker, score} -> score end, :desc) do
       [{worker, score} | _] ->
         Logger.info("Selected worker: #{worker.name} (score: #{score})")
         {:ok, worker}
@@ -170,31 +167,5 @@ defmodule Core.Agent.TaskRouter do
     else
       0
     end
-  end
-
-  defp routing_rules do
-    AgentRoutingRule
-    |> where([r], r.enabled == true)
-    |> Repo.all()
-    |> Enum.reduce(
-      %{domain_keywords: %{}, tool_to_domain: %{}, name_type_to_domain: %{}},
-      fn rule, acc ->
-        put_routing_rule(acc, rule)
-      end
-    )
-  end
-
-  defp put_routing_rule(acc, %AgentRoutingRule{rule_type: :domain_keyword} = rule) do
-    update_in(acc.domain_keywords, fn keywords_by_domain ->
-      Map.update(keywords_by_domain, rule.domain, [rule.pattern], &[rule.pattern | &1])
-    end)
-  end
-
-  defp put_routing_rule(acc, %AgentRoutingRule{rule_type: :tool_domain} = rule) do
-    put_in(acc.tool_to_domain[rule.pattern], rule.domain)
-  end
-
-  defp put_routing_rule(acc, %AgentRoutingRule{rule_type: :name_domain} = rule) do
-    put_in(acc.name_type_to_domain[rule.pattern], rule.domain)
   end
 end

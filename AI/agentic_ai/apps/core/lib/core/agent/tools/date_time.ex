@@ -3,6 +3,8 @@ defmodule Core.Agent.Tools.DateTime do
   현재 시간 및 날짜 연산을 위한 DateTime 도구.
   """
 
+  @behaviour Core.Agent.Tool
+
   def definition("get_current_time") do
     %{
       name: "get_current_time",

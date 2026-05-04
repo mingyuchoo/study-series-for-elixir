@@ -219,10 +219,18 @@ defmodule Core.Agent.ConfigLoaderTest do
       assert attrs.type == :worker
     end
 
-    test "알 수 없는 type은 :worker로 기본 설정한다" do
+    test "알 수 없는 type은 에러를 반환한다" do
       frontmatter = %{"type" => "unknown", "name" => "test"}
-      {:ok, attrs} = ConfigLoader.build_agent_attrs(frontmatter, "", "/test.md")
-      assert attrs.type == :worker
+
+      assert {:error, "invalid agent type: \"unknown\""} =
+               ConfigLoader.build_agent_attrs(frontmatter, "", "/test.md")
+    end
+
+    test "알 수 없는 status는 에러를 반환한다" do
+      frontmatter = %{"type" => "worker", "name" => "test", "status" => "unknown"}
+
+      assert {:error, "invalid agent status: \"unknown\""} =
+               ConfigLoader.build_agent_attrs(frontmatter, "", "/test.md")
     end
 
     test "name이 없으면 에러를 반환한다" do
@@ -374,7 +382,7 @@ defmodule Core.Agent.ConfigLoaderTest do
       file_path = Path.join(@project_root, "config/agents/worker_restructure.md")
 
       {:ok, content} = File.read(file_path)
-      {:ok, frontmatter, body} = ConfigLoader.parse_markdown(content)
+      {:ok, frontmatter, _body} = ConfigLoader.parse_markdown(content)
 
       assert frontmatter["type"] == "worker"
       assert frontmatter["name"] == "restructure_worker"
@@ -432,7 +440,7 @@ defmodule Core.Agent.ConfigLoaderTest do
       file_path = Path.join(@project_root, "config/agents/worker_system.md")
 
       {:ok, content} = File.read(file_path)
-      {:ok, frontmatter, body} = ConfigLoader.parse_markdown(content)
+      {:ok, frontmatter, _body} = ConfigLoader.parse_markdown(content)
 
       assert frontmatter["type"] == "worker"
       assert frontmatter["name"] == "system_worker"

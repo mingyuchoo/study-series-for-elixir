@@ -4,6 +4,8 @@ defmodule Core.Agent.Tools.FileSystem do
   안전한 작업 디렉토리로 제한됩니다.
   """
 
+  @behaviour Core.Agent.Tool
+
   @workspace_dir Application.compile_env(:core, :workspace_dir, "/tmp/agentic_workspace")
 
   def definition("read_file") do

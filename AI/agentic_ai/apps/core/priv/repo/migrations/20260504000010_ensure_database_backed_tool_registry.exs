@@ -40,8 +40,6 @@ defmodule Core.Repo.Migrations.EnsureDatabaseBackedToolRegistry do
     create_if_not_exists(unique_index(:tools, [:name]))
 
     flush()
-    ensure_column("tools", "module_name", "TEXT")
-    ensure_column("agents", "avatar_path", "TEXT")
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -77,21 +75,5 @@ defmodule Core.Repo.Migrations.EnsureDatabaseBackedToolRegistry do
   defp from_tool_name_in(names) do
     import Ecto.Query
     from(t in "tools", where: t.name in ^names)
-  end
-
-  defp ensure_column(table, column, type) do
-    unless column_exists?(table, column) do
-      execute("ALTER TABLE #{table} ADD COLUMN #{column} #{type}")
-    end
-  end
-
-  defp column_exists?(table, column) do
-    table
-    |> table_info()
-    |> Enum.any?(fn row -> Enum.at(row, 1) == column end)
-  end
-
-  defp table_info(table) do
-    repo().query!("PRAGMA table_info(#{table})").rows
   end
 end

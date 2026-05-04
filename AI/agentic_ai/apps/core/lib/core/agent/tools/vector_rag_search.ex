@@ -3,6 +3,8 @@ defmodule Core.Agent.Tools.VectorRagSearch do
   활성 Vector RAG 지식베이스에서 관련 청크를 검색하는 도구.
   """
 
+  @behaviour Core.Agent.Tool
+
   alias Core.Contexts.VectorRags
 
   def definition("search_vector_rag") do

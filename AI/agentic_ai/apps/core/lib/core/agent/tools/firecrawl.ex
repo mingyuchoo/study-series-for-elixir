@@ -12,6 +12,8 @@ defmodule Core.Agent.Tools.Firecrawl do
     - `firecrawl_search`: 웹 검색 수행
   """
 
+  @behaviour Core.Agent.Tool
+
   @base_url "https://api.firecrawl.dev"
 
   # 도구 정의

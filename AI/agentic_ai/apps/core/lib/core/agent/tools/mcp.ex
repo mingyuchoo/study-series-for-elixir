@@ -3,6 +3,8 @@ defmodule Core.Agent.Tools.Mcp do
   DB에 등록된 외부 MCP 서버를 stdio JSON-RPC로 호출하는 도구입니다.
   """
 
+  @behaviour Core.Agent.Tool
+
   alias Core.Contexts.Mcps
 
   @timeout 30_000
@@ -107,23 +109,29 @@ defmodule Core.Agent.Tools.Mcp do
   defp resolve_command(_), do: {:error, "MCP command is invalid"}
 
   defp resolve_placeholders(values) when is_list(values) do
-    values
-    |> Enum.reduce_while({:ok, []}, fn value, {:ok, acc} ->
-      case resolve_placeholder(value) do
-        {:ok, resolved} -> {:cont, {:ok, acc ++ [resolved]}}
-        {:error, _} = error -> {:halt, error}
-      end
-    end)
+    case Enum.reduce_while(values, {:ok, []}, &resolve_placeholder_item/2) do
+      {:ok, resolved} -> {:ok, Enum.reverse(resolved)}
+      {:error, _} = error -> error
+    end
   end
 
   defp resolve_env(env) when is_map(env) do
-    env
-    |> Enum.reduce_while({:ok, []}, fn {key, value}, {:ok, acc} ->
-      case resolve_placeholder(value) do
-        {:ok, resolved} -> {:cont, {:ok, acc ++ [{to_charlist(key), to_charlist(resolved)}]}}
-        {:error, _} = error -> {:halt, error}
-      end
-    end)
+    case Enum.reduce_while(env, {:ok, []}, fn {key, value}, {:ok, acc} ->
+           case resolve_placeholder(value) do
+             {:ok, resolved} -> {:cont, {:ok, [{to_charlist(key), to_charlist(resolved)} | acc]}}
+             {:error, _} = error -> {:halt, error}
+           end
+         end) do
+      {:ok, resolved} -> {:ok, Enum.reverse(resolved)}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp resolve_placeholder_item(value, {:ok, acc}) do
+    case resolve_placeholder(value) do
+      {:ok, resolved} -> {:cont, {:ok, [resolved | acc]}}
+      {:error, _} = error -> {:halt, error}
+    end
   end
 
   defp resolve_placeholder(value) when is_binary(value) do

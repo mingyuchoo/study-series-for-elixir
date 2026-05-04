@@ -195,38 +195,48 @@ defmodule Core.Agent.ConfigLoader do
   def build_agent_attrs(frontmatter, body, file_path) do
     body_sections = parse_body(body)
 
-    attrs =
-      %{
-        type: parse_agent_type(frontmatter["type"]),
-        name: frontmatter["name"],
-        display_name: frontmatter["display_name"],
-        description: frontmatter["description"],
-        system_prompt: body_sections["system_prompt"],
-        model: frontmatter["model"] || "gpt-5-mini",
-        temperature: frontmatter["temperature"] || 1.0,
-        max_iterations: frontmatter["max_iterations"] || 10,
-        enabled_tools: body_sections["enabled_tools"],
-        config: body_sections["config"] || %{},
-        status: parse_agent_status(frontmatter["status"]),
-        created_from_markdown: true,
-        markdown_path: file_path
-      }
-      |> maybe_put(:avatar_path, frontmatter["avatar_path"] || frontmatter["avatar"])
+    with {:ok, name} <- required_frontmatter(frontmatter, "name"),
+         {:ok, type} <- parse_agent_type(frontmatter["type"]),
+         {:ok, status} <- parse_agent_status(frontmatter["status"]) do
+      attrs =
+        %{
+          type: type,
+          name: name,
+          display_name: frontmatter["display_name"],
+          description: frontmatter["description"],
+          system_prompt: body_sections["system_prompt"],
+          model: frontmatter["model"] || "gpt-5-mini",
+          temperature: frontmatter["temperature"] || 1.0,
+          max_iterations: frontmatter["max_iterations"] || 10,
+          enabled_tools: body_sections["enabled_tools"],
+          config: body_sections["config"] || %{},
+          status: status,
+          created_from_markdown: true,
+          markdown_path: file_path
+        }
+        |> maybe_put(:avatar_path, frontmatter["avatar_path"] || frontmatter["avatar"])
 
-    if attrs.name do
       {:ok, attrs}
-    else
-      {:error, "name is required in frontmatter"}
     end
   end
 
-  defp parse_agent_type("supervisor"), do: :supervisor
-  defp parse_agent_type("worker"), do: :worker
-  defp parse_agent_type(_), do: :worker
+  defp required_frontmatter(frontmatter, key) do
+    case frontmatter[key] do
+      nil -> {:error, "#{key} is required in frontmatter"}
+      "" -> {:error, "#{key} is required in frontmatter"}
+      value -> {:ok, value}
+    end
+  end
 
-  defp parse_agent_status("active"), do: :active
-  defp parse_agent_status("disabled"), do: :disabled
-  defp parse_agent_status(_), do: :active
+  defp parse_agent_type(nil), do: {:ok, :worker}
+  defp parse_agent_type("supervisor"), do: {:ok, :supervisor}
+  defp parse_agent_type("worker"), do: {:ok, :worker}
+  defp parse_agent_type(type), do: {:error, "invalid agent type: #{inspect(type)}"}
+
+  defp parse_agent_status(nil), do: {:ok, :active}
+  defp parse_agent_status("active"), do: {:ok, :active}
+  defp parse_agent_status("disabled"), do: {:ok, :disabled}
+  defp parse_agent_status(status), do: {:error, "invalid agent status: #{inspect(status)}"}
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map

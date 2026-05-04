@@ -3,6 +3,8 @@ defmodule Core.Agent.Tools.WebSearch do
   DuckDuckGo 즉석 답변 API를 사용하는 웹 검색 도구.
   """
 
+  @behaviour Core.Agent.Tool
+
   def definition("search_web") do
     %{
       name: "search_web",

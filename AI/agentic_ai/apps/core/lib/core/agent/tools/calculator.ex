@@ -3,6 +3,8 @@ defmodule Core.Agent.Tools.Calculator do
   수학 연산을 위한 계산기 도구.
   """
 
+  @behaviour Core.Agent.Tool
+
   def definition("calculate") do
     %{
       name: "calculate",

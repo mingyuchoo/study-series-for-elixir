@@ -1,8 +1,14 @@
 defmodule Core.Agent.TaskRouterTest do
   use Core.DataCase, async: false
 
+  alias Core.Agent.RoutingRules
   alias Core.Agent.TaskRouter
   alias Core.Schema.Agent
+
+  setup do
+    RoutingRules.seed_defaults()
+    :ok
+  end
 
   # 테스트용 Worker 구조체 생성 헬퍼
   defp create_worker(attrs) do

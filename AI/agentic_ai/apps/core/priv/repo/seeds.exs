@@ -1,4 +1,5 @@
 alias Core.Repo
+alias Core.Agent.RoutingRules
 alias Core.Contexts.Accounts
 alias Core.Contexts.Mcps
 alias Core.Agent.ConfigLoader
@@ -98,7 +99,13 @@ Enum.each(tools, fn {name, module} ->
 end)
 
 # ------------------------------------------------------------------
-# 4) 기본 MCP 서버 (.mcp.json → DB, 이름 기준 upsert)
+# 4) 기본 라우팅 규칙
+# ------------------------------------------------------------------
+{inserted_count, _} = RoutingRules.seed_defaults()
+IO.puts("✓ 라우팅 규칙 시드: #{inserted_count}개")
+
+# ------------------------------------------------------------------
+# 5) 기본 MCP 서버 (.mcp.json → DB, 이름 기준 upsert)
 # ------------------------------------------------------------------
 mcp_json_path =
   [
