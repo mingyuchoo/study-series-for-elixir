@@ -389,7 +389,7 @@ defmodule Core.Agent.WorkerAgent do
 
   defp conversation_history_messages(conversation_id, current_request) do
     conversation_id
-    |> Conversations.list_recent_messages(12)
+    |> Conversations.list_recent_messages_for_llm(12)
     |> drop_current_request_messages(current_request)
     |> Enum.filter(&(&1.role in [:system, :user, :assistant]))
     |> Enum.map(fn message ->

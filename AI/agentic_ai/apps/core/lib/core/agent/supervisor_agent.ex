@@ -10,9 +10,8 @@ defmodule Core.Agent.SupervisorAgent do
   use GenServer
   require Logger
 
-  alias Core.Agent.{Coordinator, MemoryManager, TaskRouter, WorkerAgent}
+  alias Core.Agent.{GroupChat, MemoryManager, WorkerAgent}
   alias Core.Contexts.{Agents, Conversations}
-  alias Core.LLM.AzureOpenAI
   alias Core.Schema.{Agent, Message}
   alias Core.Repo
 
@@ -392,103 +391,68 @@ defmodule Core.Agent.SupervisorAgent do
     MemoryManager.save_user_profile(profile)
   end
 
-  # 스트리밍 메시지 처리
+  # 스트리밍 메시지 처리 (그룹 채팅 모드)
   defp process_streaming_message(state, user_message, liveview_pid) do
+    process_group_chat(state, user_message, liveview_pid)
+  end
+
+  # 일반 메시지 처리 (그룹 채팅 모드, 단 LiveView 통보 없음)
+  defp process_normal_message(state, user_message) do
+    process_group_chat(state, user_message, nil)
+  end
+
+  # 그룹 채팅 실행 — 항상 GroupChat 모듈을 통해 처리합니다.
+  # liveview_pid가 nil이면 스트리밍/이벤트 통보만 생략됩니다.
+  defp process_group_chat(state, user_message, liveview_pid) do
     start_time = System.monotonic_time(:millisecond)
     notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :running)
 
-    # 사용자 메시지 저장
+    # 사용자 메시지 저장 (visibility: :user_facing — 기본값)
     save_user_message(state.conversation_id, user_message)
 
-    # Worker에게 스트리밍 작업 위임
-    case delegate_to_worker_stream(state, user_message, liveview_pid) do
-      {:ok, result, worker_name} ->
+    case GroupChat.run(%{
+           supervisor: state.agent,
+           workers: state.worker_agents,
+           conversation_id: state.conversation_id,
+           user_request: user_message,
+           liveview_pid: liveview_pid
+         }) do
+      {:ok, result} ->
         duration_ms = System.monotonic_time(:millisecond) - start_time
 
-        # 어시스턴트 메시지 저장
-        save_message(state.conversation_id, %{
-          role: :assistant,
-          content: result,
-          agent_id: state.agent_id
-        })
+        # 그룹 채팅에 사용된 워커 이름 모음 (성능 메트릭 키)
+        worker_label = "group_chat"
+        record_performance_metric(state, worker_label, duration_ms, true)
 
-        # 성능 메트릭 기록
-        record_performance_metric(state, worker_name, duration_ms, true)
-
-        # LiveView에 완료 알림 (최종 응답 포함)
+        # LiveView에 최종 응답 알림 (스트리밍 스피너 종료용)
         notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :idle)
-        send(liveview_pid, {:stream_complete, state.conversation_id, result})
+
+        if is_pid(liveview_pid) do
+          send(liveview_pid, {:stream_complete, state.conversation_id, result})
+        end
 
         {:reply, {:ok, result}, state}
 
       {:error, reason} = error ->
         duration_ms = System.monotonic_time(:millisecond) - start_time
 
-        # 오류 메시지 저장
         error_message = "작업 수행 중 오류가 발생했습니다: #{inspect(reason)}"
 
         save_message(state.conversation_id, %{
           role: :assistant,
           content: error_message,
-          agent_id: state.agent_id
+          agent_id: state.agent_id,
+          visibility: :final
         })
 
-        # 실패 메트릭 기록
-        record_performance_metric(state, "unknown", duration_ms, false)
-
-        # 학습을 위한 오류 패턴 기록
+        record_performance_metric(state, "group_chat", duration_ms, false)
         record_error_pattern(state, user_message, reason)
 
-        # LiveView 스트리밍 상태가 영원히 "응답 중" 으로 남지 않도록
-        # 오류 사유를 본문으로 담아 완료 알림을 전송한다.
         notify_agent_status(liveview_pid, state.conversation_id, state.agent.name, :error)
-        send(liveview_pid, {:stream_complete, state.conversation_id, error_message})
 
-        {:reply, error, state}
-    end
-  end
-
-  # 일반 메시지 처리 (기존 로직)
-  defp process_normal_message(state, user_message) do
-    start_time = System.monotonic_time(:millisecond)
-
-    # 사용자 메시지 저장
-    save_user_message(state.conversation_id, user_message)
-
-    # Worker에게 작업 위임
-    case delegate_to_worker(state, user_message) do
-      {:ok, result, worker_name} ->
-        duration_ms = System.monotonic_time(:millisecond) - start_time
-
-        # 어시스턴트 메시지 저장
-        save_message(state.conversation_id, %{
-          role: :assistant,
-          content: result,
-          agent_id: state.agent_id
-        })
-
-        # 성능 메트릭 기록
-        record_performance_metric(state, worker_name, duration_ms, true)
-
-        {:reply, {:ok, result}, state}
-
-      {:error, reason} = error ->
-        duration_ms = System.monotonic_time(:millisecond) - start_time
-
-        # 오류 메시지 저장
-        error_message = "작업 수행 중 오류가 발생했습니다: #{inspect(reason)}"
-
-        save_message(state.conversation_id, %{
-          role: :assistant,
-          content: error_message,
-          agent_id: state.agent_id
-        })
-
-        # 실패 메트릭 기록
-        record_performance_metric(state, "unknown", duration_ms, false)
-
-        # 학습을 위한 오류 패턴 기록
-        record_error_pattern(state, user_message, reason)
+        if is_pid(liveview_pid) do
+          send(liveview_pid, {:stream_complete, state.conversation_id, error_message})
+        end
 
         {:reply, error, state}
     end
@@ -553,147 +517,7 @@ defmodule Core.Agent.SupervisorAgent do
     end
   end
 
-  # 스트리밍 모드로 Worker에게 작업 위임
-  defp delegate_to_worker_stream(state, user_request, liveview_pid) do
-    with {:ok, plan} <- select_supervisor_worker_plan(state, user_request) do
-      execute_worker_plan_stream(state, plan, user_request, liveview_pid)
-    end
-  end
-
-  defp delegate_to_worker(state, user_request) do
-    with {:ok, plan} <- select_supervisor_worker_plan(state, user_request) do
-      execute_worker_plan(state, plan, user_request)
-    end
-  end
-
-  defp select_supervisor_worker_plan(state, user_request) do
-    workers = Enum.map(state.worker_agents, fn {agent, _pid} -> agent end)
-
-    case workers do
-      [] ->
-        Logger.error("No workers available")
-        {:error, :no_workers_available}
-
-      _ ->
-        case request_supervisor_worker_plan(state, user_request, workers) do
-          {:ok, plan} ->
-            Logger.info(
-              "Main Supervisor selected worker plan: #{inspect(Enum.map(plan, & &1.name))}"
-            )
-
-            {:ok, plan}
-
-          {:error, reason} ->
-            Logger.warning(
-              "Main Supervisor worker planning failed: #{inspect(reason)}. Falling back to router."
-            )
-
-            fallback_worker_plan(user_request, workers)
-        end
-    end
-  end
-
-  defp request_supervisor_worker_plan(state, user_request, workers) do
-    messages = [
-      %{role: "system", content: supervisor_planner_prompt(state, workers)}
-    ] ++ conversation_history_messages(state.conversation_id, user_request) ++
-      [
-        %{role: "user", content: user_request}
-      ]
-
-    try do
-      case AzureOpenAI.chat_completion(messages,
-             model: state.agent.model,
-             temperature: state.agent.temperature || 1.0,
-             max_completion_tokens: 800
-           ) do
-        {:ok, %{content: content}} when is_binary(content) ->
-          parse_worker_plan(content, workers)
-
-        {:ok, response} ->
-          {:error, {:invalid_planner_response, response}}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    rescue
-      exception ->
-        {:error, {exception.__struct__, Exception.message(exception)}}
-    end
-  end
-
-  defp supervisor_planner_prompt(state, workers) do
-    worker_descriptions =
-      workers
-      |> Enum.map(fn worker ->
-        %{
-          name: worker.name,
-          display_name: worker.display_name,
-          description: worker.description,
-          enabled_tools: worker.enabled_tools || []
-        }
-      end)
-      |> Jason.encode!()
-
-    """
-    #{state.agent.system_prompt}
-
-    You are the Main Supervisor. You must directly choose which worker agents should run,
-    and in what order, for the user's request.
-
-    Available workers:
-    #{worker_descriptions}
-
-    Return only JSON. Do not include markdown fences or explanations.
-    Schema:
-    {
-      "workers": [
-        {
-          "name": "worker_name_from_available_workers",
-          "instruction": "specific instruction for that worker"
-        }
-      ]
-    }
-
-    Rules:
-    - Choose from every available worker when useful. No worker is preselected by code.
-    - Use only workers from the available list.
-    - Use the smallest useful number of workers.
-    - Use the conversation history when the user refers to previous turns.
-    - If a response should be rewritten or styled, explicitly include restructure_worker or emoji_worker in the order you want.
-    - The last worker's output becomes the final answer.
-    """
-  end
-
-  defp conversation_history_messages(conversation_id, current_request) do
-    conversation_id
-    |> Conversations.list_recent_messages(12)
-    |> drop_current_request_messages(current_request)
-    |> Enum.filter(&(&1.role in [:system, :user, :assistant]))
-    |> Enum.map(fn message ->
-      %{
-        role: Atom.to_string(message.role),
-        content: message.content || ""
-      }
-    end)
-  end
-
-  defp drop_current_request_messages(messages, current_request) do
-    case List.last(messages) do
-      %{role: :user, content: content} when is_binary(content) ->
-        if same_current_request?(content, current_request) do
-          messages
-          |> Enum.drop(-1)
-          |> drop_current_request_messages(current_request)
-        else
-          messages
-        end
-
-      _ ->
-        messages
-    end
-  end
-
+  # 사용자 메시지 중복 검출용 (save_user_message에서 사용)
   defp same_current_request?(history_content, current_request)
        when is_binary(history_content) and is_binary(current_request) do
     trimmed_history = String.trim(history_content)
@@ -704,224 +528,6 @@ defmodule Core.Agent.SupervisorAgent do
   end
 
   defp same_current_request?(_history_content, _current_request), do: false
-
-  defp parse_worker_plan(content, workers) do
-    with {:ok, json} <- extract_json(content),
-         {:ok, decoded} <- Jason.decode(json),
-         {:ok, steps} <- normalize_worker_steps(decoded, workers) do
-      {:ok, steps}
-    end
-  end
-
-  defp extract_json(content) do
-    content = String.trim(content)
-
-    cond do
-      String.starts_with?(content, "{") ->
-        {:ok, content}
-
-      true ->
-        case Regex.run(~r/\{(?:.|\n)*\}/, content) do
-          [json] -> {:ok, json}
-          _ -> {:error, :no_json_plan}
-        end
-    end
-  end
-
-  defp normalize_worker_steps(%{"workers" => worker_steps}, workers)
-       when is_list(worker_steps) do
-    workers_by_name = Map.new(workers, &{&1.name, &1})
-
-    steps =
-      worker_steps
-      |> Enum.map(&normalize_worker_step(&1, workers_by_name))
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq_by(& &1.name)
-
-    if steps == [] do
-      {:error, :empty_worker_plan}
-    else
-      {:ok, steps}
-    end
-  end
-
-  defp normalize_worker_steps(_decoded, _workers), do: {:error, :invalid_worker_plan}
-
-  defp normalize_worker_step(%{"name" => name} = step, workers_by_name) when is_binary(name) do
-    case Map.fetch(workers_by_name, name) do
-      {:ok, agent} ->
-        %{
-          agent: agent,
-          name: name,
-          instruction: Map.get(step, "instruction") || "사용자 요청을 처리하세요."
-        }
-
-      :error ->
-        nil
-    end
-  end
-
-  defp normalize_worker_step(name, workers_by_name) when is_binary(name) do
-    normalize_worker_step(%{"name" => name}, workers_by_name)
-  end
-
-  defp normalize_worker_step(_step, _workers_by_name), do: nil
-
-  defp fallback_worker_plan(user_request, workers) do
-    case TaskRouter.select_worker(user_request, workers) do
-      {:ok, worker} ->
-        {:ok,
-         [
-           %{
-             agent: worker,
-             name: worker.name,
-             instruction: "사용자 요청을 처리하세요."
-           }
-         ]}
-
-      {:error, _reason} = error ->
-        error
-    end
-  end
-
-  defp execute_worker_plan_stream(state, plan, user_request, liveview_pid) do
-    stream_callback = fn
-      {:chunk, text} ->
-        send(liveview_pid, {:stream_chunk, state.conversation_id, text})
-
-      {:tool_execution, tool_calls} ->
-        tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
-        send(liveview_pid, {:stream_tool_start, state.conversation_id, tool_names})
-
-      {:tool_completed, tool_calls, failed_tool_names} ->
-        tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
-        send(liveview_pid, {:stream_tool_end, state.conversation_id, tool_names, failed_tool_names})
-
-      {:tool_completed, tool_calls} ->
-        tool_names = Enum.map(tool_calls, fn tc -> tc["function"]["name"] end)
-        send(liveview_pid, {:stream_tool_end, state.conversation_id, tool_names, []})
-
-      {:finish, _reason} ->
-        send(liveview_pid, {:stream_finish, state.conversation_id})
-
-      _ ->
-        :ok
-    end
-
-    execute_worker_plan_steps(state, plan, user_request, stream_callback, liveview_pid)
-  end
-
-  defp execute_worker_plan(state, plan, user_request) do
-    execute_worker_plan_steps(state, plan, user_request, nil, nil)
-  end
-
-  defp execute_worker_plan_steps(state, plan, user_request, stream_callback, liveview_pid) do
-    plan
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, user_request, []}, fn {step, index}, {:ok, input, used_workers} ->
-      if index > 0 and is_pid(liveview_pid) do
-        send(liveview_pid, {:stream_postprocess, state.conversation_id})
-      end
-
-      notify_agent_status(liveview_pid, state.conversation_id, step.name, :running)
-
-      result =
-        if index == 0 and is_function(stream_callback, 1) do
-          execute_worker_step_stream(state, step, input, stream_callback)
-        else
-          execute_worker_step(state, step, input)
-        end
-
-      case result do
-        {:ok, output} ->
-          notify_agent_status(liveview_pid, state.conversation_id, step.name, :idle)
-          {:cont, {:ok, output, used_workers ++ [step.name]}}
-
-        {:error, reason} ->
-          notify_agent_status(liveview_pid, state.conversation_id, step.name, :error)
-          {:halt, {:error, reason}}
-      end
-    end)
-    |> case do
-      {:ok, final_result, used_workers} -> {:ok, final_result, Enum.join(used_workers, " -> ")}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp execute_worker_step(state, step, input) do
-    execute_worker_by_agent(state, step.agent, build_worker_input(step, input), step_context(step))
-  end
-
-  defp execute_worker_step_stream(state, step, input, stream_callback) do
-    execute_worker_by_agent_stream(
-      state,
-      step.agent,
-      build_worker_input(step, input),
-      step_context(step),
-      stream_callback
-    )
-  end
-
-  defp build_worker_input(step, input) do
-    """
-    #{step.instruction}
-
-    [입력]
-    #{input}
-    """
-  end
-
-  defp step_context(step), do: "Main Supervisor가 직접 선택한 작업 단계: #{step.name}"
-
-  # 특정 Agent 구조체로 Worker 실행
-  defp execute_worker_by_agent(state, agent, user_request, context) do
-    case find_worker_pid(state, agent.id) do
-      {:ok, worker_pid} ->
-        task_attrs = %{
-          conversation_id: state.conversation_id,
-          supervisor_id: state.agent_id,
-          user_request: user_request,
-          context: context
-        }
-
-        Coordinator.send_task(state.agent_id, agent.id, worker_pid, task_attrs)
-
-      {:error, _} = error ->
-        error
-    end
-  end
-
-  # 특정 Agent 구조체로 Worker 스트리밍 실행
-  defp execute_worker_by_agent_stream(state, agent, user_request, context, stream_callback) do
-    case find_worker_pid(state, agent.id) do
-      {:ok, worker_pid} ->
-        task_attrs = %{
-          conversation_id: state.conversation_id,
-          supervisor_id: state.agent_id,
-          user_request: user_request,
-          context: context
-        }
-
-        Coordinator.send_task_stream(
-          state.agent_id,
-          agent.id,
-          worker_pid,
-          task_attrs,
-          stream_callback
-        )
-
-      {:error, _} = error ->
-        error
-    end
-  end
-
-  defp find_worker_pid(state, agent_id) do
-    case Enum.find(state.worker_agents, fn {agent, _pid} -> agent.id == agent_id end) do
-      {_agent, pid} -> {:ok, pid}
-      nil -> {:error, :worker_not_found}
-    end
-  end
-
   defp save_message(conversation_id, attrs) do
     attrs_with_conv = Map.put(attrs, :conversation_id, conversation_id)
 

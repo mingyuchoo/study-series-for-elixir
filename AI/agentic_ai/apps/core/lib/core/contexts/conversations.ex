@@ -91,15 +91,41 @@ defmodule Core.Contexts.Conversations do
 
   @doc """
   특정 대화의 최근 메시지를 반환합니다.
+
+  ## Options
+
+    - `:visibility_in` - 가시성으로 필터링 (예: `[:user_facing, :final]`).
+      미지정 시 전체 메시지를 반환합니다 (UI 렌더링용).
   """
-  def list_recent_messages(conversation_id, limit \\ 10) do
-    from(m in Message,
-      where: m.conversation_id == ^conversation_id,
-      order_by: [desc: m.inserted_at],
-      limit: ^limit
-    )
+  def list_recent_messages(conversation_id, limit \\ 10, opts \\ [])
+
+  def list_recent_messages(conversation_id, limit, opts) when is_list(opts) do
+    base =
+      from(m in Message,
+        where: m.conversation_id == ^conversation_id,
+        order_by: [desc: m.inserted_at],
+        limit: ^limit
+      )
+
+    query =
+      case Keyword.get(opts, :visibility_in) do
+        nil -> base
+        visibilities when is_list(visibilities) ->
+          from(m in base, where: m.visibility in ^visibilities)
+      end
+
+    query
     |> Repo.all()
     |> Enum.reverse()
+  end
+
+  @doc """
+  LLM 컨텍스트에 포함될 최근 메시지만 조회합니다.
+  그룹 채팅의 중간 발화(:debate_turn)는 제외하고
+  사용자 메시지(:user_facing)와 최종 답변(:final)만 반환합니다.
+  """
+  def list_recent_messages_for_llm(conversation_id, limit \\ 10) do
+    list_recent_messages(conversation_id, limit, visibility_in: [:user_facing, :final])
   end
 
   @doc """

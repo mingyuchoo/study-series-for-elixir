@@ -10,7 +10,7 @@ require Logger
 # 1) 초기 관리자 계정 생성 (ADMIN_EMAIL / ADMIN_PASSWORD 환경변수 사용)
 # ------------------------------------------------------------------
 admin_email = System.get_env("ADMIN_EMAIL") || "admin@example.com"
-admin_password = System.get_env("ADMIN_PASSWORD") || "changeme-please-at-least-12-chars"
+admin_password = System.get_env("ADMIN_PASSWORD") || "Admin123!"
 
 case Repo.get_by(User, email: String.downcase(admin_email)) do
   nil ->

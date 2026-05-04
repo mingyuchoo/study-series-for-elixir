@@ -43,6 +43,10 @@ defmodule WebWeb.ChatLive do
       |> assign(:streaming_status, nil)
       |> assign(:agent_execution_failed, false)
       |> assign(:agent_statuses, %{})
+      |> assign(:debate_active, false)
+      |> assign(:debate_round, 0)
+      |> assign(:debate_max_rounds, 0)
+      |> assign(:current_speaker, nil)
       |> allow_upload(:attachments,
         accept: @accepted_extensions,
         max_entries: @max_upload_entries,
@@ -76,6 +80,10 @@ defmodule WebWeb.ChatLive do
           |> assign(:agent_statuses, %{})
           |> assign(:mcp_statuses, %{})
           |> assign(:message_sent_at, nil)
+          |> assign(:debate_active, false)
+          |> assign(:debate_round, 0)
+          |> assign(:debate_max_rounds, 0)
+          |> assign(:current_speaker, nil)
 
         {:noreply, socket}
     end
@@ -209,6 +217,10 @@ defmodule WebWeb.ChatLive do
           |> assign(:streaming_content, "")
           |> assign(:streaming_message_id, streaming_message_id)
           |> assign(:streaming_status, :streaming)
+          |> assign(:debate_active, false)
+          |> assign(:debate_round, 0)
+          |> assign(:debate_max_rounds, 0)
+          |> assign(:current_speaker, nil)
 
         send(self(), {:process_message_stream, conversation_id, full_message})
         {:noreply, socket}
@@ -300,7 +312,93 @@ defmodule WebWeb.ChatLive do
   @impl true
   def handle_info({:agent_status, conversation_id, agent_name, status}, socket) do
     if current?(socket, conversation_id) do
-      {:noreply, assign(socket, :agent_statuses, set_agent_status(socket, agent_name, status))}
+      socket =
+        socket
+        |> assign(:agent_statuses, set_agent_status(socket, agent_name, status))
+        |> maybe_set_current_speaker(agent_name, status)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info(
+        {:debate_started, conversation_id, %{max_rounds: max_rounds}},
+        socket
+      ) do
+    if current?(socket, conversation_id) do
+      socket =
+        socket
+        |> assign(:debate_active, true)
+        |> assign(:debate_round, 0)
+        |> assign(:debate_max_rounds, max_rounds)
+        |> assign(:current_speaker, nil)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:debate_message_inserted, conversation_id, message}, socket) do
+    if current?(socket, conversation_id) do
+      # 그룹 채팅 라운드 카운터: debate_turn 메시지가 모더레이터의 발언자 지명일 때 증가
+      new_round =
+        if message.visibility == :debate_turn and supervisor_message?(message) do
+          socket.assigns.debate_round + 1
+        else
+          socket.assigns.debate_round
+        end
+
+      socket =
+        socket
+        |> assign(:messages, socket.assigns.messages ++ [message])
+        |> assign(:streaming_content, "")
+        |> assign(:debate_round, new_round)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:debate_finished, conversation_id, _final_answer}, socket) do
+    if current?(socket, conversation_id) do
+      agent_usage_history =
+        Agents.list_agent_usage_history(conversation_id, socket.assigns.message_sent_at)
+
+      socket =
+        socket
+        |> assign(:loading, false)
+        |> assign(:streaming_content, "")
+        |> assign(:streaming_message_id, nil)
+        |> assign(:streaming_status, nil)
+        |> assign(:debate_active, false)
+        |> assign(:current_speaker, nil)
+        |> assign(:agent_usage_history, agent_usage_history)
+        |> assign(
+          :agent_statuses,
+          finalize_agent_statuses(socket.assigns.agent_statuses, false)
+        )
+        |> assign(
+          :mcp_statuses,
+          finalize_mcp_statuses(socket.assigns.mcp_statuses, false)
+        )
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:debate_speaker_finishing, conversation_id, _agent_name}, socket) do
+    if current?(socket, conversation_id) do
+      {:noreply, assign(socket, :streaming_status, :finishing)}
     else
       {:noreply, socket}
     end
@@ -348,36 +446,72 @@ defmodule WebWeb.ChatLive do
   @impl true
   def handle_info({:stream_complete, conversation_id, final_response}, socket) do
     if current?(socket, conversation_id) do
-      assistant_message = %{
-        id: socket.assigns.streaming_message_id,
-        role: :assistant,
-        content: final_response,
-        attachments: [],
-        inserted_at: DateTime.utc_now()
-      }
+      agent_execution_failed = agent_response_error?(final_response)
+
+      # 그룹 채팅이 활성 상태였다면 :debate_message_inserted 가 이미 메시지를 추가했고
+      # :debate_finished 가 정리를 처리합니다. 여기서는 중복 추가하지 않습니다.
+      # 비그룹채팅 경로(프로필 수집 등)에서만 메시지를 추가합니다.
+      already_persisted? =
+        socket.assigns.debate_active or last_message_matches?(socket, final_response)
+
+      messages =
+        if already_persisted? do
+          socket.assigns.messages
+        else
+          assistant_message = %{
+            id: socket.assigns.streaming_message_id,
+            role: :assistant,
+            content: final_response,
+            attachments: [],
+            inserted_at: DateTime.utc_now()
+          }
+
+          socket.assigns.messages ++ [assistant_message]
+        end
 
       agent_usage_history =
         Agents.list_agent_usage_history(conversation_id, socket.assigns.message_sent_at)
 
-      agent_execution_failed = agent_response_error?(final_response)
-
       socket =
         socket
-        |> assign(:messages, socket.assigns.messages ++ [assistant_message])
+        |> assign(:messages, messages)
         |> assign(:loading, false)
         |> assign(:streaming_content, "")
         |> assign(:streaming_message_id, nil)
         |> assign(:streaming_status, nil)
         |> assign(:agent_usage_history, agent_usage_history)
         |> assign(:agent_execution_failed, agent_execution_failed)
-        |> assign(:agent_statuses, finalize_agent_statuses(socket.assigns.agent_statuses, agent_execution_failed))
-        |> assign(:mcp_statuses, finalize_mcp_statuses(socket.assigns.mcp_statuses, agent_execution_failed))
+        |> assign(
+          :agent_statuses,
+          finalize_agent_statuses(socket.assigns.agent_statuses, agent_execution_failed)
+        )
+        |> assign(
+          :mcp_statuses,
+          finalize_mcp_statuses(socket.assigns.mcp_statuses, agent_execution_failed)
+        )
 
       {:noreply, socket}
     else
       {:noreply, socket}
     end
   end
+
+  defp last_message_matches?(socket, content) do
+    case List.last(socket.assigns.messages) do
+      %{content: ^content} -> true
+      _ -> false
+    end
+  end
+
+  defp maybe_set_current_speaker(socket, agent_name, :running) do
+    speaker = Enum.find(socket.assigns.available_agents, &(&1.name == agent_name))
+    assign(socket, :current_speaker, speaker)
+  end
+
+  defp maybe_set_current_speaker(socket, _agent_name, _status), do: socket
+
+  defp supervisor_message?(%{agent: %{type: :supervisor}}), do: true
+  defp supervisor_message?(_), do: false
 
   ## 비공개 헬퍼
 
@@ -483,6 +617,7 @@ defmodule WebWeb.ChatLive do
     |> where([m], m.conversation_id == ^conversation_id)
     |> order_by([m], asc: m.inserted_at)
     |> Repo.all()
+    |> Repo.preload(:agent)
   end
 
   defp ensure_agent_started(conversation_id) do
@@ -598,7 +733,12 @@ defmodule WebWeb.ChatLive do
           <%= for agent <- @available_agents do %>
             <% agent_status = Map.get(@agent_statuses, agent.name, :idle) %>
             <li>
-              <div class="items-center">
+              <div class="items-center gap-2">
+                <img
+                  src={agent_avatar_url(agent.name)}
+                  alt={agent.display_name || agent.name}
+                  class="w-7 h-7 rounded-full object-cover shrink-0"
+                />
                 <span
                   class={[
                     "status",
@@ -682,11 +822,16 @@ defmodule WebWeb.ChatLive do
 
           <div
             :for={message <- @messages}
-            class={["chat", chat_align_class(message.role)]}
+            class={["chat", chat_align_class(message)]}
           >
-            <div class="chat-header text-xs opacity-60 mb-1">{role_label(message.role)}</div>
-            <div class={["chat-bubble", chat_bubble_class(message.role)]}>
-              <%= if message.role in [:assistant, "assistant"] do %>
+            <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-1">
+              <span class={message_speaker_class(message)}>{message_speaker_label(message)}</span>
+              <span :if={debate_visibility_label(message)} class="badge badge-xs badge-ghost">
+                {debate_visibility_label(message)}
+              </span>
+            </div>
+            <div class={["chat-bubble", chat_bubble_class(message)]}>
+              <%= if message_role(message) in [:assistant, "assistant"] do %>
                 <div class="prose prose-sm max-w-none">
                   {render_markdown(message.content)}
                 </div>
@@ -697,14 +842,28 @@ defmodule WebWeb.ChatLive do
             </div>
           </div>
 
+          <%= if @debate_active do %>
+            <div class="alert alert-info alert-soft py-2 mx-2 text-xs">
+              <.icon name="hero-users" class="size-4" />
+              <span>
+                그룹 채팅 진행 중 · 라운드 {@debate_round} / {@debate_max_rounds}
+                <%= if @current_speaker do %>
+                  · 현재 발언자: <strong>{@current_speaker.display_name || @current_speaker.name}</strong>
+                <% end %>
+              </span>
+            </div>
+          <% end %>
+
           <%= if @loading do %>
             <%= if @streaming_content != "" or @streaming_status do %>
               <div class="chat chat-start">
                 <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-2">
-                  Assistant
+                  <span class="font-semibold text-info">
+                    {speaker_streaming_label(@current_speaker)}
+                  </span>
                   <.streaming_status_badge status={@streaming_status} />
                 </div>
-                <div class="chat-bubble chat-bubble-accent">
+                <div class="chat-bubble chat-bubble-info">
                   <%= if @streaming_content != "" do %>
                     <div class="prose prose-sm max-w-none">
                       {render_markdown(@streaming_content)}
@@ -858,18 +1017,99 @@ defmodule WebWeb.ChatLive do
     """
   end
 
-  defp chat_align_class(role) when role in [:user, "user"], do: "chat-end"
-  defp chat_align_class(_), do: "chat-start"
+  defp message_role(message), do: Map.get(message, :role)
 
-  defp chat_bubble_class(role) when role in [:user, "user"], do: "chat-bubble-primary"
-  defp chat_bubble_class(role) when role in [:assistant, "assistant"], do: "chat-bubble-accent"
-  defp chat_bubble_class(role) when role in [:tool, "tool"], do: "chat-bubble-warning"
-  defp chat_bubble_class(_), do: ""
+  defp message_visibility(message), do: Map.get(message, :visibility, :user_facing)
 
-  defp role_label(role) when role in [:user, "user"], do: "You"
-  defp role_label(role) when role in [:assistant, "assistant"], do: "Assistant"
-  defp role_label(role) when role in [:tool, "tool"], do: "Tool Result"
-  defp role_label(_), do: "System"
+  defp message_agent(message), do: Map.get(message, :agent)
+
+  defp chat_align_class(message) do
+    case message_role(message) do
+      role when role in [:user, "user"] -> "chat-end"
+      _ -> "chat-start"
+    end
+  end
+
+  defp chat_bubble_class(message) do
+    role = message_role(message)
+    visibility = message_visibility(message)
+    agent = message_agent(message)
+
+    cond do
+      role in [:user, "user"] ->
+        "chat-bubble-primary"
+
+      role in [:tool, "tool"] ->
+        "chat-bubble-warning"
+
+      visibility == :final ->
+        "chat-bubble-accent"
+
+      visibility == :debate_turn and is_map(agent) and agent.type == :supervisor ->
+        # 모더레이터의 메타 메시지
+        "chat-bubble-info"
+
+      visibility == :debate_turn ->
+        # 워커 발언
+        "chat-bubble-secondary"
+
+      true ->
+        "chat-bubble-accent"
+    end
+  end
+
+  defp message_speaker_label(message) do
+    role = message_role(message)
+    agent = message_agent(message)
+    visibility = message_visibility(message)
+
+    cond do
+      role in [:user, "user"] ->
+        "You"
+
+      role in [:tool, "tool"] ->
+        "Tool"
+
+      is_map(agent) and Map.get(agent, :type) == :supervisor and visibility == :debate_turn ->
+        "🎯 Moderator (#{agent.display_name || agent.name})"
+
+      is_map(agent) and Map.get(agent, :display_name) ->
+        agent.display_name
+
+      is_map(agent) and Map.get(agent, :name) ->
+        agent.name
+
+      role in [:assistant, "assistant"] ->
+        "Assistant"
+
+      true ->
+        "System"
+    end
+  end
+
+  defp message_speaker_class(message) do
+    case message_visibility(message) do
+      :final -> "font-semibold text-accent"
+      :debate_turn -> "font-medium text-base-content/80"
+      _ -> ""
+    end
+  end
+
+  defp debate_visibility_label(message) do
+    case message_visibility(message) do
+      :debate_turn -> "토론"
+      :final -> "최종"
+      _ -> nil
+    end
+  end
+
+  defp speaker_streaming_label(nil), do: "Assistant"
+
+  defp speaker_streaming_label(%{display_name: name}) when is_binary(name), do: name
+
+  defp speaker_streaming_label(%{name: name}) when is_binary(name), do: name
+
+  defp speaker_streaming_label(_), do: "Assistant"
 
   defp agent_response_error?(response) when is_binary(response) do
     String.starts_with?(response, "작업 수행 중 오류가 발생했습니다:")
@@ -880,6 +1120,20 @@ defmodule WebWeb.ChatLive do
   defp agent_status_class(:running), do: ["bg-green-500", "text-green-500"]
   defp agent_status_class(:error), do: ["bg-red-500", "text-red-500"]
   defp agent_status_class(_), do: ["bg-orange-500", "text-orange-500"]
+
+  # 에이전트별 프로필 사진 매핑.
+  # 파일은 priv/static/images/profiles/ 에 위치하며 /images/profiles/ 경로로 서빙됩니다.
+  defp agent_avatar_url(agent_name) do
+    "/images/profiles/" <> agent_avatar_filename(agent_name)
+  end
+
+  defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
+  defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
+  defp agent_avatar_filename("general_worker"), do: "avatar-03.png"
+  defp agent_avatar_filename("calculator_worker"), do: "avatar-04.png"
+  defp agent_avatar_filename("restructure_worker"), do: "avatar-05.png"
+  defp agent_avatar_filename("emoji_worker"), do: "avatar-06.png"
+  defp agent_avatar_filename(_), do: "avatar-07.png"
 
   defp agent_status_label(:running), do: "동작"
   defp agent_status_label(:error), do: "오류"

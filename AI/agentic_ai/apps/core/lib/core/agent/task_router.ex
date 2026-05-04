@@ -47,8 +47,48 @@ defmodule Core.Agent.TaskRouter do
       "최신",
       "뉴스",
       "정보",
-      "조사"
+      "조사",
+      # 실시간 데이터/외부 정보 키워드
+      "시세",
+      "가격",
+      "환율",
+      "주가",
+      "비트코인",
+      "이더리움",
+      "코인",
+      "주식",
+      "날씨",
+      "기온",
+      "지금",
+      "현재",
+      "오늘",
+      "어제",
+      "최근",
+      "스크랩",
+      "스크래핑",
+      "url",
+      "http",
+      "사이트",
+      "페이지",
+      "웹사이트"
     ]
+  }
+
+  # 프로덕션 도구 이름 → 도메인 매핑
+  # 도구명이 도메인명과 부분문자열로 일치하지 않는 경우를 보완합니다.
+  # (예: "search_web"은 "web_search"를 부분문자열로 포함하지 않음)
+  @tool_to_domain %{
+    "search_web" => :web_search,
+    "firecrawl_search" => :web_search,
+    "firecrawl_scrape" => :web_search,
+    "calculate" => :calculator,
+    "execute_code" => :code
+  }
+
+  # Worker 이름의 타입 부분 → 도메인 매핑
+  # (예: "research_worker" → :web_search)
+  @name_type_to_domain %{
+    "research" => :web_search
   }
 
   @doc """
@@ -147,12 +187,12 @@ defmodule Core.Agent.TaskRouter do
     if matching_domains == [] do
       0
     else
-      # Worker가 일치하는 도메인의 도구를 가지고 있는지 확인
-      domain_names = Enum.map(matching_domains, fn {domain, _} -> to_string(domain) end)
+      domain_atoms = Enum.map(matching_domains, fn {domain, _} -> domain end)
+      domain_names = Enum.map(domain_atoms, &Atom.to_string/1)
 
       tool_matches =
         Enum.count(enabled_tools, fn tool ->
-          Enum.any?(domain_names, &String.contains?(tool, &1))
+          tool_matches_domain?(tool, domain_atoms, domain_names)
         end)
 
       if length(enabled_tools) > 0 do
@@ -160,6 +200,16 @@ defmodule Core.Agent.TaskRouter do
       else
         0
       end
+    end
+  end
+
+  # 도구가 매칭 도메인에 속하는지 판정합니다.
+  # 1) 명시적 매핑(@tool_to_domain) 우선 — 프로덕션 도구명을 정확히 매칭
+  # 2) 폴백으로 부분문자열 매칭 — 테스트 픽스처/구버전 도구명 호환
+  defp tool_matches_domain?(tool, domain_atoms, domain_names) do
+    case Map.get(@tool_to_domain, tool) do
+      nil -> Enum.any?(domain_names, &String.contains?(tool, &1))
+      domain -> domain in domain_atoms
     end
   end
 
@@ -173,8 +223,12 @@ defmodule Core.Agent.TaskRouter do
       |> String.replace("_worker", "")
       |> String.replace("_agent", "")
 
-    # Worker 타입 키워드가 일치하는지 확인
-    domain_keywords = Map.get(@domain_keywords, String.to_atom(worker_type), [])
+    # Worker 타입 키워드가 일치하는지 확인 (예: "research" → :web_search 도메인)
+    domain_atom =
+      Map.get(@name_type_to_domain, worker_type) ||
+        safe_to_existing_atom(worker_type)
+
+    domain_keywords = Map.get(@domain_keywords, domain_atom, [])
 
     matches = Enum.count(domain_keywords, &String.contains?(request_lower, &1))
 
@@ -198,5 +252,12 @@ defmodule Core.Agent.TaskRouter do
     else
       0
     end
+  end
+
+  # 임의 문자열로 atom 생성을 피하기 위해 이미 존재하는 atom만 변환합니다.
+  defp safe_to_existing_atom(string) do
+    String.to_existing_atom(string)
+  rescue
+    ArgumentError -> nil
   end
 end
