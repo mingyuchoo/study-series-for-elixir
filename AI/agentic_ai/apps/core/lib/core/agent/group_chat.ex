@@ -201,7 +201,10 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp append_transcript(state, entry) do
-    %{state | transcript: state.transcript ++ [Map.put(entry, :round, state.round)]}
+    %{
+      state
+      | transcript: List.insert_at(state.transcript, -1, Map.put(entry, :round, state.round))
+    }
   end
 
   ## 모더레이터 호출

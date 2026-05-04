@@ -662,7 +662,7 @@ defmodule Core.Agent.SupervisorAgent do
     # 대화에서 메시지 가져오기
     messages = get_conversation_messages(state.conversation_id)
 
-    if length(messages) > 0 do
+    unless Enum.empty?(messages) do
       summary = generate_conversation_summary(messages)
 
       key = "conversation_#{state.conversation_id}"

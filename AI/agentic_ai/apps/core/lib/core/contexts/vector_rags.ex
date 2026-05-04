@@ -257,7 +257,7 @@ defmodule Core.Contexts.VectorRags do
   defp extract_docx_text(path) do
     with {:ok, files} <- :zip.extract(String.to_charlist(path), [:memory]),
          xml_files = docx_xml_files(files),
-         false <- xml_files == [] do
+         false <- Enum.empty?(xml_files) do
       content =
         xml_files
         |> Enum.map(fn {_name, xml} -> extract_docx_xml_text(xml) end)

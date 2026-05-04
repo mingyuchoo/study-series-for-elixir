@@ -85,11 +85,7 @@ defmodule Core.Agent.TaskRouter do
           String.contains?(request_lower, keyword)
         end)
 
-      if length(keywords) > 0 do
-        matches / length(keywords) * 100
-      else
-        0
-      end
+      score_ratio(matches, keywords)
     end)
   end
 
@@ -102,7 +98,7 @@ defmodule Core.Agent.TaskRouter do
         Enum.any?(keywords, &String.contains?(request_lower, &1))
       end)
 
-    if matching_domains == [] do
+    if Enum.empty?(matching_domains) do
       0
     else
       domain_atoms = Enum.map(matching_domains, fn {domain, _} -> domain end)
@@ -112,11 +108,7 @@ defmodule Core.Agent.TaskRouter do
           tool_matches_domain?(tool, domain_atoms, rules.tool_to_domain)
         end)
 
-      if length(enabled_tools) > 0 do
-        tool_matches / length(enabled_tools) * 100
-      else
-        0
-      end
+      score_ratio(tool_matches, enabled_tools)
     end
   end
 
@@ -147,12 +139,11 @@ defmodule Core.Agent.TaskRouter do
 
     matches = Enum.count(domain_keywords, &String.contains?(request_lower, &1))
 
-    if length(domain_keywords) > 0 do
-      matches / length(domain_keywords) * 100
-    else
-      0
-    end
+    score_ratio(matches, domain_keywords)
   end
+
+  defp score_ratio(_matches, []), do: 0
+  defp score_ratio(matches, values), do: matches / length(values) * 100
 
   defp extract_keywords(text) do
     text

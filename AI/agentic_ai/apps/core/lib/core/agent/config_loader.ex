@@ -24,8 +24,9 @@ defmodule Core.Agent.ConfigLoader do
       - web_search
   """
 
-  alias Core.Schema.Agent
+  alias Core.Agent.FrontmatterParser
   alias Core.Repo
+  alias Core.Schema.Agent
   require Logger
 
   @config_dir "config/agents"
@@ -106,30 +107,7 @@ defmodule Core.Agent.ConfigLoader do
   간단한 key: value 형식만 지원합니다.
   """
   def parse_frontmatter(text) do
-    text
-    |> String.split("\n", trim: true)
-    |> Enum.reduce(%{}, fn line, acc ->
-      case String.split(line, ":", parts: 2) do
-        [key, value] ->
-          key = String.trim(key)
-          value = String.trim(value)
-          Map.put(acc, key, parse_value(value))
-
-        _ ->
-          acc
-      end
-    end)
-  end
-
-  # 비공개 함수들
-  # 값을 적절한 타입으로 변환
-  defp parse_value(value) do
-    cond do
-      value =~ ~r/^\d+\.\d+$/ -> String.to_float(value)
-      value =~ ~r/^\d+$/ -> String.to_integer(value)
-      value in ["true", "false"] -> value == "true"
-      true -> value
-    end
+    FrontmatterParser.parse(text)
   end
 
   @doc """

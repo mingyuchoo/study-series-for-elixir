@@ -117,7 +117,7 @@ defmodule Core.Agent.ReactEngine do
           tool_call_id: nil
         }
 
-        {:ok, content, messages ++ [assistant_message]}
+        {:ok, content, append_item(messages, assistant_message)}
 
       {:ok, %{tool_calls: tool_calls, content: content}} when is_list(tool_calls) ->
         # 도구 호출 존재 - 도구 실행 후 루프 계속
@@ -128,7 +128,7 @@ defmodule Core.Agent.ReactEngine do
           tool_call_id: nil
         }
 
-        messages_after_assistant = messages ++ [assistant_message]
+        messages_after_assistant = append_item(messages, assistant_message)
 
         {messages_after_tools, _failed_tool_names} =
           execute_tool_calls(messages_after_assistant, tool_calls)
@@ -190,7 +190,7 @@ defmodule Core.Agent.ReactEngine do
               tool_call_id: nil
             }
 
-            {:ok, content, messages ++ [assistant_message]}
+            {:ok, content, append_item(messages, assistant_message)}
 
           %{tool_calls: tool_calls, content: content}
           when is_list(tool_calls) and tool_calls != [] ->
@@ -205,7 +205,7 @@ defmodule Core.Agent.ReactEngine do
               tool_call_id: nil
             }
 
-            messages_after_assistant = messages ++ [assistant_message]
+            messages_after_assistant = append_item(messages, assistant_message)
 
             {messages_after_tools, failed_tool_names} =
               execute_tool_calls(messages_after_assistant, tool_calls)
@@ -339,7 +339,7 @@ defmodule Core.Agent.ReactEngine do
     # 리스트 업데이트
     tool_calls =
       if index >= length(state.tool_calls) do
-        state.tool_calls ++ [updated_tc]
+        append_item(state.tool_calls, updated_tc)
       else
         List.replace_at(state.tool_calls, index, updated_tc)
       end
@@ -348,6 +348,8 @@ defmodule Core.Agent.ReactEngine do
   end
 
   defp process_tool_call_delta(_tc, state), do: state
+
+  defp append_item(list, item), do: List.insert_at(list, -1, item)
 
   defp execute_tool_calls(messages, tool_calls) do
     {tool_messages, failed_tool_names} =

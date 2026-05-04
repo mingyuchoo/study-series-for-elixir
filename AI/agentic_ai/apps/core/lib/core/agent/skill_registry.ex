@@ -68,6 +68,8 @@ defmodule Core.Agent.SkillRegistry do
   use GenServer
   require Logger
 
+  alias Core.Agent.FrontmatterParser
+
   @skills_dir "config/skills"
 
   # 클라이언트 API
@@ -293,103 +295,7 @@ defmodule Core.Agent.SkillRegistry do
   end
 
   defp parse_frontmatter(text) do
-    text
-    |> String.split("\n")
-    |> parse_yaml_lines(%{}, nil, nil)
-  end
-
-  # 간단한 YAML 파서 (리스트 및 중첩 지원)
-  defp parse_yaml_lines([], acc, _current_list_key, _current_map_key), do: acc
-
-  defp parse_yaml_lines([line | rest], acc, current_list_key, current_map_key) do
-    trimmed = String.trim(line)
-    indent = get_indent(line)
-
-    cond do
-      # 빈 줄
-      trimmed == "" ->
-        parse_yaml_lines(rest, acc, current_list_key, current_map_key)
-
-      # 리스트 항목 (들여쓰기 있음)
-      String.starts_with?(trimmed, "- ") ->
-        value = String.trim_leading(trimmed, "- ")
-
-        if current_list_key do
-          current_list = Map.get(acc, current_list_key, [])
-          acc = Map.put(acc, current_list_key, current_list ++ [value])
-          parse_yaml_lines(rest, acc, current_list_key, nil)
-        else
-          parse_yaml_lines(rest, acc, nil, nil)
-        end
-
-      # 중첩된 key: value (들여쓰기 있음)
-      indent > 0 and current_map_key != nil ->
-        case String.split(trimmed, ":", parts: 2) do
-          [key, value] ->
-            key = String.trim(key)
-            value = String.trim(value)
-            current_map = Map.get(acc, current_map_key, %{})
-            updated_map = Map.put(current_map, key, parse_value(value))
-            acc = Map.put(acc, current_map_key, updated_map)
-            parse_yaml_lines(rest, acc, nil, current_map_key)
-
-          _ ->
-            parse_yaml_lines(rest, acc, current_list_key, current_map_key)
-        end
-
-      # 최상위 key: value 형식
-      true ->
-        case String.split(trimmed, ":", parts: 2) do
-          [key, ""] ->
-            key = String.trim(key)
-            # 중첩 맵 또는 리스트 시작 확인
-            {next_type, _} = peek_next_line(rest)
-
-            case next_type do
-              :list -> parse_yaml_lines(rest, acc, key, nil)
-              :nested -> parse_yaml_lines(rest, Map.put(acc, key, %{}), nil, key)
-              _ -> parse_yaml_lines(rest, acc, key, nil)
-            end
-
-          [key, value] ->
-            key = String.trim(key)
-            value = String.trim(value)
-            acc = Map.put(acc, key, parse_value(value))
-            parse_yaml_lines(rest, acc, nil, nil)
-
-          _ ->
-            parse_yaml_lines(rest, acc, current_list_key, current_map_key)
-        end
-    end
-  end
-
-  defp get_indent(line) do
-    original_length = String.length(line)
-    trimmed_length = String.length(String.trim_leading(line))
-    original_length - trimmed_length
-  end
-
-  defp peek_next_line([]), do: {:none, 0}
-
-  defp peek_next_line([line | _]) do
-    trimmed = String.trim(line)
-    indent = get_indent(line)
-
-    cond do
-      trimmed == "" -> {:none, 0}
-      String.starts_with?(trimmed, "- ") -> {:list, indent}
-      indent > 0 -> {:nested, indent}
-      true -> {:none, 0}
-    end
-  end
-
-  defp parse_value(value) do
-    cond do
-      value =~ ~r/^\d+\.\d+$/ -> String.to_float(value)
-      value =~ ~r/^\d+$/ -> String.to_integer(value)
-      value in ["true", "false"] -> value == "true"
-      true -> value
-    end
+    FrontmatterParser.parse(text)
   end
 
   # 이름 검증 (Agent Skills 명세)
@@ -498,7 +404,7 @@ defmodule Core.Agent.SkillRegistry do
         if(skill.license, do: "**라이선스**: #{skill.license}"),
         if(skill.compatibility, do: "**호환성**: #{skill.compatibility}")
       ]
-      |> Enum.filter(& &1)
+      |> Enum.reject(&is_nil/1)
       |> Enum.join("\n\n")
 
     optional_section = if optional_fields != "", do: "\n\n#{optional_fields}", else: ""

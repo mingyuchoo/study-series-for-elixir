@@ -464,15 +464,14 @@ defmodule Core.Agent.MemoryManager do
     # ### 헤더로 항목 추출
     entries = Regex.scan(~r/### (.+?)\n\n(.*?)(?=\n### |\z)/s, section_content)
 
-    Enum.map(entries, fn [_, key, value_text] ->
+    Enum.flat_map(entries, fn [_, key, value_text] ->
       # 간단한 값 파싱 - 일단 텍스트로 저장
       value = %{content: String.trim(value_text)}
 
       case store(agent_id, memory_type, String.trim(key), value) do
-        {:ok, memory} -> memory
-        {:error, _} -> nil
+        {:ok, memory} -> [memory]
+        {:error, _} -> []
       end
     end)
-    |> Enum.filter(& &1)
   end
 end

@@ -91,7 +91,7 @@ defmodule Core.Agent.Worker do
       |> Repo.insert()
 
     # 상태 업데이트
-    %{state | messages: state.messages ++ [message_to_map(message)]}
+    %{state | messages: List.insert_at(state.messages, -1, message_to_map(message))}
   end
 
   defp save_new_messages(state, new_messages) do

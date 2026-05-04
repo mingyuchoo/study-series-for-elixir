@@ -9,6 +9,21 @@ defmodule Core.Agent.ToolRegistry do
   alias Core.Repo
   alias Core.Schema.Tool
 
+  @tool_modules %{
+    "calculate" => Core.Agent.Tools.Calculator,
+    "execute_code" => Core.Agent.Tools.CodeExecutor,
+    "firecrawl_scrape" => Core.Agent.Tools.Firecrawl,
+    "firecrawl_search" => Core.Agent.Tools.Firecrawl,
+    "get_current_time" => Core.Agent.Tools.DateTime,
+    "list_directory" => Core.Agent.Tools.FileSystem,
+    "mcp_desktop_commander_call" => Core.Agent.Tools.Mcp,
+    "mcp_filesystem_call" => Core.Agent.Tools.Mcp,
+    "read_file" => Core.Agent.Tools.FileSystem,
+    "search_vector_rag" => Core.Agent.Tools.VectorRagSearch,
+    "search_web" => Core.Agent.Tools.WebSearch,
+    "write_file" => Core.Agent.Tools.FileSystem
+  }
+
   @doc """
   정의와 함께 사용 가능한 모든 도구를 가져옵니다.
   """
@@ -17,14 +32,12 @@ defmodule Core.Agent.ToolRegistry do
     |> where([t], t.enabled == true)
     |> order_by([t], asc: t.name)
     |> Repo.all()
-    |> Enum.map(fn tool ->
-      with {:ok, module} <- fetch_tool_module(tool) do
-        module.definition(tool.name)
-      else
-        _ -> nil
+    |> Enum.flat_map(fn tool ->
+      case tool_module(tool.name) do
+        {:ok, module} -> List.wrap(module.definition(tool.name))
+        {:error, :invalid_tool_module} -> []
       end
     end)
-    |> Enum.filter(& &1)
   end
 
   @doc """
@@ -36,12 +49,8 @@ defmodule Core.Agent.ToolRegistry do
         {:error, :tool_not_found}
 
       tool ->
-        with {:ok, module} <- fetch_tool_module(tool) do
-          try do
-            module.execute(tool_name, arguments)
-          rescue
-            e -> {:error, Exception.message(e)}
-          end
+        with {:ok, module} <- tool_module(tool.name) do
+          module.execute(tool_name, arguments)
         end
     end
   end
@@ -53,22 +62,10 @@ defmodule Core.Agent.ToolRegistry do
     Repo.exists?(from(t in Tool, where: t.name == ^tool_name and t.enabled == true))
   end
 
-  defp fetch_tool_module(%Tool{module_name: module_name}) when is_binary(module_name) do
-    module =
-      module_name
-      |> String.trim_leading("Elixir.")
-      |> String.split(".")
-      |> Module.safe_concat()
-
-    if Code.ensure_loaded?(module) and function_exported?(module, :definition, 1) and
-         function_exported?(module, :execute, 2) do
-      {:ok, module}
-    else
-      {:error, :invalid_tool_module}
+  defp tool_module(tool_name) do
+    case Map.fetch(@tool_modules, tool_name) do
+      {:ok, module} -> {:ok, module}
+      :error -> {:error, :invalid_tool_module}
     end
-  rescue
-    ArgumentError -> {:error, :invalid_tool_module}
   end
-
-  defp fetch_tool_module(_tool), do: {:error, :invalid_tool_module}
 end

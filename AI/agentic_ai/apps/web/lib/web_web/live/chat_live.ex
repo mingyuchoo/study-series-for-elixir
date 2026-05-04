@@ -210,7 +210,7 @@ defmodule WebWeb.ChatLive do
 
         socket =
           socket
-          |> assign(:messages, socket.assigns.messages ++ [user_message_record])
+          |> assign(:messages, List.insert_at(socket.assigns.messages, -1, user_message_record))
           |> assign(:input, "")
           |> assign(:loading, true)
           |> assign(:message_sent_at, now)
@@ -369,7 +369,7 @@ defmodule WebWeb.ChatLive do
 
       socket =
         socket
-        |> assign(:messages, socket.assigns.messages ++ [message])
+        |> assign(:messages, List.insert_at(socket.assigns.messages, -1, message))
         |> assign(:streaming_content, "")
         |> assign(:debate_round, new_round)
 
@@ -498,7 +498,7 @@ defmodule WebWeb.ChatLive do
             inserted_at: DateTime.utc_now()
           }
 
-          socket.assigns.messages ++ [assistant_message]
+          List.insert_at(socket.assigns.messages, -1, assistant_message)
         end
 
       agent_usage_history =

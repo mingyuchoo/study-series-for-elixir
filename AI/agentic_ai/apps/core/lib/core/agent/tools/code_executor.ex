@@ -31,14 +31,7 @@ defmodule Core.Agent.Tools.CodeExecutor do
   def execute("execute_code", %{"code" => code}) do
     task =
       Task.async(fn ->
-        try do
-          {result, _binding} = Code.eval_string(code, [], __ENV__)
-          {:ok, result}
-        rescue
-          e -> {:error, Exception.message(e)}
-        catch
-          kind, reason -> {:error, "#{kind}: #{inspect(reason)}"}
-        end
+        eval_code(code)
       end)
 
     case Task.yield(task, @timeout) || Task.shutdown(task) do
@@ -56,6 +49,25 @@ defmodule Core.Agent.Tools.CodeExecutor do
       nil ->
         {:error, "Code execution timed out (#{@timeout}ms limit)"}
     end
+  end
+
+  defp eval_code(code) do
+    case Code.string_to_quoted(code) do
+      {:ok, quoted} ->
+        eval_quoted(quoted)
+
+      {:error, {line, error, token}} ->
+        {:error, "line #{line}: #{Exception.message(error)} #{inspect(token)}"}
+    end
+  end
+
+  defp eval_quoted(quoted) do
+    {result, _binding} = Code.eval_quoted(quoted, [], __ENV__)
+    {:ok, result}
+  rescue
+    e -> {:error, Exception.message(e)}
+  catch
+    kind, reason -> {:error, "#{kind}: #{inspect(reason)}"}
   end
 
   defp type_of(value) when is_binary(value), do: "string"
