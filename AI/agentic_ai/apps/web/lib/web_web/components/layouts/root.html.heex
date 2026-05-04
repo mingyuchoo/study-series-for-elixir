@@ -36,14 +36,14 @@
     </script>
   </head>
   <body class="min-h-screen bg-base-100">
-    <div class="carbon-top-nav navbar bg-base-100 sticky top-0 z-30 border-b border-base-300 px-4">
-      <div class="navbar-start">
-        <.link navigate={~p"/"} class="btn btn-ghost text-xl gap-2 normal-case">
+    <div class="carbon-top-nav navbar bg-base-100 sticky top-0 z-30 border-b border-base-300 px-4 gap-2">
+      <div class="navbar-start min-w-0 flex-1 gap-2">
+        <.link navigate={~p"/"} class="btn btn-ghost shrink-0 text-xl gap-2 normal-case">
           <span class="inline-block size-4 bg-primary" aria-hidden="true"></span>
           <span>Agentic AI</span>
         </.link>
         <%= if assigns[:current_user] do %>
-          <ul class="menu menu-horizontal hidden md:flex px-1 gap-1">
+          <ul class="menu menu-horizontal hidden lg:flex shrink-0 px-1 gap-1">
             <li><.link navigate={~p"/chat"}>Chat</.link></li>
             <li>
               <details id="admin-menu" phx-hook="CloseOnOutsideClick">
@@ -60,7 +60,27 @@
         <% end %>
       </div>
 
-      <div class="navbar-end gap-2">
+      <div class="navbar-end w-auto shrink-0 gap-2">
+        <%= if assigns[:current_user] do %>
+          <div class="dropdown dropdown-end lg:hidden">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-2">
+              <.icon name="hero-bars-3" class="size-4" />
+              <span class="hidden sm:inline">메뉴</span>
+            </div>
+            <ul
+              tabindex="0"
+              class="menu menu-sm dropdown-content bg-base-100 z-40 mt-3 w-56 border border-base-300 p-2"
+            >
+              <li><.link navigate={~p"/chat"}>Chat</.link></li>
+              <li class="menu-title"><span>Admin</span></li>
+              <li><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
+              <li><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
+              <li><.link navigate={~p"/admin/rag"}>RAG</.link></li>
+              <li><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
+            </ul>
+          </div>
+        <% end %>
+
         <.theme_toggle />
 
         <%= if assigns[:current_user] do %>
@@ -83,11 +103,6 @@
                 <span class="truncate">{@current_user.email}</span>
               </li>
               <li><.link navigate={~p"/users/settings"}>설정</.link></li>
-              <li class="md:hidden"><.link navigate={~p"/chat"}>Chat</.link></li>
-              <li class="md:hidden"><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
-              <li class="md:hidden"><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
-              <li class="md:hidden"><.link navigate={~p"/admin/rag"}>RAG</.link></li>
-              <li class="md:hidden"><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
               <li></li>
               <li>
                 <.link href={~p"/users/log_out"} method="delete" class="text-error">

@@ -99,28 +99,29 @@ defmodule Core.Fixtures do
   end
 
   @doc """
-  Emoji Worker Agent를 생성합니다.
-  답변에 적절한 이모지를 추가하는 에이전트입니다.
+  System Worker Agent를 생성합니다.
+  최종 답변의 시스템 품질을 점검하는 에이전트입니다.
   """
-  def emoji_worker_fixture(attrs \\ %{}) do
+  def system_worker_fixture(attrs \\ %{}) do
     agent_fixture(
       Map.merge(
         %{
           type: :worker,
-          name: "emoji_worker_#{System.unique_integer([:positive])}",
-          display_name: "Emoji Worker",
-          description: "답변에 적절한 이모지를 추가하여 가독성과 친근감을 높이는 Worker",
+          name: "system_worker_#{System.unique_integer([:positive])}",
+          display_name: "System Worker",
+          description: "최종 답변이 시스템 지침, 안전 기준, 표현 일관성을 준수하도록 점검하고 다듬는 Worker",
           system_prompt: """
-          당신은 텍스트에 적절한 이모지를 추가하는 전문 Worker 에이전트입니다.
-          주어진 텍스트에 맥락에 맞는 이모지를 추가하여 가독성과 친근감을 높입니다.
+          당신은 최종 답변의 시스템 품질을 점검하고 다듬는 Worker 에이전트입니다.
+          시스템 지침 준수, 안전성, 표현 일관성, 사용자 요청 충족 여부를 점검합니다.
           """,
-          temperature: 0.8,
+          temperature: 0.4,
           max_iterations: 3,
-          enabled_tools: [],
+          enabled_tools: ["mcp_filesystem_call", "mcp_desktop_commander_call"],
           config: %{
-            "emoji_density" => "moderate",
-            "prefer_unicode_emoji" => true,
-            "max_emoji_per_paragraph" => 3
+            "enforce_system_guidelines" => true,
+            "preserve_worker_facts" => true,
+            "max_review_notes" => 3,
+            "mcp_servers" => ["filesystem", "desktop-commander"]
           }
         },
         attrs

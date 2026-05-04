@@ -61,12 +61,13 @@ defmodule WebWeb.McpLive.Index do
           <table class="table table-fixed w-full">
             <thead>
               <tr>
-                <th class="w-[16%] text-xs font-semibold uppercase text-base-content/60">이름</th>
-                <th class="w-[34%] text-xs font-semibold uppercase text-base-content/60">명령</th>
-                <th class="w-[18%] text-xs font-semibold uppercase text-base-content/60">환경 변수</th>
+                <th class="w-[14%] text-xs font-semibold uppercase text-base-content/60">이름</th>
+                <th class="w-[29%] text-xs font-semibold uppercase text-base-content/60">명령</th>
+                <th class="w-[16%] text-xs font-semibold uppercase text-base-content/60">환경 변수</th>
                 <th class="w-[13%] text-xs font-semibold uppercase text-base-content/60">상태</th>
-                <th class="w-[9%] text-xs font-semibold uppercase text-base-content/60">활성화</th>
-                <th class="w-[10%] text-xs font-semibold uppercase text-base-content/60">작업</th>
+                <th class="w-[11%] text-xs font-semibold uppercase text-base-content/60">권한</th>
+                <th class="w-[8%] text-xs font-semibold uppercase text-base-content/60">활성화</th>
+                <th class="w-[9%] text-xs font-semibold uppercase text-base-content/60">작업</th>
               </tr>
             </thead>
             <tbody>
@@ -90,6 +91,14 @@ defmodule WebWeb.McpLive.Index do
                   ]}>
                     <span class={["status", status_dot(mcp.status)]} />
                     {status_label(mcp.status)}
+                  </span>
+                </td>
+                <td class="align-top">
+                  <span class={[
+                    "badge badge-sm h-auto min-h-5 whitespace-normal text-xs font-normal",
+                    local_permission_badge(mcp.local_permission_level)
+                  ]}>
+                    {local_permission_label(mcp.local_permission_level)}
                   </span>
                 </td>
                 <td class="align-top">
@@ -122,7 +131,7 @@ defmodule WebWeb.McpLive.Index do
                 </td>
               </tr>
               <tr :if={@mcps == []}>
-                <td colspan="6" class="text-center text-base-content/50 py-10">
+                <td colspan="7" class="text-center text-base-content/50 py-10">
                   등록된 MCP가 없습니다.
                 </td>
               </tr>
@@ -162,6 +171,12 @@ defmodule WebWeb.McpLive.Index do
                 class="badge badge-ghost badge-sm max-w-full break-all whitespace-normal h-auto min-h-5"
               >
                 {k}
+              </span>
+              <span class={[
+                "badge badge-sm h-auto min-h-5 whitespace-normal text-xs font-normal",
+                local_permission_badge(mcp.local_permission_level)
+              ]}>
+                {local_permission_label(mcp.local_permission_level)}
               </span>
             </div>
 
@@ -236,4 +251,16 @@ defmodule WebWeb.McpLive.Index do
   defp status_label(:unavailable), do: "환경변수 누락"
   defp status_label(:disabled), do: "비활성"
   defp status_label(_), do: "확인불가"
+
+  defp local_permission_badge(:none), do: "badge-ghost"
+  defp local_permission_badge(:read_only), do: "badge-info"
+  defp local_permission_badge(:workspace), do: "badge-warning"
+  defp local_permission_badge(:full), do: "badge-error"
+  defp local_permission_badge(_), do: "badge-ghost"
+
+  defp local_permission_label(:none), do: "없음"
+  defp local_permission_label(:read_only), do: "읽기 전용"
+  defp local_permission_label(:workspace), do: "워크스페이스"
+  defp local_permission_label(:full), do: "전체 권한"
+  defp local_permission_label(_), do: "없음"
 end

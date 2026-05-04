@@ -1,6 +1,6 @@
 defmodule Core.Agent.NewWorkersTest do
   @moduledoc """
-  신규 추가된 Worker 에이전트(restructure_worker, emoji_worker)에 대한 테스트입니다.
+  신규 추가된 Worker 에이전트(restructure_worker, system_worker)에 대한 테스트입니다.
   """
 
   use Core.DataCase, async: false
@@ -51,41 +51,44 @@ defmodule Core.Agent.NewWorkersTest do
     end
   end
 
-  describe "emoji_worker fixture" do
-    test "emoji_worker fixture를 생성한다" do
-      agent = emoji_worker_fixture()
+  describe "system_worker fixture" do
+    test "system_worker fixture를 생성한다" do
+      agent = system_worker_fixture()
 
-      assert agent.name =~ "emoji_worker"
+      assert agent.name =~ "system_worker"
       assert agent.type == :worker
-      assert agent.display_name == "Emoji Worker"
-      assert agent.temperature == 0.8
+      assert agent.display_name == "System Worker"
+      assert agent.temperature == 0.4
       assert agent.max_iterations == 3
     end
 
-    test "emoji_worker의 시스템 프롬프트가 올바르다" do
-      agent = emoji_worker_fixture()
+    test "system_worker의 시스템 프롬프트가 올바르다" do
+      agent = system_worker_fixture()
 
-      assert agent.system_prompt =~ "이모지"
-      assert agent.system_prompt =~ "가독성"
-      assert agent.system_prompt =~ "친근감"
+      assert agent.system_prompt =~ "시스템 지침"
+      assert agent.system_prompt =~ "안전성"
+      assert agent.system_prompt =~ "표현 일관성"
     end
 
-    test "emoji_worker의 config가 올바르다" do
-      agent = emoji_worker_fixture()
+    test "system_worker의 config가 올바르다" do
+      agent = system_worker_fixture()
 
-      assert agent.config["emoji_density"] == "moderate"
-      assert agent.config["prefer_unicode_emoji"] == true
-      assert agent.config["max_emoji_per_paragraph"] == 3
+      assert agent.config["enforce_system_guidelines"] == true
+      assert agent.config["preserve_worker_facts"] == true
+      assert agent.config["max_review_notes"] == 3
     end
 
-    test "emoji_worker에는 enabled_tools가 비어있다" do
-      agent = emoji_worker_fixture()
+    test "system_worker에는 시스템 MCP 도구가 활성화되어 있다" do
+      agent = system_worker_fixture()
 
-      assert agent.enabled_tools == []
+      assert agent.enabled_tools == [
+               "mcp_filesystem_call",
+               "mcp_desktop_commander_call"
+             ]
     end
 
     test "커스텀 속성으로 fixture를 생성할 수 있다" do
-      agent = emoji_worker_fixture(%{temperature: 0.5, status: :disabled})
+      agent = system_worker_fixture(%{temperature: 0.5, status: :disabled})
 
       assert agent.temperature == 0.5
       assert agent.status == :disabled
@@ -102,8 +105,8 @@ defmodule Core.Agent.NewWorkersTest do
       assert agent.id in worker_ids
     end
 
-    test "list_workers/0에서 emoji_worker를 조회할 수 있다" do
-      agent = emoji_worker_fixture(%{status: :active})
+    test "list_workers/0에서 system_worker를 조회할 수 있다" do
+      agent = system_worker_fixture(%{status: :active})
 
       workers = Agents.list_workers()
       worker_ids = Enum.map(workers, & &1.id)
@@ -118,51 +121,53 @@ defmodule Core.Agent.NewWorkersTest do
       assert Agents.get_agent_config(agent, "max_conclusion_sentences") == 2
     end
 
-    test "get_agent_config/2로 emoji_worker 설정을 조회할 수 있다" do
-      agent = emoji_worker_fixture()
+    test "get_agent_config/2로 system_worker 설정을 조회할 수 있다" do
+      agent = system_worker_fixture()
 
-      assert Agents.get_agent_config(agent, "emoji_density") == "moderate"
-      assert Agents.get_agent_config(agent, "max_emoji_per_paragraph") == 3
+      assert Agents.get_agent_config(agent, "enforce_system_guidelines") == true
+      assert Agents.get_agent_config(agent, "max_review_notes") == 3
     end
 
-    test "agent_has_tool?/2는 빈 enabled_tools에 대해 false를 반환한다" do
+    test "agent_has_tool?/2는 enabled_tools 기준으로 반환한다" do
       restructure = restructure_worker_fixture()
-      emoji = emoji_worker_fixture()
+      system = system_worker_fixture()
 
       refute Agents.agent_has_tool?(restructure, "calculator")
-      refute Agents.agent_has_tool?(emoji, "web_search")
+      refute Agents.agent_has_tool?(system, "web_search")
+      assert Agents.agent_has_tool?(system, "mcp_filesystem_call")
+      assert Agents.agent_has_tool?(system, "mcp_desktop_commander_call")
     end
   end
 
   describe "두 에이전트의 조합 사용" do
-    test "restructure_worker와 emoji_worker를 함께 생성할 수 있다" do
+    test "restructure_worker와 system_worker를 함께 생성할 수 있다" do
       restructure = restructure_worker_fixture()
-      emoji = emoji_worker_fixture()
+      system = system_worker_fixture()
 
-      assert restructure.id != emoji.id
-      assert restructure.name != emoji.name
+      assert restructure.id != system.id
+      assert restructure.name != system.name
 
       workers = Agents.list_workers()
       worker_ids = Enum.map(workers, & &1.id)
 
       assert restructure.id in worker_ids
-      assert emoji.id in worker_ids
+      assert system.id in worker_ids
     end
 
     test "두 에이전트가 다른 temperature 값을 가진다" do
       restructure = restructure_worker_fixture()
-      emoji = emoji_worker_fixture()
+      system = system_worker_fixture()
 
       assert restructure.temperature == 0.7
-      assert emoji.temperature == 0.8
+      assert system.temperature == 0.4
     end
 
     test "두 에이전트가 다른 설명을 가진다" do
       restructure = restructure_worker_fixture()
-      emoji = emoji_worker_fixture()
+      system = system_worker_fixture()
 
       assert restructure.description =~ "결론 우선"
-      assert emoji.description =~ "이모지"
+      assert system.description =~ "시스템 지침"
     end
   end
 end

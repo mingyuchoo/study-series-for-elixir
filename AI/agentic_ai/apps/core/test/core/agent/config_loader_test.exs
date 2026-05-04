@@ -391,10 +391,10 @@ defmodule Core.Agent.ConfigLoaderTest do
 
       sections = ConfigLoader.parse_body(body)
 
-      assert sections["system_prompt"] =~ "결론 우선 구조로 재구성"
-      assert sections["system_prompt"] =~ "핵심 결론"
-      assert sections["system_prompt"] =~ "주요 근거"
-      assert sections["system_prompt"] =~ "세부 사항"
+      assert sections["system_prompt"] =~ "요청된 출력 구조"
+      assert sections["system_prompt"] =~ "요청 구조 파악"
+      assert sections["system_prompt"] =~ "내용 재배열"
+      assert sections["system_prompt"] =~ "형식 완성"
     end
 
     test "restructure_worker의 Configuration을 파싱한다" do
@@ -406,8 +406,9 @@ defmodule Core.Agent.ConfigLoaderTest do
       sections = ConfigLoader.parse_body(body)
 
       assert sections["config"]["preserve_original_meaning"] == true
-      assert sections["config"]["max_conclusion_sentences"] == 2
-      assert sections["config"]["min_supporting_points"] == 2
+      assert sections["config"]["follow_requested_structure"] == true
+      assert sections["config"]["allow_tables"] == true
+      assert sections["config"]["default_format"] == "markdown"
     end
 
     test "restructure_worker를 DB에 로드한다" do
@@ -424,59 +425,76 @@ defmodule Core.Agent.ConfigLoaderTest do
     end
   end
 
-  describe "emoji_worker 설정 파일" do
+  describe "system_worker 설정 파일" do
     @project_root Path.expand("../../../../..", __DIR__)
 
-    test "emoji_worker.md 파일을 올바르게 파싱한다" do
-      file_path = Path.join(@project_root, "config/agents/worker_emoji.md")
+    test "worker_system.md 파일을 올바르게 파싱한다" do
+      file_path = Path.join(@project_root, "config/agents/worker_system.md")
 
       {:ok, content} = File.read(file_path)
       {:ok, frontmatter, body} = ConfigLoader.parse_markdown(content)
 
       assert frontmatter["type"] == "worker"
-      assert frontmatter["name"] == "emoji_worker"
-      assert frontmatter["display_name"] == "Emoji Worker"
-      assert frontmatter["temperature"] == 0.8
+      assert frontmatter["name"] == "system_worker"
+      assert frontmatter["display_name"] == "System Worker"
+      assert frontmatter["temperature"] == 0.4
       assert frontmatter["max_iterations"] == 3
     end
 
-    test "emoji_worker의 System Prompt를 추출한다" do
-      file_path = Path.join(@project_root, "config/agents/worker_emoji.md")
+    test "system_worker의 System Prompt를 추출한다" do
+      file_path = Path.join(@project_root, "config/agents/worker_system.md")
 
       {:ok, content} = File.read(file_path)
       {:ok, _frontmatter, body} = ConfigLoader.parse_markdown(content)
 
       sections = ConfigLoader.parse_body(body)
 
-      assert sections["system_prompt"] =~ "이모지를 추가"
-      assert sections["system_prompt"] =~ "가독성"
-      assert sections["system_prompt"] =~ "친근감"
+      assert sections["system_prompt"] =~ "시스템 지침"
+      assert sections["system_prompt"] =~ "안전성"
+      assert sections["system_prompt"] =~ "표현 일관성"
     end
 
-    test "emoji_worker의 Configuration을 파싱한다" do
-      file_path = Path.join(@project_root, "config/agents/worker_emoji.md")
+    test "system_worker의 Configuration을 파싱한다" do
+      file_path = Path.join(@project_root, "config/agents/worker_system.md")
 
       {:ok, content} = File.read(file_path)
       {:ok, _frontmatter, body} = ConfigLoader.parse_markdown(content)
 
       sections = ConfigLoader.parse_body(body)
 
-      assert sections["config"]["emoji_density"] == "moderate"
-      assert sections["config"]["prefer_unicode_emoji"] == true
-      assert sections["config"]["max_emoji_per_paragraph"] == 3
+      assert sections["config"]["enforce_system_guidelines"] == true
+      assert sections["config"]["preserve_worker_facts"] == true
+      assert sections["config"]["max_review_notes"] == 3
+      assert sections["config"]["mcp_servers"] == ["filesystem", "desktop-commander"]
     end
 
-    test "emoji_worker를 DB에 로드한다" do
-      file_path = Path.join(@project_root, "config/agents/worker_emoji.md")
+    test "system_worker의 Enabled Tools를 파싱한다" do
+      file_path = Path.join(@project_root, "config/agents/worker_system.md")
+
+      {:ok, content} = File.read(file_path)
+      {:ok, _frontmatter, body} = ConfigLoader.parse_markdown(content)
+
+      sections = ConfigLoader.parse_body(body)
+
+      assert sections["enabled_tools"] == [
+               "mcp_filesystem_call",
+               "mcp_desktop_commander_call"
+             ]
+    end
+
+    test "system_worker를 DB에 로드한다" do
+      file_path = Path.join(@project_root, "config/agents/worker_system.md")
 
       assert {:ok, agent} = ConfigLoader.load_config(file_path)
 
-      assert agent.name == "emoji_worker"
+      assert agent.name == "system_worker"
       assert agent.type == :worker
-      assert agent.display_name == "Emoji Worker"
-      assert agent.temperature == 0.8
+      assert agent.display_name == "System Worker"
+      assert agent.temperature == 0.4
       assert agent.max_iterations == 3
-      assert agent.system_prompt =~ "이모지"
+      assert agent.system_prompt =~ "시스템 지침"
+      assert "mcp_filesystem_call" in agent.enabled_tools
+      assert "mcp_desktop_commander_call" in agent.enabled_tools
     end
   end
 end

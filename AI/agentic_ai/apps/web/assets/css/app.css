@@ -179,6 +179,23 @@
     box-shadow: none;
   }
 
+  .carbon-top-nav {
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  .carbon-top-nav .navbar-start {
+    width: auto;
+  }
+
+  .carbon-top-nav .navbar-end {
+    width: auto;
+  }
+
+  .carbon-top-nav .dropdown {
+    flex-shrink: 0;
+  }
+
   .carbon-top-nav :where(.btn, .menu li > a, .menu li > details > summary) {
     min-height: 2.5rem;
     height: 2.5rem;

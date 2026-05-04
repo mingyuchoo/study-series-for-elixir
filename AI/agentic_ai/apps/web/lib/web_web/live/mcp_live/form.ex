@@ -10,7 +10,7 @@ defmodule WebWeb.McpLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    mcp = %Mcp{args: [], env: %{}, enabled: true}
+    mcp = %Mcp{args: [], env: %{}, enabled: true, local_permission_level: :none}
 
     socket
     |> assign(:page_title, "새 MCP")
@@ -93,6 +93,11 @@ defmodule WebWeb.McpLive.Form do
       _ ->
         %{}
     end)
+    |> Map.update("local_permission_level", "none", fn
+      v when is_atom(v) -> Atom.to_string(v)
+      v when is_binary(v) -> v
+      _ -> "none"
+    end)
   end
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset) do
@@ -151,6 +156,16 @@ defmodule WebWeb.McpLive.Form do
               {~s[${VAR_NAME} 형식으로 시스템 환경변수 참조 가능 (예: {"API_KEY": "${FIRECRAWL_API_KEY}"})]}
             </p>
 
+            <.input
+              field={@form[:local_permission_level]}
+              type="select"
+              label="로컬 권한 위임 수준"
+              options={local_permission_options()}
+            />
+            <p class="text-xs opacity-60 -mt-1 mb-2">
+              Filesystem/Desktop Commander처럼 로컬 파일 또는 터미널 권한을 위임하는 MCP에 적용할 정책 수준입니다.
+            </p>
+
             <.input field={@form[:enabled]} type="checkbox" label="활성화" />
 
             <div class="flex gap-2 pt-4">
@@ -175,4 +190,13 @@ defmodule WebWeb.McpLive.Form do
   defp env_string(map) when is_map(map), do: Jason.encode!(map, pretty: true)
   defp env_string(s) when is_binary(s), do: s
   defp env_string(_), do: "{}"
+
+  defp local_permission_options do
+    [
+      {"없음", :none},
+      {"읽기 전용", :read_only},
+      {"워크스페이스", :workspace},
+      {"전체 권한", :full}
+    ]
+  end
 end

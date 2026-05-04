@@ -12,13 +12,19 @@ defmodule Core.Schema.Mcp do
     field(:env, :map, default: %{})
     field(:enabled, :boolean, default: true)
 
+    field(:local_permission_level, Ecto.Enum,
+      values: [:none, :read_only, :workspace, :full],
+      default: :none
+    )
+
     timestamps(type: :utc_datetime)
   end
 
   def changeset(mcp, attrs) do
     mcp
-    |> cast(attrs, [:name, :command, :args, :env, :enabled])
+    |> cast(attrs, [:name, :command, :args, :env, :enabled, :local_permission_level])
     |> validate_required([:name, :command])
+    |> validate_inclusion(:local_permission_level, [:none, :read_only, :workspace, :full])
     |> unique_constraint(:name)
   end
 end

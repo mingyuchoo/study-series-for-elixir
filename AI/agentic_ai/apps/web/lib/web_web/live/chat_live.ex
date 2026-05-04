@@ -637,6 +637,8 @@ defmodule WebWeb.ChatLive do
     cond do
       String.starts_with?(tool_name, "firecrawl_") -> "firecrawl"
       String.starts_with?(tool_name, "mcp__firecrawl__") -> "firecrawl"
+      String.starts_with?(tool_name, "mcp_filesystem_") -> "filesystem"
+      String.starts_with?(tool_name, "mcp_desktop_commander_") -> "desktop-commander"
       true -> nil
     end
   end
@@ -820,7 +822,7 @@ defmodule WebWeb.ChatLive do
             <li class="w-full">
               <div class="flex items-center gap-2 w-full">
                 <img
-                  src={agent_avatar_url(agent.name)}
+                  src={agent_avatar_url(agent)}
                   alt={agent.display_name || agent.name}
                   class="h-7 w-7 shrink-0 object-cover ring-1 ring-base-300"
                 />
@@ -1285,15 +1287,13 @@ defmodule WebWeb.ChatLive do
   defp knowledge_status_label(:disabled, _runtime_status), do: "비활성"
   defp knowledge_status_label(_configured_status, _runtime_status), do: "비어 있음"
 
-  # 에이전트별 프로필 사진 매핑.
-  # 파일은 priv/static/images/profiles/ 에 위치하며 /images/profiles/ 경로로 서빙됩니다.
-  defp agent_avatar_url(agent_name) do
-    "/images/profiles/" <> agent_avatar_filename(agent_name)
+  defp agent_avatar_url(agent) do
+    "/images/profiles/" <> agent_avatar_filename(agent)
   end
 
   defp message_avatar_url(message) do
     case message_agent(message) do
-      %{name: name} when is_binary(name) -> agent_avatar_url(name)
+      agent when is_map(agent) -> agent_avatar_url(agent)
       _ -> agent_avatar_url(nil)
     end
   end
@@ -1306,16 +1306,15 @@ defmodule WebWeb.ChatLive do
       Agents.get_active_supervisor()
   end
 
-  defp speaker_avatar_url(%{name: name}) when is_binary(name), do: agent_avatar_url(name)
+  defp speaker_avatar_url(agent) when is_map(agent), do: agent_avatar_url(agent)
   defp speaker_avatar_url(_), do: agent_avatar_url(nil)
 
-  defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
-  defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
-  defp agent_avatar_filename("knowledge_worker"), do: "avatar-03.png"
-  defp agent_avatar_filename("calculator_worker"), do: "avatar-04.png"
-  defp agent_avatar_filename("restructure_worker"), do: "avatar-05.png"
-  defp agent_avatar_filename("emoji_worker"), do: "avatar-06.png"
-  defp agent_avatar_filename(_), do: "avatar-07.png"
+  defp agent_avatar_filename(%{avatar_path: avatar_path})
+       when is_binary(avatar_path) and avatar_path != "" do
+    avatar_path
+  end
+
+  defp agent_avatar_filename(_agent), do: "avatar-07.png"
 
   defp agent_status_label(:running), do: "동작"
   defp agent_status_label(:finishing), do: "완료 중"

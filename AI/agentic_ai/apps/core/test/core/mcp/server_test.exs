@@ -1,5 +1,5 @@
 defmodule Core.MCP.ServerTest do
-  use ExUnit.Case, async: false
+  use Core.DataCase, async: false
 
   alias Core.MCP.Server
 

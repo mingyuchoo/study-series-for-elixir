@@ -62,24 +62,38 @@ defmodule Core.Contexts.Mcps do
   end
 
   @doc """
-  환경 변수 설정 여부로 MCP 상태를 판단합니다.
+  환경 변수와 실행 명령 존재 여부로 MCP 상태를 판단합니다.
   """
-  def check_mcp_status(%{env: env}) when env == %{} or is_nil(env), do: :unknown
+  def check_mcp_status(%{env: env, command: command}) when is_map(env) do
+    cond do
+      missing_env?(env) ->
+        :unavailable
 
-  def check_mcp_status(%{env: env}) when is_map(env) do
-    missing =
-      env
-      |> Enum.filter(fn {_key, value} ->
-        case extract_env_var_name(value) do
-          nil -> false
-          var -> is_nil(System.get_env(var)) or System.get_env(var) == ""
-        end
-      end)
+      command_available?(command) ->
+        :ready
 
-    if missing == [], do: :ready, else: :unavailable
+      true ->
+        :unavailable
+    end
   end
 
   def check_mcp_status(_), do: :unknown
+
+  defp missing_env?(env) do
+    Enum.any?(env, fn {_key, value} ->
+      case extract_env_var_name(value) do
+        nil -> false
+        var -> is_nil(System.get_env(var)) or System.get_env(var) == ""
+      end
+    end)
+  end
+
+  defp command_available?(command) when is_binary(command) do
+    command = String.trim(command)
+    command != "" and not is_nil(System.find_executable(command))
+  end
+
+  defp command_available?(_), do: false
 
   defp extract_env_var_name(value) when is_binary(value) do
     case Regex.run(~r/\$\{([^}]+)\}/, value) do
@@ -98,7 +112,8 @@ defmodule Core.Contexts.Mcps do
       command: mcp.command,
       args: mcp.args || [],
       env: mcp.env || %{},
-      enabled: mcp.enabled
+      enabled: mcp.enabled,
+      local_permission_level: mcp.local_permission_level || :none
     }
   end
 end

@@ -66,6 +66,8 @@ cp .env.example .env
 |---|---|
 | `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` | LLM |
 | `FIRECRAWL_API_KEY` | Firecrawl MCP |
+| `CONTEXT7_API_KEY` | Context7 MCP |
+| `MCP_FILESYSTEM_ROOT` | Filesystem MCP 허용 루트 디렉터리 |
 | `WORKSPACE_DIR` | 업로드/에이전트 작업 디렉토리 (선택, 개발은 `./workspace` 기본) |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `seeds.exs`로 만들 초기 관리자 계정 |
 | `DATABASE_PATH` / `SECRET_KEY_BASE` / `PHX_HOST` / `PORT` | 프로덕션 전용 |
@@ -137,6 +139,22 @@ DATABASE_PATH=/var/lib/agentic_ai/agentic_ai.db \
 
 외부 MCP 서버는 **DB 테이블(`mcps`)**에서 관리합니다. 최초 1회 `seeds.exs` 실행 시 `.mcp.json`에서 import됩니다.
 이후 UI의 `/admin/mcps`에서 CRUD 가능하며, 환경변수 placeholder(`${VAR}`)의 설정 여부로 상태를 표시합니다.
+
+기본 외부 MCP 서버:
+
+- `firecrawl`: 웹 스크래핑/검색 MCP. `FIRECRAWL_API_KEY` 필요.
+- `context7`: 최신 라이브러리/API 문서 조회 MCP. `CONTEXT7_API_KEY` 권장 및 기본 설정에 사용.
+- `filesystem`: 지정한 로컬 디렉터리 파일 접근 MCP. `MCP_FILESYSTEM_ROOT` 필요.
+- `desktop-commander`: 로컬 파일/터미널 제어 MCP. 기본 비활성 상태로 등록되며, 활성화 전 권한 위임 수준을 확인해야 합니다.
+
+로컬 권한 위임 수준:
+
+- `none`: 로컬 권한 위임 없음.
+- `read_only`: 읽기/검색 중심으로만 사용해야 하는 MCP.
+- `workspace`: 지정된 워크스페이스 내부 파일 작업까지 허용하는 MCP.
+- `full`: 파일 수정과 터미널 실행 등 강한 로컬 권한을 위임하는 MCP.
+
+현재 권한 위임 수준은 `/admin/mcps`에서 관리하는 정책 메타데이터입니다. 외부 MCP 클라이언트를 직접 실행하는 경우에는 MCP 서버 자체의 허용 디렉터리, 차단 명령, OS 권한 설정도 함께 제한해야 합니다.
 
 ### 내장 MCP 서버 (STDIO)
 

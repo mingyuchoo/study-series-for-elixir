@@ -63,7 +63,7 @@ defmodule WebWeb.AgentLive.Index do
               <td>
                 <div class="flex items-center gap-3">
                   <img
-                    src={agent_avatar_url(agent.name)}
+                    src={agent_avatar_url(agent)}
                     alt={agent.display_name || agent.name}
                     class="size-[27px] shrink-0 rounded-full object-cover ring-1 ring-base-300"
                     loading="lazy"
@@ -136,15 +136,14 @@ defmodule WebWeb.AgentLive.Index do
   defp agent_status_badge(:disabled), do: "badge-ghost"
   defp agent_status_badge(_), do: "badge-ghost"
 
-  defp agent_avatar_url(agent_name) do
-    "/images/profiles/" <> agent_avatar_filename(agent_name)
+  defp agent_avatar_url(agent) do
+    "/images/profiles/" <> agent_avatar_filename(agent)
   end
 
-  defp agent_avatar_filename("main_supervisor"), do: "avatar-01.png"
-  defp agent_avatar_filename("research_worker"), do: "avatar-02.png"
-  defp agent_avatar_filename("knowledge_worker"), do: "avatar-03.png"
-  defp agent_avatar_filename("calculator_worker"), do: "avatar-04.png"
-  defp agent_avatar_filename("restructure_worker"), do: "avatar-05.png"
-  defp agent_avatar_filename("emoji_worker"), do: "avatar-06.png"
-  defp agent_avatar_filename(_), do: "avatar-07.png"
+  defp agent_avatar_filename(%{avatar_path: avatar_path})
+       when is_binary(avatar_path) and avatar_path != "" do
+    avatar_path
+  end
+
+  defp agent_avatar_filename(_agent), do: "avatar-07.png"
 end

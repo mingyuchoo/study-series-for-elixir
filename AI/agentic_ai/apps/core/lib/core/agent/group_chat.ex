@@ -19,7 +19,7 @@ defmodule Core.Agent.GroupChat do
   require Logger
 
   alias Core.Agent.{Coordinator, MemoryManager}
-  alias Core.Contexts.{Conversations, VectorRags}
+  alias Core.Contexts.VectorRags
   alias Core.LLM.AzureOpenAI
   alias Core.Repo
   alias Core.Schema.Message
@@ -596,11 +596,4 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp notify(_state, _message), do: :ok
-
-  # 외부 코드(Conversations 등)가 필요로 할 수 있는 헬퍼.
-  # 현 시점에는 사용하지 않지만 향후 토론 트랜스크립트 내보내기 등에 활용 가능.
-  @doc false
-  def __recent_messages_for_llm__(conversation_id, limit \\ 12) do
-    Conversations.list_recent_messages_for_llm(conversation_id, limit)
-  end
 end

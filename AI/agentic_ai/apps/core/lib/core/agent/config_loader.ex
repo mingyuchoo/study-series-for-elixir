@@ -195,21 +195,23 @@ defmodule Core.Agent.ConfigLoader do
   def build_agent_attrs(frontmatter, body, file_path) do
     body_sections = parse_body(body)
 
-    attrs = %{
-      type: parse_agent_type(frontmatter["type"]),
-      name: frontmatter["name"],
-      display_name: frontmatter["display_name"],
-      description: frontmatter["description"],
-      system_prompt: body_sections["system_prompt"],
-      model: frontmatter["model"] || "gpt-5-mini",
-      temperature: frontmatter["temperature"] || 1.0,
-      max_iterations: frontmatter["max_iterations"] || 10,
-      enabled_tools: body_sections["enabled_tools"],
-      config: body_sections["config"] || %{},
-      status: parse_agent_status(frontmatter["status"]),
-      created_from_markdown: true,
-      markdown_path: file_path
-    }
+    attrs =
+      %{
+        type: parse_agent_type(frontmatter["type"]),
+        name: frontmatter["name"],
+        display_name: frontmatter["display_name"],
+        description: frontmatter["description"],
+        system_prompt: body_sections["system_prompt"],
+        model: frontmatter["model"] || "gpt-5-mini",
+        temperature: frontmatter["temperature"] || 1.0,
+        max_iterations: frontmatter["max_iterations"] || 10,
+        enabled_tools: body_sections["enabled_tools"],
+        config: body_sections["config"] || %{},
+        status: parse_agent_status(frontmatter["status"]),
+        created_from_markdown: true,
+        markdown_path: file_path
+      }
+      |> maybe_put(:avatar_path, frontmatter["avatar_path"] || frontmatter["avatar"])
 
     if attrs.name do
       {:ok, attrs}
@@ -225,6 +227,10 @@ defmodule Core.Agent.ConfigLoader do
   defp parse_agent_status("active"), do: :active
   defp parse_agent_status("disabled"), do: :disabled
   defp parse_agent_status(_), do: :active
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   @doc """
   에이전트를 DB에 저장하거나 업데이트합니다.

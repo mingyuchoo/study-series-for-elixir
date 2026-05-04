@@ -17,6 +17,7 @@ defmodule Core.Schema.Agent do
     field(:enabled_tools, {:array, :string}, default: [])
     field(:config, :map, default: %{})
     field(:status, Ecto.Enum, values: [:active, :disabled], default: :active)
+    field(:avatar_path, :string)
     field(:created_from_markdown, :boolean, default: false)
     field(:markdown_path, :string)
 
@@ -48,6 +49,7 @@ defmodule Core.Schema.Agent do
       :enabled_tools,
       :config,
       :status,
+      :avatar_path,
       :created_from_markdown,
       :markdown_path
     ])

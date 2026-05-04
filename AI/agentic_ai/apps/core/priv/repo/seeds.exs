@@ -2,7 +2,7 @@ alias Core.Repo
 alias Core.Contexts.Accounts
 alias Core.Contexts.Mcps
 alias Core.Agent.ConfigLoader
-alias Core.Schema.User
+alias Core.Schema.{Tool, User}
 
 require Logger
 
@@ -20,6 +20,7 @@ case Repo.get_by(User, email: String.downcase(admin_email)) do
 
       {:error, changeset} ->
         IO.puts("✗ 관리자 계정 생성 실패:")
+
         Enum.each(changeset.errors, fn {field, {msg, _}} ->
           IO.puts("    - #{field}: #{msg}")
         end)
@@ -53,7 +54,51 @@ else
 end
 
 # ------------------------------------------------------------------
-# 3) 기본 MCP 서버 (.mcp.json → DB, 이름 기준 upsert)
+# 3) 기본 도구 레지스트리 (실행 모듈/정의 → DB, 이름 기준 upsert)
+# ------------------------------------------------------------------
+tools = [
+  {"get_current_time", Core.Agent.Tools.DateTime},
+  {"search_web", Core.Agent.Tools.WebSearch},
+  {"calculate", Core.Agent.Tools.Calculator},
+  {"read_file", Core.Agent.Tools.FileSystem},
+  {"write_file", Core.Agent.Tools.FileSystem},
+  {"list_directory", Core.Agent.Tools.FileSystem},
+  {"search_vector_rag", Core.Agent.Tools.VectorRagSearch},
+  {"execute_code", Core.Agent.Tools.CodeExecutor},
+  {"mcp_filesystem_call", Core.Agent.Tools.Mcp},
+  {"mcp_desktop_commander_call", Core.Agent.Tools.Mcp},
+  {"firecrawl_scrape", Core.Agent.Tools.Firecrawl},
+  {"firecrawl_search", Core.Agent.Tools.Firecrawl}
+]
+
+Enum.each(tools, fn {name, module} ->
+  definition = module.definition(name) || %{description: nil, parameters: nil}
+
+  attrs = %{
+    name: name,
+    description: definition[:description] || definition["description"],
+    parameters: definition[:parameters] || definition["parameters"],
+    module_name: Atom.to_string(module),
+    enabled: true
+  }
+
+  case Repo.get_by(Tool, name: name) do
+    nil ->
+      case %Tool{} |> Tool.changeset(attrs) |> Repo.insert() do
+        {:ok, _} -> IO.puts("✓ 도구 시드: #{name}")
+        {:error, cs} -> IO.puts("✗ 도구 시드 실패 #{name}: #{inspect(cs.errors)}")
+      end
+
+    tool ->
+      case tool |> Tool.changeset(attrs) |> Repo.update() do
+        {:ok, _} -> IO.puts("· 도구 갱신: #{name}")
+        {:error, cs} -> IO.puts("✗ 도구 갱신 실패 #{name}: #{inspect(cs.errors)}")
+      end
+  end
+end)
+
+# ------------------------------------------------------------------
+# 4) 기본 MCP 서버 (.mcp.json → DB, 이름 기준 upsert)
 # ------------------------------------------------------------------
 mcp_json_path =
   [
@@ -72,7 +117,8 @@ if mcp_json_path do
         command: cfg["command"] || "",
         args: cfg["args"] || [],
         env: cfg["env"] || %{},
-        enabled: true
+        enabled: Map.get(cfg, "enabled", true),
+        local_permission_level: cfg["local_permission_level"] || "none"
       }
 
       case Mcps.get_mcp_by_name(name) do

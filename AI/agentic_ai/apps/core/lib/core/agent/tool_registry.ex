@@ -4,29 +4,25 @@ defmodule Core.Agent.ToolRegistry do
   도구들은 OpenAI 함수 호출 명세를 따릅니다.
   """
 
-  alias Core.Agent.Tools
+  import Ecto.Query
 
-  @tools %{
-    "get_current_time" => Tools.DateTime,
-    "search_web" => Tools.WebSearch,
-    "calculate" => Tools.Calculator,
-    "read_file" => Tools.FileSystem,
-    "write_file" => Tools.FileSystem,
-    "list_directory" => Tools.FileSystem,
-    "search_vector_rag" => Tools.VectorRagSearch,
-    "execute_code" => Tools.CodeExecutor,
-    # Firecrawl MCP 도구들
-    "firecrawl_scrape" => Tools.Firecrawl,
-    "firecrawl_search" => Tools.Firecrawl
-  }
+  alias Core.Repo
+  alias Core.Schema.Tool
 
   @doc """
   정의와 함께 사용 가능한 모든 도구를 가져옵니다.
   """
   def get_tools do
-    @tools
-    |> Enum.map(fn {name, module} ->
-      apply(module, :definition, [name])
+    Tool
+    |> where([t], t.enabled == true)
+    |> order_by([t], asc: t.name)
+    |> Repo.all()
+    |> Enum.map(fn tool ->
+      with {:ok, module} <- module_from_tool(tool) do
+        apply(module, :definition, [tool.name])
+      else
+        _ -> nil
+      end
     end)
     |> Enum.filter(& &1)
   end
@@ -35,15 +31,17 @@ defmodule Core.Agent.ToolRegistry do
   이름으로 도구를 실행하고 주어진 인자를 전달합니다.
   """
   def execute(tool_name, arguments) do
-    case Map.get(@tools, tool_name) do
+    case Repo.get_by(Tool, name: tool_name, enabled: true) do
       nil ->
         {:error, :tool_not_found}
 
-      module ->
-        try do
-          apply(module, :execute, [tool_name, arguments])
-        rescue
-          e -> {:error, Exception.message(e)}
+      tool ->
+        with {:ok, module} <- module_from_tool(tool) do
+          try do
+            apply(module, :execute, [tool_name, arguments])
+          rescue
+            e -> {:error, Exception.message(e)}
+          end
         end
     end
   end
@@ -52,6 +50,25 @@ defmodule Core.Agent.ToolRegistry do
   도구가 존재하는지 확인합니다.
   """
   def tool_exists?(tool_name) do
-    Map.has_key?(@tools, tool_name)
+    Repo.exists?(from(t in Tool, where: t.name == ^tool_name and t.enabled == true))
   end
+
+  defp module_from_tool(%Tool{module_name: module_name}) when is_binary(module_name) do
+    module =
+      module_name
+      |> String.trim_leading("Elixir.")
+      |> String.split(".")
+      |> Module.safe_concat()
+
+    if Code.ensure_loaded?(module) and function_exported?(module, :definition, 1) and
+         function_exported?(module, :execute, 2) do
+      {:ok, module}
+    else
+      {:error, :invalid_tool_module}
+    end
+  rescue
+    ArgumentError -> {:error, :invalid_tool_module}
+  end
+
+  defp module_from_tool(_tool), do: {:error, :invalid_tool_module}
 end

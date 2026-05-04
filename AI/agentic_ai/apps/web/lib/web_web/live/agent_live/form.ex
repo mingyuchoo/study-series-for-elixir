@@ -146,6 +146,13 @@ defmodule WebWeb.AgentLive.Form do
             <.input field={@form[:description]} type="text" label="설명" />
 
             <.input
+              field={@form[:avatar_path]}
+              type="text"
+              label="아바타 파일"
+              placeholder="avatar-07.png"
+            />
+
+            <.input
               field={@form[:system_prompt]}
               type="textarea"
               label="시스템 프롬프트"
