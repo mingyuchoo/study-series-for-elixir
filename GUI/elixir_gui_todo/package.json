@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "desktop:dev": "cargo tauri dev",
+    "desktop:build": "scripts/release.sh",
+    "desktop:build:windows": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

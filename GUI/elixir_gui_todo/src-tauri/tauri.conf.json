@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Elixir Todo",
+  "version": "0.1.0",
+  "identifier": "com.mingyuchoo.elixir-gui-todo",
+  "build": {
+    "beforeDevCommand": "mix phx.server",
+    "devUrl": "http://127.0.0.1:4000",
+    "beforeBuildCommand": "scripts/release.sh prepare",
+    "frontendDist": "../priv/static"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Elixir Todo",
+        "width": 1100,
+        "height": 760,
+        "minWidth": 760,
+        "minHeight": 560,
+        "visible": false,
+        "url": "about:blank"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "A local desktop todo list built with Phoenix and Tauri.",
+    "resources": [
+      "resources/elixir_gui_todo"
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  }
+}

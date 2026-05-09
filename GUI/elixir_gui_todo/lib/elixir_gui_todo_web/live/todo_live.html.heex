@@ -1,0 +1,184 @@
+<Layouts.app flash={@flash}>
+  <section class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
+    <header
+      id="todo-header"
+      class="grid gap-6 border-b border-zinc-200 pb-6 md:grid-cols-[1fr_auto] md:items-end dark:border-zinc-800"
+    >
+      <div class="space-y-3">
+        <p class="text-sm font-medium uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+          Desktop Todo
+        </p>
+        <div class="space-y-2">
+          <h1 class="text-3xl font-semibold text-zinc-950 sm:text-4xl dark:text-zinc-50">
+            Elixir Todo
+          </h1>
+          <p class="max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            Keep a focused local task list backed by SQLite and ready for the desktop.
+          </p>
+        </div>
+      </div>
+
+      <div
+        id="todo-stats"
+        class="grid grid-cols-3 gap-2 rounded-lg border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+      >
+        <div class="px-4 py-3">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">Total</p>
+          <p class="text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{@counts.total}</p>
+        </div>
+        <div class="px-4 py-3">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">Active</p>
+          <p class="text-2xl font-semibold text-cyan-700 dark:text-cyan-300">{@counts.active}</p>
+        </div>
+        <div class="px-4 py-3">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">Done</p>
+          <p class="text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
+            {@counts.completed}
+          </p>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
+      <aside class="space-y-4">
+        <.form
+          for={@form}
+          id="todo-form"
+          phx-submit="save"
+          class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+        >
+          <div class="space-y-4">
+            <.input
+              field={@form[:title]}
+              type="text"
+              label="Task"
+              placeholder="Write the next task"
+              maxlength="120"
+              autocomplete="off"
+            />
+            <.input
+              field={@form[:notes]}
+              type="textarea"
+              label="Notes"
+              placeholder="Optional context"
+              rows="4"
+              maxlength="1000"
+            />
+            <button
+              id="todo-submit"
+              type="submit"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 active:translate-y-0 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+            >
+              <.icon name="hero-plus" class="size-4" /> Add task
+            </button>
+          </div>
+        </.form>
+
+        <div id="todo-actions" class="flex flex-wrap gap-2">
+          <button
+            :for={filter <- [:all, :active, :completed]}
+            id={"filter-#{filter}"}
+            type="button"
+            phx-click="filter"
+            phx-value-filter={filter}
+            class={[
+              "rounded-md border px-3 py-2 text-sm font-medium transition",
+              @filter == filter &&
+                "border-zinc-950 bg-zinc-950 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950",
+              @filter != filter &&
+                "border-zinc-200 bg-white text-zinc-700 hover:border-cyan-300 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-cyan-700 dark:hover:text-white"
+            ]}
+          >
+            {filter_label(filter)}
+          </button>
+
+          <button
+            id="clear-completed"
+            type="button"
+            phx-click="clear_completed"
+            class="ml-auto rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-rose-800 dark:hover:text-rose-300"
+            disabled={@counts.completed == 0}
+          >
+            Clear done
+          </button>
+        </div>
+      </aside>
+
+      <section class="min-w-0">
+        <div
+          id="todos"
+          phx-update="stream"
+          class="grid gap-3"
+        >
+          <div
+            id="todos-empty"
+            class="hidden rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center only:block dark:border-zinc-700 dark:bg-zinc-950"
+          >
+            <.icon
+              name="hero-check-circle"
+              class="mx-auto mb-3 size-10 text-cyan-600 dark:text-cyan-300"
+            />
+            <p class="text-sm font-medium text-zinc-950 dark:text-zinc-50">No tasks here</p>
+            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Add a task or change the current filter.
+            </p>
+          </div>
+
+          <article
+            :for={{id, todo} <- @streams.todos}
+            id={id}
+            class={[
+              "group grid gap-4 rounded-lg border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md sm:grid-cols-[auto_1fr_auto] sm:items-start dark:bg-zinc-950 dark:hover:border-cyan-700",
+              completed?(todo) && "border-zinc-200 opacity-70 dark:border-zinc-800",
+              !completed?(todo) && "border-zinc-200 dark:border-zinc-800"
+            ]}
+          >
+            <button
+              id={"toggle-todo-#{todo.id}"}
+              type="button"
+              phx-click="toggle"
+              phx-value-id={todo.id}
+              class={[
+                "flex size-9 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2",
+                completed?(todo) && "border-emerald-500 bg-emerald-500 text-white",
+                !completed?(todo) &&
+                  "border-zinc-300 text-transparent hover:border-cyan-500 hover:text-cyan-600 dark:border-zinc-700"
+              ]}
+              aria-label="Toggle task"
+            >
+              <.icon name="hero-check" class="size-5" />
+            </button>
+
+            <div class="min-w-0 space-y-1">
+              <h2 class={[
+                "break-words text-base font-semibold",
+                completed?(todo) && "text-zinc-500 line-through dark:text-zinc-500",
+                !completed?(todo) && "text-zinc-950 dark:text-zinc-50"
+              ]}>
+                {todo.title}
+              </h2>
+              <p
+                :if={todo.notes && todo.notes != ""}
+                class="whitespace-pre-line break-words text-sm leading-6 text-zinc-600 dark:text-zinc-300"
+              >
+                {todo.notes}
+              </p>
+            </div>
+
+            <button
+              id={"delete-todo-#{todo.id}"}
+              type="button"
+              phx-click="delete"
+              phx-value-id={todo.id}
+              data-confirm="Delete this task?"
+              class="flex size-9 items-center justify-center rounded-md text-zinc-400 opacity-100 transition hover:bg-rose-50 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+              aria-label="Delete task"
+            >
+              <.icon name="hero-trash" class="size-5" />
+            </button>
+          </article>
+        </div>
+      </section>
+    </section>
+  </section>
+</Layouts.app>
