@@ -46,3 +46,9 @@ npm-debug.log
 .env
 .envrc
 .envrc.local
+
+# Packages
+*.deb
+*.rpm
+*.dmg
+*.msi
