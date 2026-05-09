@@ -26,7 +26,7 @@ defmodule AgenticAi.MixProject do
           core: :permanent,
           web: :permanent
         ],
-        include_executables_for: [:unix],
+        include_executables_for: [:unix, :windows],
         steps: [:assemble, :tar]
       ]
     ]
