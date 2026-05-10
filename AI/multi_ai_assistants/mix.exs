@@ -1,4 +1,4 @@
-defmodule AgenticAi.MixProject do
+defmodule MultiAiAssistants.MixProject do
   use Mix.Project
 
   def project do
@@ -20,7 +20,7 @@ defmodule AgenticAi.MixProject do
 
   defp releases do
     [
-      agentic_ai: [
+      multi_ai_assistants: [
         version: "0.1.0",
         applications: [
           core: :permanent,

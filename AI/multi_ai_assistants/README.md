@@ -28,7 +28,7 @@ Azure OpenAI API(gpt-5-mini)와 다중 에이전트(Supervisor + Worker) 오케�
 ## 프로젝트 구조
 
 ```text
-agentic_ai/
+multi_ai_assistants/
 ├── apps/
 │   ├── core/                    # 도메인 로직
 │   │   ├── lib/core/
@@ -103,15 +103,15 @@ MIX_ENV=prod mix assets.deploy
 MIX_ENV=prod mix release
 
 # 실행 (환경변수 필수)
-DATABASE_PATH=/var/lib/agentic_ai/agentic_ai.db \
+DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
   SECRET_KEY_BASE=$(mix phx.gen.secret) \
   AZURE_OPENAI_ENDPOINT=https://... AZURE_OPENAI_API_KEY=... \
   PHX_HOST=your.domain PORT=4000 \
-  WORKSPACE_DIR=/var/lib/agentic_ai/workspace \
-  _build/prod/rel/agentic_ai/bin/agentic_ai start
+  WORKSPACE_DIR=/var/lib/multi_ai_assistants/workspace \
+  _build/prod/rel/multi_ai_assistants/bin/multi_ai_assistants start
 ```
 
-출력물: `_build/prod/rel/agentic_ai/` 및 `*.tar.gz`.
+출력물: `_build/prod/rel/multi_ai_assistants/` 및 `*.tar.gz`.
 
 ## 라우트 요약
 

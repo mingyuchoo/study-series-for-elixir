@@ -28,7 +28,7 @@ defmodule Core.MCP.Server do
   alias Core.MCP.{Prompts, Protocol, Resources, Tools}
 
   @protocol_version "2025-06-18"
-  @server_name "agentic-ai-mcp-server"
+  @server_name "multi-ai-assistants-mcp-server"
   @server_version "1.0.0"
 
   # 클라이언트 API

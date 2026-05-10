@@ -5,8 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-APP_NAME="agentic_ai"
-PACKAGE_NAME="agentic-ai"
+APP_NAME="multi_ai_assistants"
+PACKAGE_NAME="multi-ai-assistants"
 DISPLAY_NAME="Agentic AI"
 VERSION="${VERSION:-}"
 ITERATION="${ITERATION:-1}"

@@ -173,7 +173,7 @@ defmodule Core.Agent.Tools.Mcp do
     request(port, 1, "initialize", %{
       protocolVersion: @protocol_version,
       capabilities: %{},
-      clientInfo: %{name: "agentic-ai", version: "0.1.0"}
+      clientInfo: %{name: "multi-ai-assistants", version: "0.1.0"}
     })
     |> case do
       {:ok, _} ->

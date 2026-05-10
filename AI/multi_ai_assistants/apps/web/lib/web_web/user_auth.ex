@@ -12,7 +12,7 @@ defmodule WebWeb.UserAuth do
 
   # 세션 쿠키 기본 설정: 60일 유효, 재방문 시 동일 쿠키 재설정
   @max_age 60 * 60 * 24 * 60
-  @remember_me_cookie "_agentic_ai_web_user_remember_me"
+  @remember_me_cookie "_multi_ai_assistants_web_user_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
 
   @doc """

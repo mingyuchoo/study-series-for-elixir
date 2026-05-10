@@ -8,7 +8,7 @@ config :core,
   ecto_repos: [Core.Repo]
 
 config :core, Core.Repo,
-  database: Path.expand("../apps/core/priv/agentic_ai.db", __DIR__),
+  database: Path.expand("../apps/core/priv/multi_ai_assistants.db", __DIR__),
   pool_size: 5,
   show_sensitive_data_on_connection_error: true
 
@@ -32,7 +32,7 @@ config :web, WebWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Web.PubSub,
-  live_view: [signing_salt: "agentic_ai_secret"]
+  live_view: [signing_salt: "multi_ai_assistants_secret"]
 
 # 로거 설정
 config :logger, :console,

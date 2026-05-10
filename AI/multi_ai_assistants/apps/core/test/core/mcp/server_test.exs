@@ -37,7 +37,7 @@ defmodule Core.MCP.ServerTest do
       assert response["jsonrpc"] == "2.0"
       assert response["id"] == 1
       assert response["result"]["protocolVersion"] == "2025-06-18"
-      assert response["result"]["serverInfo"]["name"] == "agentic-ai-mcp-server"
+      assert response["result"]["serverInfo"]["name"] == "multi-ai-assistants-mcp-server"
       assert response["result"]["capabilities"]["tools"]
       assert response["result"]["capabilities"]["prompts"]
       assert response["result"]["capabilities"]["resources"]

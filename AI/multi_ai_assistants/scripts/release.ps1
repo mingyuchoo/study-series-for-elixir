@@ -10,8 +10,8 @@ $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
-$AppName = 'agentic_ai'
-$PackageName = 'agentic-ai'
+$AppName = 'multi_ai_assistants'
+$PackageName = 'multi-ai-assistants'
 $DisplayName = 'Agentic AI'
 $ReleaseDir = Join-Path $ProjectRoot "_build\prod\rel\$AppName"
 $BuildDir = Join-Path $ProjectRoot '_build\release-packages\windows'

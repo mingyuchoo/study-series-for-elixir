@@ -13,7 +13,7 @@ defmodule Core.MCP.Transport.Stdio do
 
   또는 릴리즈에서:
 
-      ./bin/agentic_ai eval "Core.MCP.Transport.Stdio.start()"
+      ./bin/multi_ai_assistants eval "Core.MCP.Transport.Stdio.start()"
   """
 
   use GenServer
