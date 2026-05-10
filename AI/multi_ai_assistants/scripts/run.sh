@@ -9,11 +9,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# .env 파일 로드
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-    export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
-fi
-
 # Elixir/Erlang 경로 설정 (.tool-versions 기준)
 export ERLANG_HOME="$HOME/.asdf/installs/erlang/28.4.3"
 export ELIXIR_HOME="$HOME/.asdf/installs/elixir/1.19.5-otp-28"
@@ -41,6 +36,7 @@ fi
 if [[ -z "$AZURE_OPENAI_API_KEY" ]]; then
     echo -e "${YELLOW}[WARN]${NC} AZURE_OPENAI_API_KEY가 설정되지 않았습니다."
     echo "       export AZURE_OPENAI_API_KEY=\"your-api-key\""
+    echo "       (AI 채팅 기능은 설정 전까지 사용할 수 없습니다)"
 fi
 
 if [[ -z "$FIRECRAWL_API_KEY" ]]; then

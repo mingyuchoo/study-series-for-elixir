@@ -21,82 +21,84 @@ defmodule Core.LLM.AzureOpenAI do
 
   @spec chat_completion([message()], completion_opts()) :: {:ok, map()} | {:error, term()}
   def chat_completion(messages, opts \\ []) do
-    config = get_config()
-    model = Keyword.get(opts, :model, config.deployment)
+    with {:ok, config} <- get_config() do
+      model = Keyword.get(opts, :model, config.deployment)
 
-    # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
-    default_temperature = 1.0
+      # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
+      default_temperature = 1.0
 
-    body =
-      %{
-        messages: messages,
-        temperature: Keyword.get(opts, :temperature, default_temperature),
-        max_completion_tokens: Keyword.get(opts, :max_completion_tokens, 4096)
-      }
-      |> maybe_add_tools(Keyword.get(opts, :tools))
-      |> maybe_add_tool_choice(Keyword.get(opts, :tool_choice))
+      body =
+        %{
+          messages: messages,
+          temperature: Keyword.get(opts, :temperature, default_temperature),
+          max_completion_tokens: Keyword.get(opts, :max_completion_tokens, 4096)
+        }
+        |> maybe_add_tools(Keyword.get(opts, :tools))
+        |> maybe_add_tool_choice(Keyword.get(opts, :tool_choice))
 
-    url = build_url(config, model)
+      url = build_url(config, model)
 
-    case Req.post(url,
-           json: body,
-           headers: [
-             {"api-key", config.api_key},
-             {"Content-Type", "application/json"}
-           ],
-           receive_timeout: 120_000
-         ) do
-      {:ok, %{status: 200, body: response_body}} ->
-        {:ok, parse_response(response_body)}
+      case Req.post(url,
+             json: body,
+             headers: [
+               {"api-key", config.api_key},
+               {"Content-Type", "application/json"}
+             ],
+             receive_timeout: 120_000
+           ) do
+        {:ok, %{status: 200, body: response_body}} ->
+          {:ok, parse_response(response_body)}
 
-      {:ok, %{status: status, body: error_body}} ->
-        Logger.error("Azure OpenAI API error: #{status} - #{inspect(error_body)}")
-        {:error, {:api_error, status, error_body}}
+        {:ok, %{status: status, body: error_body}} ->
+          Logger.error("Azure OpenAI API error: #{status} - #{inspect(error_body)}")
+          {:error, {:api_error, status, error_body}}
 
-      {:error, reason} ->
-        Logger.error("Azure OpenAI request failed: #{inspect(reason)}")
-        {:error, {:request_failed, reason}}
+        {:error, reason} ->
+          Logger.error("Azure OpenAI request failed: #{inspect(reason)}")
+          {:error, {:request_failed, reason}}
+      end
     end
   end
 
   @spec stream_chat_completion([message()], completion_opts(), (map() -> any())) ::
           {:ok, map()} | {:error, term()}
   def stream_chat_completion(messages, opts \\ [], callback) do
-    config = get_config()
-    model = Keyword.get(opts, :model, config.deployment)
+    with {:ok, config} <- get_config() do
+      model = Keyword.get(opts, :model, config.deployment)
 
-    # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
-    default_temperature = 1.0
+      # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
+      default_temperature = 1.0
 
-    body =
-      %{
-        messages: messages,
-        temperature: Keyword.get(opts, :temperature, default_temperature),
-        max_completion_tokens: Keyword.get(opts, :max_completion_tokens, 4096),
-        stream: true
-      }
-      |> maybe_add_tools(Keyword.get(opts, :tools))
-      |> maybe_add_tool_choice(Keyword.get(opts, :tool_choice))
+      body =
+        %{
+          messages: messages,
+          temperature: Keyword.get(opts, :temperature, default_temperature),
+          max_completion_tokens: Keyword.get(opts, :max_completion_tokens, 4096),
+          stream: true
+        }
+        |> maybe_add_tools(Keyword.get(opts, :tools))
+        |> maybe_add_tool_choice(Keyword.get(opts, :tool_choice))
 
-    url = build_url(config, model)
+      url = build_url(config, model)
 
-    Req.post(url,
-      json: body,
-      headers: [
-        {"api-key", config.api_key},
-        {"Content-Type", "application/json"}
-      ],
-      receive_timeout: 120_000,
-      into: fn {:data, chunk}, acc ->
-        process_stream_chunk(chunk, callback, acc)
-      end
-    )
+      Req.post(url,
+        json: body,
+        headers: [
+          {"api-key", config.api_key},
+          {"Content-Type", "application/json"}
+        ],
+        receive_timeout: 120_000,
+        into: fn {:data, chunk}, acc ->
+          process_stream_chunk(chunk, callback, acc)
+        end
+      )
+    end
   end
 
   # 비공개 함수들
 
   defp get_config do
-    %{
+    config = %{
       endpoint: Application.get_env(:core, :azure_openai_endpoint),
       api_key: Application.get_env(:core, :azure_openai_api_key),
       api_version: Application.get_env(:core, :azure_openai_api_version, @default_api_version),
@@ -104,7 +106,23 @@ defmodule Core.LLM.AzureOpenAI do
       # 환경 변수로 노출해 사용자가 자신의 리소스에 맞게 지정할 수 있게 한다.
       deployment: Application.get_env(:core, :azure_openai_deployment, @default_model)
     }
+
+    cond do
+      blank?(config.endpoint) ->
+        {:error, {:missing_config, :azure_openai_endpoint}}
+
+      blank?(config.api_key) ->
+        {:error, {:missing_config, :azure_openai_api_key}}
+
+      true ->
+        {:ok, config}
+    end
   end
+
+  defp blank?(nil), do: true
+  defp blank?(""), do: true
+  defp blank?(value) when is_binary(value), do: String.trim(value) == ""
+  defp blank?(_), do: false
 
   defp build_url(config, model) do
     "#{config.endpoint}/openai/deployments/#{model}/chat/completions?api-version=#{config.api_version}"

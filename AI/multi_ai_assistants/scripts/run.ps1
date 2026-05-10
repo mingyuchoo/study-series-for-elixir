@@ -10,29 +10,6 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 
-# .env 파일 로드 (KEY=VALUE, # 으로 시작하는 주석 행 무시)
-$EnvFile = Join-Path $ProjectRoot '.env'
-if (Test-Path -LiteralPath $EnvFile) {
-    Get-Content -LiteralPath $EnvFile | ForEach-Object {
-        $line = $_.Trim()
-        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) { return }
-
-        $eq = $line.IndexOf('=')
-        if ($eq -lt 1) { return }
-
-        $key = $line.Substring(0, $eq).Trim()
-        $value = $line.Substring($eq + 1).Trim()
-
-        # 양끝 따옴표 제거
-        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
-            ($value.StartsWith("'") -and $value.EndsWith("'"))) {
-            $value = $value.Substring(1, $value.Length - 2)
-        }
-
-        Set-Item -Path "env:$key" -Value $value
-    }
-}
-
 # Elixir/Erlang 경로 설정 (.tool-versions 기준, asdf 사용 시)
 # Windows 의 Elixir/Erlang 설치 경로가 다르면 아래 블록을 환경에 맞게 수정하거나
 # 시스템 PATH 에 등록된 설치본을 그대로 사용하세요.
@@ -134,7 +111,7 @@ if ([string]::IsNullOrEmpty($env:AZURE_OPENAI_ENDPOINT)) {
 
 if ([string]::IsNullOrEmpty($env:AZURE_OPENAI_API_KEY)) {
     Write-Warn 'AZURE_OPENAI_API_KEY가 설정되지 않았습니다.' `
-        '$env:AZURE_OPENAI_API_KEY = "your-api-key"'
+        '$env:AZURE_OPENAI_API_KEY = "your-api-key"   (AI 채팅 기능은 설정 전까지 사용할 수 없습니다)'
 }
 
 if ([string]::IsNullOrEmpty($env:AZURE_OPENAI_DEPLOYMENT)) {

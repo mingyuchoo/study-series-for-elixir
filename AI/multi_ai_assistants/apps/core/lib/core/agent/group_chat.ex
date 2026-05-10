@@ -221,7 +221,7 @@ defmodule Core.Agent.GroupChat do
     ]
 
     # `model:` 옵션은 일부러 생략합니다. AzureOpenAI 클라이언트는 옵션이 없으면
-    # `.env`의 AZURE_OPENAI_DEPLOYMENT 값을 deployment 이름으로 사용합니다.
+    # 애플리케이션 설정의 AZURE_OPENAI_DEPLOYMENT 값을 deployment 이름으로 사용합니다.
     # supervisor.model(예: "gpt-5-mini")을 그대로 넘기면 동일한 이름의
     # Azure deployment가 없는 환경에서 404 DeploymentNotFound가 발생합니다.
     # 워커도 ReactEngine을 통해 동일한 폴백 경로를 사용하므로 여기도 일관되게 맞춥니다.

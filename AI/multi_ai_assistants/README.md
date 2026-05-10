@@ -10,9 +10,12 @@ Azure OpenAI API(gpt-5-mini)와 다중 에이전트(Supervisor + Worker) 오케�
 - 사용자별 대화 소유권 분리
 - LiveView 기반 실시간 스트리밍 채팅
 - 대화에 파일 첨부 (텍스트/PDF/이미지 등, workspace에 저장되어 에이전트가 분석 가능)
+- Vector RAG 문서 업로드/검색
 - 관리자 페이지
   - `/admin/agents` : 에이전트 CRUD
   - `/admin/mcps` : MCP 서버 CRUD (환경변수 상태 확인 포함)
+  - `/admin/rag` : Vector RAG 관리
+  - `/admin/dashboard/home` : 운영 대시보드
   - `/admin/dashboard` : Phoenix LiveDashboard
 
 ## 기술 스택
@@ -42,7 +45,7 @@ multi_ai_assistants/
 │   │       └── seeds.exs
 │   └── web/                     # Phoenix UI
 │       └── lib/web_web/
-│           ├── live/            # ChatLive, AgentLive, McpLive, UserLogin/Register/Settings
+│           ├── live/            # ChatLive, AgentLive, McpLive, RagLive, User 계정 LiveView
 │           ├── controllers/     # UserSessionController, PageController
 │           ├── user_auth.ex
 │           └── router.ex
@@ -54,23 +57,27 @@ multi_ai_assistants/
 
 ## 설치 및 실행
 
-### 1. 환경 변수 (.env)
+### 1. 설정
 
-```bash
-cp .env.example .env
-```
+애플리케이션은 `.env` 파일 없이도 기본 설정으로 부팅됩니다. 민감정보나 환경별 값이 필요한 경우 OS 환경변수, 배포 시스템 secret, systemd `EnvironmentFile` 등 런타임 환경으로 주입하세요.
 
-`.env` 주요 항목:
+`.env.example`은 참고용 템플릿이며 자동 로딩되지 않습니다.
+
+주요 설정 항목:
 
 | 변수 | 용도 |
 |---|---|
-| `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` | LLM |
+| `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` | LLM. 미설정 시 앱은 부팅되지만 AI 채팅 호출은 실패 |
+| `AZURE_OPENAI_API_VERSION` | Azure OpenAI API 버전. 미설정 시 `2024-12-01-preview` |
+| `AZURE_OPENAI_DEPLOYMENT` | Azure 배포 이름. 미설정 시 `gpt-5-mini` |
 | `FIRECRAWL_API_KEY` | Firecrawl MCP |
 | `CONTEXT7_API_KEY` | Context7 MCP |
 | `MCP_FILESYSTEM_ROOT` | Filesystem MCP 허용 루트 디렉터리 |
-| `WORKSPACE_DIR` | 업로드/에이전트 작업 디렉토리 (선택, 개발은 `./workspace` 기본) |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `seeds.exs`로 만들 초기 관리자 계정 |
-| `DATABASE_PATH` / `SECRET_KEY_BASE` / `PHX_HOST` / `PORT` | 프로덕션 전용 |
+| `WORKSPACE_DIR` | 업로드/에이전트 작업 디렉토리. 미설정 시 `./workspace` |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `seeds.exs`로 만들 초기 관리자 계정. 미설정 시 개발용 기본값 |
+| `DATABASE_PATH` | 프로덕션 DB 경로. 미설정 시 릴리스 루트의 `multi_ai_assistants.db` |
+| `SECRET_KEY_BASE` | 프로덕션 필수 secret. `mix phx.gen.secret`로 생성 |
+| `PHX_HOST` / `PORT` | 프로덕션 웹 서버 설정. 미설정 시 `localhost` / `4000` |
 
 ### 2. 개발 환경 부팅
 
@@ -85,13 +92,21 @@ mix ecto.setup
 # mix ecto.create && mix ecto.migrate && mix run apps/core/priv/repo/seeds.exs
 
 # 개발 서버 (macOS / Linux)
-./start.sh
+./scripts/run.sh
 
 # 개발 서버 (Windows / PowerShell)
-./start.ps1
+./scripts/run.ps1
 ```
 
 브라우저에서 <http://localhost:4000> 접속 → `/users/register`로 계정 생성 후 `/chat` 이동.
+
+AI 채팅을 사용하려면 실행 전에 Azure OpenAI 환경변수를 설정하세요.
+
+```bash
+export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com"
+export AZURE_OPENAI_API_KEY="your-api-key"
+export AZURE_OPENAI_DEPLOYMENT="your-deployment-name"
+```
 
 ### 3. 프로덕션 릴리스 빌드
 
@@ -100,18 +115,26 @@ mix ecto.setup
 MIX_ENV=prod mix assets.deploy
 
 # 릴리스 빌드
-MIX_ENV=prod mix release
+MIX_ENV=prod mix release --overwrite
 
-# 실행 (환경변수 필수)
+# 실행
 DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
   SECRET_KEY_BASE=$(mix phx.gen.secret) \
   AZURE_OPENAI_ENDPOINT=https://... AZURE_OPENAI_API_KEY=... \
+  AZURE_OPENAI_DEPLOYMENT=... \
   PHX_HOST=your.domain PORT=4000 \
   WORKSPACE_DIR=/var/lib/multi_ai_assistants/workspace \
   _build/prod/rel/multi_ai_assistants/bin/multi_ai_assistants start
 ```
 
 출력물: `_build/prod/rel/multi_ai_assistants/` 및 `*.tar.gz`.
+
+패키지 산출물이 필요하면 호스트 OS에 맞춰 스크립트를 사용할 수 있습니다.
+
+```bash
+./scripts/release.sh linux
+./scripts/release.sh macos
+```
 
 ## 라우트 요약
 
@@ -122,6 +145,8 @@ DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
 | `/chat`, `/chat/:id` | LiveView 채팅 (인증 필수) |
 | `/admin/agents*` | 에이전트 관리 |
 | `/admin/mcps*` | MCP 관리 |
+| `/admin/rag` | Vector RAG 관리 |
+| `/admin/dashboard/home` | 운영 대시보드 |
 | `/admin/dashboard` | LiveDashboard |
 | `/api/health` | 헬스체크 |
 
@@ -132,8 +157,11 @@ DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
 | `get_current_time` | 현재 시간 (타임존 지원) |
 | `calculate` | 수학 계산 |
 | `search_web` | 웹 검색 (DuckDuckGo) |
+| `firecrawl_scrape` / `firecrawl_search` | Firecrawl 기반 스크래핑/검색 |
 | `read_file` / `write_file` / `list_directory` | 워크스페이스 파일 I/O |
+| `search_vector_rag` | 업로드된 Vector RAG 문서 검색 |
 | `execute_code` | Elixir 코드 실행 |
+| `mcp_filesystem_call` / `mcp_desktop_commander_call` | 등록된 MCP 서버 도구 호출 |
 
 ## MCP (Model Context Protocol)
 
