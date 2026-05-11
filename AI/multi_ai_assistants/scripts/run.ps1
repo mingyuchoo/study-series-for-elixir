@@ -11,17 +11,27 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 
 # Elixir/Erlang 경로 설정 (.tool-versions 기준, asdf 사용 시)
-# Windows 의 Elixir/Erlang 설치 경로가 다르면 아래 블록을 환경에 맞게 수정하거나
-# 시스템 PATH 에 등록된 설치본을 그대로 사용하세요.
-$ErlangHome = Join-Path $HOME '.asdf\installs\erlang\28.4.3'
-$ElixirHome = Join-Path $HOME '.asdf\installs\elixir\1.19.5-otp-28'
+# Windows 의 Elixir/Erlang 설치 경로가 다르면 시스템 PATH 또는 Program Files 설치본을 사용합니다.
+$ErlangHomeCandidates = @(
+    (Join-Path $HOME '.asdf\installs\erlang\28.5'),
+    (Join-Path $HOME '.asdf\installs\erlang\28.4.3'),
+    'C:\Program Files\Erlang OTP'
+)
 
-if (Test-Path -LiteralPath $ErlangHome) { $env:ERLANG_HOME = $ErlangHome }
-if (Test-Path -LiteralPath $ElixirHome) { $env:ELIXIR_HOME = $ElixirHome }
+$ElixirHomeCandidates = @(
+    (Join-Path $HOME '.asdf\installs\elixir\1.19.5-otp-28'),
+    'C:\Program Files\Elixir'
+)
+
+$ErlangHome = $ErlangHomeCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+$ElixirHome = $ElixirHomeCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
+if ($ErlangHome) { $env:ERLANG_HOME = $ErlangHome }
+if ($ElixirHome) { $env:ELIXIR_HOME = $ElixirHome }
 
 $extraPath = @()
-if ($env:ELIXIR_HOME) { $extraPath += (Join-Path $env:ELIXIR_HOME 'bin') }
 if ($env:ERLANG_HOME) { $extraPath += (Join-Path $env:ERLANG_HOME 'bin') }
+if ($env:ELIXIR_HOME) { $extraPath += (Join-Path $env:ELIXIR_HOME 'bin') }
 if ($extraPath.Count -gt 0) {
     $env:PATH = ($extraPath -join ';') + ';' + $env:PATH
 }
@@ -49,6 +59,33 @@ function Write-Info($message) {
 function Write-Link($message) {
     Write-Host '[INFO]' -ForegroundColor Blue -NoNewline
     Write-Host " $message"
+}
+
+function Assert-SupportedBeamRuntime {
+    $osArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    $isWindowsRuntime = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+        [System.Runtime.InteropServices.OSPlatform]::Windows
+    )
+
+    if ($isWindowsRuntime -and $osArch -eq 'Arm64' -and $env:ALLOW_X64_BEAM_ON_ARM64 -ne '1') {
+        Write-Host ''
+        Write-Host '[ERROR]' -ForegroundColor Red -NoNewline
+        Write-Host ' Windows ARM64 detected.'
+        Write-Host ''
+        Write-Host 'The official Windows Erlang/OTP runtime is x64, and this combination can'
+        Write-Host 'crash while compiling Elixir dependencies with elixir_modules ETS errors.'
+        Write-Host ''
+        Write-Host 'Recommended fixes:'
+        Write-Host '  1. Run this project inside a WSL2 ARM64 Linux distro with Erlang/Elixir installed.'
+        Write-Host '  2. Build and use a native Windows ARM64 Erlang/OTP runtime.'
+        Write-Host '  3. Run on an x64 Windows machine.'
+        Write-Host ''
+        Write-Host 'To try the current x64 emulated runtime anyway:'
+        Write-Host '  $env:ALLOW_X64_BEAM_ON_ARM64 = "1"'
+        Write-Host '  .\scripts\run.ps1'
+        Write-Host ''
+        exit 1
+    }
 }
 
 # bcrypt_elixir 등 C NIF 의존성을 빌드하기 위해 MSVC(nmake) 환경을 현재 세션에 로드
@@ -125,6 +162,8 @@ if ([string]::IsNullOrEmpty($env:FIRECRAWL_API_KEY)) {
 }
 
 Set-Location -LiteralPath $ProjectRoot
+
+Assert-SupportedBeamRuntime
 
 # NIF(C 코드) 컴파일을 위한 MSVC 환경 준비 (bcrypt_elixir, exqlite 등)
 Initialize-MsvcEnvironment
