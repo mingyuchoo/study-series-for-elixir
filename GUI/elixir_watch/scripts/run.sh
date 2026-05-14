@@ -157,7 +157,11 @@ ensure_scenic_driver_compiled() {
 
   if [[ ! -x "$driver_bin" ]]; then
     echo "Scenic local driver executable is missing; rebuilding scenic_driver_local for MIX_ENV=$env_name." >&2
-    MIX_ENV="$env_name" MIX_TARGET="$MIX_TARGET_VALUE" mix deps.compile scenic_driver_local --force
+    MIX_ENV="$env_name" MIX_TARGET="$MIX_TARGET_VALUE" mix deps.compile
+
+    if [[ ! -x "$driver_bin" ]]; then
+      MIX_ENV="$env_name" MIX_TARGET="$MIX_TARGET_VALUE" mix deps.compile scenic_driver_local --force
+    fi
   fi
 }
 

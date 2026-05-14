@@ -148,7 +148,11 @@ function Ensure-ScenicDriverCompiled {
 
     if (-not (Test-Path $driverBinary)) {
         Write-Host "Scenic local driver executable is missing; rebuilding scenic_driver_local for MIX_ENV=$EnvName."
-        Invoke-WithMixRuntime $EnvName { mix deps.compile scenic_driver_local --force }
+        Invoke-WithMixRuntime $EnvName { mix deps.compile }
+
+        if (-not (Test-Path $driverBinary)) {
+            Invoke-WithMixRuntime $EnvName { mix deps.compile scenic_driver_local --force }
+        }
     }
 }
 
