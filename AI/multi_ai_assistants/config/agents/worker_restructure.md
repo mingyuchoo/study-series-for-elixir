@@ -7,6 +7,7 @@ model: gpt-5.3-chat
 temperature: 0.7
 max_iterations: 3
 status: active
+avatar_path: avatar-05.png
 ---
 
 # Worker Agent: Restructure

@@ -7,6 +7,7 @@ model: gpt-5.3-chat
 temperature: 0.4
 max_iterations: 3
 status: active
+avatar_path: avatar-06.png
 ---
 
 # Worker Agent: System

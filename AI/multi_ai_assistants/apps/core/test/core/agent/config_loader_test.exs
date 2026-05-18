@@ -250,6 +250,30 @@ defmodule Core.Agent.ConfigLoaderTest do
       assert attrs.config == %{}
       assert attrs.status == :active
     end
+
+    test "기본 에이전트별 avatar_path를 자동 할당한다" do
+      expected_avatars = %{
+        "main_supervisor" => "avatar-01.png",
+        "research_worker" => "avatar-02.png",
+        "knowledge_worker" => "avatar-03.png",
+        "calculator_worker" => "avatar-04.png",
+        "restructure_worker" => "avatar-05.png",
+        "system_worker" => "avatar-06.png"
+      }
+
+      for {name, avatar_path} <- expected_avatars do
+        {:ok, attrs} = ConfigLoader.build_agent_attrs(%{"name" => name}, "", "/test.md")
+        assert attrs.avatar_path == avatar_path
+      end
+    end
+
+    test "frontmatter avatar_path가 기본 에이전트 아바타보다 우선한다" do
+      frontmatter = %{"name" => "main_supervisor", "avatar_path" => "custom-avatar.png"}
+
+      {:ok, attrs} = ConfigLoader.build_agent_attrs(frontmatter, "", "/test.md")
+
+      assert attrs.avatar_path == "custom-avatar.png"
+    end
   end
 
   describe "upsert_agent/1" do

@@ -30,6 +30,14 @@ defmodule Core.Agent.ConfigLoader do
   require Logger
 
   @config_dir "config/agents"
+  @default_agent_avatars %{
+    "main_supervisor" => "avatar-01.png",
+    "research_worker" => "avatar-02.png",
+    "knowledge_worker" => "avatar-03.png",
+    "calculator_worker" => "avatar-04.png",
+    "restructure_worker" => "avatar-05.png",
+    "system_worker" => "avatar-06.png"
+  }
 
   @doc """
   지정된 디렉토리의 모든 에이전트 설정 파일을 로드합니다.
@@ -196,7 +204,7 @@ defmodule Core.Agent.ConfigLoader do
           created_from_markdown: true,
           markdown_path: file_path
         }
-        |> maybe_put(:avatar_path, frontmatter["avatar_path"] || frontmatter["avatar"])
+        |> maybe_put(:avatar_path, agent_avatar_path(name, frontmatter))
 
       {:ok, attrs}
     end
@@ -223,6 +231,10 @@ defmodule Core.Agent.ConfigLoader do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp agent_avatar_path(name, frontmatter) do
+    frontmatter["avatar_path"] || frontmatter["avatar"] || Map.get(@default_agent_avatars, name)
+  end
 
   @doc """
   에이전트를 DB에 저장하거나 업데이트합니다.
