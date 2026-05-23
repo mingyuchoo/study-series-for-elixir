@@ -11,7 +11,7 @@
 msgid ""
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:237
+#: lib/agentic_ai_agent_web/live/chat_live.ex:240
 #, elixir-autogen, elixir-format
 msgid "(none)"
 msgstr ""
@@ -62,23 +62,23 @@ msgstr ""
 msgid "An Elixir/Phoenix implementation of the agent architecture documented in docs/: core LLM, short- and long-term memory, tool registry, ReAct loop with HITL, sub-agents, MCP, sandbox, and a rubric-based eval harness."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:293
+#: lib/agentic_ai_agent_web/live/chat_live.ex:296
 #, elixir-autogen, elixir-format
 msgid "Approval required"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:311
+#: lib/agentic_ai_agent_web/live/chat_live.ex:314
 #, elixir-autogen, elixir-format
 msgid "Approve"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:252
+#: lib/agentic_ai_agent_web/live/chat_live.ex:255
 #, elixir-autogen, elixir-format
 msgid "Ask something to begin."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:142
-#: lib/agentic_ai_agent_web/components/layouts.ex:154
+#: lib/agentic_ai_agent_web/components/layouts.ex:165
+#: lib/agentic_ai_agent_web/components/layouts.ex:177
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
@@ -88,7 +88,7 @@ msgstr ""
 msgid "Authoring"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:210
+#: lib/agentic_ai_agent_web/live/chat_live.ex:213
 #, elixir-autogen, elixir-format
 msgid "Azure OpenAI is not configured (missing %{key}). Set AZURE_OPENAI_* env vars."
 msgstr ""
@@ -108,12 +108,12 @@ msgstr ""
 msgid "Capability Matrix"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:237
+#: lib/agentic_ai_agent_web/live/chat_live.ex:240
 #, elixir-autogen, elixir-format
 msgid "Card:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:87
+#: lib/agentic_ai_agent_web/components/layouts.ex:111
 #: lib/agentic_ai_agent_web/live/card_live/show.ex:17
 #: lib/agentic_ai_agent_web/live/home_live.ex:170
 #, elixir-autogen, elixir-format
@@ -130,8 +130,8 @@ msgstr ""
 msgid "Cases"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:84
-#: lib/agentic_ai_agent_web/live/chat_live.ex:235
+#: lib/agentic_ai_agent_web/components/layouts.ex:102
+#: lib/agentic_ai_agent_web/live/chat_live.ex:238
 #: lib/agentic_ai_agent_web/live/home_live.ex:142
 #, elixir-autogen, elixir-format
 msgid "Chat"
@@ -142,7 +142,7 @@ msgstr ""
 msgid "Delete this memory?"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:314
+#: lib/agentic_ai_agent_web/live/chat_live.ex:317
 #, elixir-autogen, elixir-format
 msgid "Deny"
 msgstr ""
@@ -172,7 +172,7 @@ msgstr ""
 msgid "Eval runs"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:90
+#: lib/agentic_ai_agent_web/components/layouts.ex:114
 #: lib/agentic_ai_agent_web/live/eval_live/show.ex:17
 #: lib/agentic_ai_agent_web/live/home_live.ex:197
 #, elixir-autogen, elixir-format
@@ -224,7 +224,7 @@ msgstr ""
 msgid "LLM"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:213
+#: lib/agentic_ai_agent_web/live/chat_live.ex:216
 #, elixir-autogen, elixir-format
 msgid "LLM HTTP %{status}: %{body}"
 msgstr ""
@@ -249,18 +249,18 @@ msgstr ""
 msgid "Long-term store with embedding-based semantic search."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:89
+#: lib/agentic_ai_agent_web/components/layouts.ex:113
 #: lib/agentic_ai_agent_web/live/home_live.ex:188
 #, elixir-autogen, elixir-format
 msgid "MCP"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:39
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:83
 #, elixir-autogen, elixir-format
 msgid "MCP servers"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:86
+#: lib/agentic_ai_agent_web/components/layouts.ex:104
 #: lib/agentic_ai_agent_web/live/home_live.ex:161
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:130
 #, elixir-autogen, elixir-format
@@ -272,20 +272,15 @@ msgstr ""
 msgid "Missing env:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:222
+#: lib/agentic_ai_agent_web/live/chat_live.ex:225
 #, elixir-autogen, elixir-format
 msgid "Model returned neither text nor a tool call."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:216
+#: lib/agentic_ai_agent_web/live/chat_live.ex:219
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:97
 #, elixir-autogen, elixir-format
 msgid "Network error: %{msg}"
-msgstr ""
-
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:47
-#, elixir-autogen, elixir-format
-msgid "No MCP servers connected. Add entries under :mcp_servers in config/runtime.exs and restart."
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/card_live/index.ex:24
@@ -348,7 +343,7 @@ msgstr ""
 msgid "Remember"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:246
+#: lib/agentic_ai_agent_web/live/chat_live.ex:249
 #, elixir-autogen, elixir-format
 msgid "Reset"
 msgstr ""
@@ -368,7 +363,7 @@ msgstr ""
 msgid "Rubric weights"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:85
+#: lib/agentic_ai_agent_web/components/layouts.ex:103
 #: lib/agentic_ai_agent_web/live/home_live.ex:152
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:27
 #: lib/agentic_ai_agent_web/live/run_live/show.ex:61
@@ -397,17 +392,12 @@ msgstr ""
 msgid "Semantic query..."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:337
+#: lib/agentic_ai_agent_web/live/chat_live.ex:340
 #, elixir-autogen, elixir-format
 msgid "Send"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:41
-#, elixir-autogen, elixir-format
-msgid "Servers configured via :mcp_servers in config/runtime.exs are launched at boot, the handshake is run, and discovered tools are registered under the name mcp__<server>__<tool>."
-msgstr ""
-
-#: lib/agentic_ai_agent_web/components/layouts.ex:88
+#: lib/agentic_ai_agent_web/components/layouts.ex:112
 #: lib/agentic_ai_agent_web/live/home_live.ex:179
 #: lib/agentic_ai_agent_web/live/skill_live/index.ex:24
 #, elixir-autogen, elixir-format
@@ -419,7 +409,7 @@ msgstr ""
 msgid "Skills live as Markdown files under priv/skills/<slug>/SKILL.md with optional YAML frontmatter. Only the description is consulted for matching; the body is injected into a sub-agent's system prompt via the delegate tool."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:149
+#: lib/agentic_ai_agent_web/components/layouts.ex:172
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
@@ -429,7 +419,7 @@ msgstr ""
 msgid "Start a chat"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:219
+#: lib/agentic_ai_agent_web/live/chat_live.ex:222
 #, elixir-autogen, elixir-format
 msgid "Stopped after %{n} steps without a final answer."
 msgstr ""
@@ -474,7 +464,7 @@ msgstr ""
 msgid "Tool Policy"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:327
+#: lib/agentic_ai_agent_web/live/chat_live.ex:330
 #, elixir-autogen, elixir-format
 msgid "Type a message..."
 msgstr ""
@@ -489,7 +479,7 @@ msgstr ""
 msgid "View runs"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:137
+#: lib/agentic_ai_agent_web/components/layouts.ex:160
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""
@@ -504,11 +494,6 @@ msgstr ""
 msgid "accessed:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:43
-#, elixir-autogen, elixir-format
-msgid "active:"
-msgstr ""
-
 #: lib/agentic_ai_agent_web/live/home_live.ex:173
 #, elixir-autogen, elixir-format
 msgid "agentic cards"
@@ -519,12 +504,12 @@ msgstr ""
 msgid "api"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:378
+#: lib/agentic_ai_agent_web/live/chat_live.ex:381
 #, elixir-autogen, elixir-format
 msgid "assistant"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:364
+#: lib/agentic_ai_agent_web/live/chat_live.ex:367
 #, elixir-autogen, elixir-format
 msgid "assistant · calling tools"
 msgstr ""
@@ -534,7 +519,7 @@ msgstr ""
 msgid "body"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:408
+#: lib/agentic_ai_agent_web/live/chat_live.ex:411
 #, elixir-autogen, elixir-format
 msgid "calling tools…"
 msgstr ""
@@ -554,7 +539,7 @@ msgstr ""
 msgid "complexity:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:43
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:88
 #, elixir-autogen, elixir-format
 msgid "configured:"
 msgstr ""
@@ -705,17 +690,17 @@ msgstr ""
 msgid "query:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:409
+#: lib/agentic_ai_agent_web/live/chat_live.ex:412
 #, elixir-autogen, elixir-format
 msgid "reading results…"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:303
+#: lib/agentic_ai_agent_web/live/chat_live.ex:306
 #, elixir-autogen, elixir-format
 msgid "reason (optional)"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:410
+#: lib/agentic_ai_agent_web/live/chat_live.ex:413
 #, elixir-autogen, elixir-format
 msgid "reflecting…"
 msgstr ""
@@ -736,8 +721,8 @@ msgid "results"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/card_live/show.ex:59
-#: lib/agentic_ai_agent_web/live/chat_live.ex:297
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:54
+#: lib/agentic_ai_agent_web/live/chat_live.ex:300
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:108
 #, elixir-autogen, elixir-format
 msgid "risk:"
 msgstr ""
@@ -747,7 +732,7 @@ msgstr ""
 msgid "rows"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:238
+#: lib/agentic_ai_agent_web/live/chat_live.ex:241
 #, elixir-autogen, elixir-format
 msgid "run"
 msgstr ""
@@ -791,7 +776,7 @@ msgstr ""
 msgid "source"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:406
+#: lib/agentic_ai_agent_web/live/chat_live.ex:409
 #, elixir-autogen, elixir-format
 msgid "starting…"
 msgstr ""
@@ -806,7 +791,7 @@ msgstr ""
 msgid "taxonomies"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:407
+#: lib/agentic_ai_agent_web/live/chat_live.ex:410
 #, elixir-autogen, elixir-format
 msgid "thinking…"
 msgstr ""
@@ -822,18 +807,18 @@ msgstr ""
 msgid "tool"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:387
+#: lib/agentic_ai_agent_web/live/chat_live.ex:390
 #, elixir-autogen, elixir-format
 msgid "tool result"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:296
+#: lib/agentic_ai_agent_web/live/chat_live.ex:299
 #, elixir-autogen, elixir-format
 msgid "tool:"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/home_live.ex:218
-#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:65
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:121
 #, elixir-autogen, elixir-format
 msgid "tools"
 msgstr ""
@@ -870,12 +855,12 @@ msgstr ""
 msgid "until set."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:352
+#: lib/agentic_ai_agent_web/live/chat_live.ex:355
 #, elixir-autogen, elixir-format
 msgid "user"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:411
+#: lib/agentic_ai_agent_web/live/chat_live.ex:414
 #, elixir-autogen, elixir-format
 msgid "waiting for approval…"
 msgstr ""
@@ -910,7 +895,7 @@ msgstr ""
 msgid "Failure modes"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:91
+#: lib/agentic_ai_agent_web/components/layouts.ex:105
 #: lib/agentic_ai_agent_web/live/home_live.ex:206
 #, elixir-autogen, elixir-format
 msgid "Failures"
@@ -966,32 +951,32 @@ msgstr ""
 msgid "unclassified:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:275
+#: lib/agentic_ai_agent_web/live/chat_live.ex:278
 #, elixir-autogen, elixir-format
 msgid "Cancel run"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:272
+#: lib/agentic_ai_agent_web/live/chat_live.ex:275
 #, elixir-autogen, elixir-format
 msgid "Cancel this run?"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:281
+#: lib/agentic_ai_agent_web/live/chat_live.ex:284
 #, elixir-autogen, elixir-format
 msgid "Redirect the agent... (e.g. 'use http_fetch instead')"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:286
+#: lib/agentic_ai_agent_web/live/chat_live.ex:289
 #, elixir-autogen, elixir-format
 msgid "Steer"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:267
+#: lib/agentic_ai_agent_web/live/chat_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "Steering"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:412
+#: lib/agentic_ai_agent_web/live/chat_live.ex:415
 #, elixir-autogen, elixir-format
 msgid "cancelled"
 msgstr ""
@@ -1112,7 +1097,7 @@ msgstr ""
 msgid "Tool Contract catalog. Each entry shows what the LLM sees plus the runtime-only fields — preconditions, side effects, known failure modes, and retry policy."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:92
+#: lib/agentic_ai_agent_web/components/layouts.ex:115
 #: lib/agentic_ai_agent_web/live/home_live.ex:215
 #: lib/agentic_ai_agent_web/live/tool_live/index.ex:25
 #, elixir-autogen, elixir-format
@@ -1202,4 +1187,175 @@ msgstr ""
 #: lib/agentic_ai_agent_web/live/home_live.ex:359
 #, elixir-autogen, elixir-format
 msgid "all runs"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:55
+#, elixir-autogen, elixir-format
+msgid "Use"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:69
+#, elixir-autogen, elixir-format
+msgid "Setup"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:52
+#, elixir-autogen, elixir-format
+msgid "Primary"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:149
+#, elixir-autogen, elixir-format
+msgid "Args"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:131
+#, elixir-autogen, elixir-format
+msgid "Back"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:178
+#, elixir-autogen, elixir-format
+msgid "Cancel"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:144
+#, elixir-autogen, elixir-format
+msgid "Command"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:48
+#, elixir-autogen, elixir-format
+msgid "Could not toggle %{name}."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:161
+#, elixir-autogen, elixir-format
+msgid "Delete"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:158
+#, elixir-autogen, elixir-format
+msgid "Delete %{name}?"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:24
+#, elixir-autogen, elixir-format
+msgid "Deleted %{name}."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:143
+#, elixir-autogen, elixir-format
+msgid "Disable"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:44
+#, elixir-autogen, elixir-format
+msgid "Disabled %{name}."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:135
+#, elixir-autogen, elixir-format
+msgid "Edit"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:11
+#, elixir-autogen, elixir-format
+msgid "Edit MCP server"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:143
+#, elixir-autogen, elixir-format
+msgid "Enable"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:171
+#, elixir-autogen, elixir-format
+msgid "Enabled"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:43
+#, elixir-autogen, elixir-format
+msgid "Enabled %{name}."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:159
+#, elixir-autogen, elixir-format
+msgid "Env"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:54
+#, elixir-autogen, elixir-format
+msgid "MCP server created."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:67
+#, elixir-autogen, elixir-format
+msgid "MCP server updated."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:85
+#, elixir-autogen, elixir-format
+msgid "MCP servers are persisted in the database and launched at boot. Add, edit, or remove them here — changes apply immediately."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:136
+#, elixir-autogen, elixir-format
+msgid "Name"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:10
+#, elixir-autogen, elixir-format
+msgid "New MCP server"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:92
+#, elixir-autogen, elixir-format
+msgid "New server"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:97
+#, elixir-autogen, elixir-format
+msgid "No MCP servers configured yet. Click \"New server\" to add one."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:152
+#, elixir-autogen, elixir-format
+msgid "Restart"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:34
+#, elixir-autogen, elixir-format
+msgid "Restarted %{name}."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:168
+#, elixir-autogen, elixir-format
+msgid "Risk level"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:175
+#, elixir-autogen, elixir-format
+msgid "Save"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:141
+#, elixir-autogen, elixir-format
+msgid "Tool calls will be exposed as mcp__<name>__<tool>. Lowercase, dashes or underscores."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:109
+#, elixir-autogen, elixir-format
+msgid "disabled"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:149
+#: lib/agentic_ai_agent_web/live/mcp_live/form.ex:159
+#, elixir-autogen, elixir-format
+msgid "one per line"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/mcp_live/index.ex:88
+#, elixir-autogen, elixir-format
+msgid "running:"
 msgstr ""

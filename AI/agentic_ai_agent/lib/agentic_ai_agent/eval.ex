@@ -243,12 +243,15 @@ defmodule AgenticAiAgent.Eval do
   end
 
   defp build_system_prompt(card) do
-    [
-      "You are #{card.name}.",
-      card.role,
-      card.goal
-    ]
-    |> Enum.reject(&(&1 in [nil, ""]))
-    |> Enum.join("\n\n")
+    body =
+      [
+        "You are #{card.name}.",
+        card.role,
+        card.goal
+      ]
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.join("\n\n")
+
+    AgenticAiAgent.Agent.Charter.prepend(body)
   end
 end

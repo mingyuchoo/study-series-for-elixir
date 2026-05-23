@@ -36,6 +36,8 @@ defmodule AgenticAiAgentWeb.Router do
       live "/skills", SkillLive.Index, :index
 
       live "/mcp", MCPLive.Index, :index
+      live "/mcp/new", MCPLive.Form, :new
+      live "/mcp/:id/edit", MCPLive.Form, :edit
 
       live "/evals", EvalLive.Index, :index
       live "/evals/:id", EvalLive.Show, :show

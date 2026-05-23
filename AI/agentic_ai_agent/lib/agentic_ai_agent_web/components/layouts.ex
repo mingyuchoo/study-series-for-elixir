@@ -49,9 +49,26 @@ defmodule AgenticAiAgentWeb.Layouts do
           <span class="text-lg font-semibold tracking-tight">{gettext("Agentic AI Agent")}</span>
         </.link>
 
-        <nav class="hidden flex-1 md:block">
+        <nav class="hidden flex-1 md:block" aria-label={gettext("Primary")}>
           <ul class="flex items-center justify-center gap-0.5 text-sm">
-            <li :for={item <- nav_items()}>
+            <li class="mr-1 text-[10px] font-semibold uppercase tracking-wider opacity-40">
+              {gettext("Use")}
+            </li>
+            <li :for={item <- nav_use_items()}>
+              <.link
+                navigate={item.path}
+                class="block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
+              >
+                {item.label.()}
+              </.link>
+            </li>
+
+            <li class="mx-2 h-5 w-px bg-base-300" aria-hidden="true"></li>
+
+            <li class="mr-1 text-[10px] font-semibold uppercase tracking-wider opacity-40">
+              {gettext("Setup")}
+            </li>
+            <li :for={item <- nav_setup_items()}>
               <.link
                 navigate={item.path}
                 class="block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
@@ -77,18 +94,24 @@ defmodule AgenticAiAgentWeb.Layouts do
     """
   end
 
-  defp nav_items do
-    # Labels are wrapped in a fn/0 so the active locale is consulted on every
-    # render rather than at module-compile time.
+  # Labels are wrapped in a fn/0 so the active locale is consulted on every
+  # render rather than at module-compile time.
+
+  defp nav_use_items do
     [
       %{label: fn -> gettext("Chat") end, path: ~p"/chat"},
       %{label: fn -> gettext("Runs") end, path: ~p"/runs"},
       %{label: fn -> gettext("Memories") end, path: ~p"/memories"},
+      %{label: fn -> gettext("Failures") end, path: ~p"/failures"}
+    ]
+  end
+
+  defp nav_setup_items do
+    [
       %{label: fn -> gettext("Cards") end, path: ~p"/cards"},
       %{label: fn -> gettext("Skills") end, path: ~p"/skills"},
       %{label: fn -> gettext("MCP") end, path: ~p"/mcp"},
       %{label: fn -> gettext("Evals") end, path: ~p"/evals"},
-      %{label: fn -> gettext("Failures") end, path: ~p"/failures"},
       %{label: fn -> gettext("Tools") end, path: ~p"/tools"}
     ]
   end

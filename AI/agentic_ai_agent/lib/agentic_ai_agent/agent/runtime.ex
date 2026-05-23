@@ -774,20 +774,22 @@ defmodule AgenticAiAgent.Agent.Runtime do
   end
 
   defp build_sub_system_prompt(nil, _card, task) do
-    "You are a focused sub-agent spawned to handle a specific task. " <>
-      "Use your tools to complete it, then return a single, well-structured final answer.\n\n" <>
-      "Task: #{task}"
+    AgenticAiAgent.Agent.Charter.prepend(
+      "You are a focused sub-agent spawned to handle a specific task. " <>
+        "Use your tools to complete it, then return a single, well-structured final answer.\n\n" <>
+        "Task: #{task}"
+    )
   end
 
   defp build_sub_system_prompt(skill, _card, _task) do
-    """
+    AgenticAiAgent.Agent.Charter.prepend("""
     You are a focused sub-agent. Follow this skill exactly. Produce a single
     final answer that matches the skill's specified output format.
 
     --- SKILL: #{skill.name} ---
 
     #{skill.body}
-    """
+    """)
   end
 
   # ----- Termination -----

@@ -2,7 +2,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
   use AgenticAiAgentWeb, :live_view
 
   alias AgenticAiAgent.{Conversation, Design}
-  alias AgenticAiAgent.Agent.Runtime
+  alias AgenticAiAgent.Agent.{Charter, Runtime}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -180,7 +180,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
   defp refresh_turns(conv), do: Conversation.turns(conv)
 
   defp build_system_prompt(nil),
-    do: "You are a helpful assistant. Respond in the user's language."
+    do: Charter.prepend("You are a helpful assistant. Respond in the user's language.")
 
   defp build_system_prompt(card) do
     tool_hint =
@@ -193,17 +193,20 @@ defmodule AgenticAiAgentWeb.ChatLive do
           ""
       end
 
-    [
-      "You are the agent described by this card.",
-      "Name: #{card.name}",
-      card.role && "Role:\n#{card.role}",
-      card.goal && "Goal:\n#{card.goal}",
-      card.scope && "Scope:\n#{card.scope}",
-      tool_hint != "" && tool_hint,
-      "Respond in the user's language."
-    ]
-    |> Enum.reject(&(&1 in [nil, false, ""]))
-    |> Enum.join("\n\n")
+    body =
+      [
+        "You are the agent described by this card.",
+        "Name: #{card.name}",
+        card.role && "Role:\n#{card.role}",
+        card.goal && "Goal:\n#{card.goal}",
+        card.scope && "Scope:\n#{card.scope}",
+        tool_hint != "" && tool_hint,
+        "Respond in the user's language."
+      ]
+      |> Enum.reject(&(&1 in [nil, false, ""]))
+      |> Enum.join("\n\n")
+
+    Charter.prepend(body)
   end
 
   defp format_error({:llm_error, {:missing_config, key}}),
