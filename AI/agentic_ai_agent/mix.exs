@@ -65,7 +65,9 @@ defmodule AgenticAiAgent.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:ex_json_schema, "~> 0.10"},
+      {:yaml_elixir, "~> 2.11"}
     ]
   end
 

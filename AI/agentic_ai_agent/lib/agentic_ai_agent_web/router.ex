@@ -8,6 +8,7 @@ defmodule AgenticAiAgentWeb.Router do
     plug :put_root_layout, html: {AgenticAiAgentWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug AgenticAiAgentWeb.Plugs.Locale
   end
 
   pipeline :api do
@@ -17,7 +18,32 @@ defmodule AgenticAiAgentWeb.Router do
   scope "/", AgenticAiAgentWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    get "/locale/:locale", LocaleController, :set
+
+    live_session :default, on_mount: {AgenticAiAgentWeb.Locale, :default} do
+      live "/", HomeLive, :index
+
+      live "/cards", CardLive.Index, :index
+      live "/cards/:id", CardLive.Show, :show
+
+      live "/chat", ChatLive
+
+      live "/runs", RunLive.Index, :index
+      live "/runs/:id", RunLive.Show, :show
+
+      live "/memories", MemoryLive.Index, :index
+
+      live "/skills", SkillLive.Index, :index
+
+      live "/mcp", MCPLive.Index, :index
+
+      live "/evals", EvalLive.Index, :index
+      live "/evals/:id", EvalLive.Show, :show
+
+      live "/failures", FailureLive.Index, :index
+
+      live "/tools", ToolLive.Index, :index
+    end
   end
 
   # Other scopes may use custom stacks.

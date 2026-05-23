@@ -31,44 +31,87 @@ defmodule AgenticAiAgentWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :current_path, :string, default: "/", doc: "path of the current page, used by the locale toggle"
+  attr :locale, :string, default: nil, doc: "currently active locale (`en` | `ko`)"
+
   slot :inner_block, required: true
 
   def app(assigns) do
+    assigns =
+      assigns
+      |> assign_new(:current_path, fn -> "/" end)
+      |> assign_new(:locale, fn -> Gettext.get_locale(AgenticAiAgentWeb.Gettext) end)
+
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
+    <header class="border-b bg-base-100">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <.link navigate={~p"/"} class="flex items-center gap-2">
+          <span class="text-lg font-semibold tracking-tight">{gettext("Agentic AI Agent")}</span>
+        </.link>
+
+        <nav class="hidden flex-1 md:block">
+          <ul class="flex items-center justify-center gap-0.5 text-sm">
+            <li :for={item <- nav_items()}>
+              <.link
+                navigate={item.path}
+                class="block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
+              >
+                {item.label.()}
+              </.link>
+            </li>
+          </ul>
+        </nav>
+
+        <div class="flex items-center gap-2">
+          <.locale_toggle locale={@locale} current_path={@current_path} />
+          <.theme_toggle />
+        </div>
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
+    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      {render_slot(@inner_block)}
     </main>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  defp nav_items do
+    # Labels are wrapped in a fn/0 so the active locale is consulted on every
+    # render rather than at module-compile time.
+    [
+      %{label: fn -> gettext("Chat") end, path: ~p"/chat"},
+      %{label: fn -> gettext("Runs") end, path: ~p"/runs"},
+      %{label: fn -> gettext("Memories") end, path: ~p"/memories"},
+      %{label: fn -> gettext("Cards") end, path: ~p"/cards"},
+      %{label: fn -> gettext("Skills") end, path: ~p"/skills"},
+      %{label: fn -> gettext("MCP") end, path: ~p"/mcp"},
+      %{label: fn -> gettext("Evals") end, path: ~p"/evals"},
+      %{label: fn -> gettext("Failures") end, path: ~p"/failures"},
+      %{label: fn -> gettext("Tools") end, path: ~p"/tools"}
+    ]
+  end
+
+  attr :locale, :string, required: true
+  attr :current_path, :string, default: "/"
+
+  def locale_toggle(assigns) do
+    assigns = assign(assigns, :labels, AgenticAiAgentWeb.Locale.labels())
+
+    ~H"""
+    <div class="flex items-center rounded-full border bg-base-100 p-0.5 text-xs">
+      <.link
+        :for={code <- AgenticAiAgentWeb.Locale.supported()}
+        href={~p"/locale/#{code}?#{[return_to: @current_path]}"}
+        class={[
+          "rounded-full px-2.5 py-1 transition",
+          if(@locale == code, do: "bg-black text-white shadow-sm", else: "opacity-70 hover:opacity-100")
+        ]}
+      >
+        {@labels[code] || code}
+      </.link>
+    </div>
     """
   end
 

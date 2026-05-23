@@ -39,3 +39,7 @@ npm-debug.log
 *.db
 *.db-*
 
+# Local secrets / launch script that embeds them. Never commit either.
+.env.local
+/run.sh
+

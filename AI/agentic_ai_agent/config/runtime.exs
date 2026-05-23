@@ -23,6 +23,32 @@ end
 config :agentic_ai_agent, AgenticAiAgentWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# ----- LLM (Azure OpenAI) -----
+# Set the following env vars to enable the chat agent:
+#   AZURE_OPENAI_ENDPOINT     e.g. https://my-resource.openai.azure.com
+#   AZURE_OPENAI_API_KEY      your Azure OpenAI key
+#   AZURE_OPENAI_DEPLOYMENT   chat deployment name, e.g. gpt-4o-mini
+#   AZURE_OPENAI_API_VERSION  optional, default 2024-10-21
+config :agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAI,
+  endpoint: System.get_env("AZURE_OPENAI_ENDPOINT"),
+  api_key: System.get_env("AZURE_OPENAI_API_KEY"),
+  deployment: System.get_env("AZURE_OPENAI_DEPLOYMENT"),
+  api_version: System.get_env("AZURE_OPENAI_API_VERSION", "2024-10-21")
+
+config :agentic_ai_agent, :llm_adapter, AgenticAiAgent.LLM.AzureOpenAI
+
+# ----- Embeddings (Azure OpenAI) -----
+# Share endpoint/api_key with chat by default; deployment is separate
+# (typically an embedding model such as text-embedding-3-small).
+#   AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT  embedding deployment name
+config :agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings,
+  endpoint: System.get_env("AZURE_OPENAI_ENDPOINT"),
+  api_key: System.get_env("AZURE_OPENAI_API_KEY"),
+  deployment: System.get_env("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT"),
+  api_version: System.get_env("AZURE_OPENAI_API_VERSION", "2024-10-21")
+
+config :agentic_ai_agent, :embeddings_adapter, AgenticAiAgent.LLM.AzureOpenAIEmbeddings
+
 if config_env() == :prod do
   database_path =
     System.get_env("DATABASE_PATH") ||

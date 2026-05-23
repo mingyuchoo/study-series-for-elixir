@@ -14,8 +14,14 @@ defmodule AgenticAiAgent.Application do
        repos: Application.fetch_env!(:agentic_ai_agent, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:agentic_ai_agent, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: AgenticAiAgent.PubSub},
-      # Start a worker by calling: AgenticAiAgent.Worker.start_link(arg)
-      # {AgenticAiAgent.Worker, arg},
+      {Task.Supervisor, name: AgenticAiAgent.Tools.TaskSupervisor},
+      AgenticAiAgent.Skills,
+      AgenticAiAgent.Tools.Registry,
+      {Registry, keys: :unique, name: AgenticAiAgent.Agent.Registry},
+      {DynamicSupervisor,
+       name: AgenticAiAgent.Agent.RuntimeSupervisor, strategy: :one_for_one},
+      AgenticAiAgent.MCP,
+      AgenticAiAgent.Memory.Cleaner,
       # Start to serve requests, typically the last entry
       AgenticAiAgentWeb.Endpoint
     ]
