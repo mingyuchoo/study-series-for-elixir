@@ -14,6 +14,9 @@ defmodule AgenticAiAgent.Traces.Run do
     field :skill_slug, :string
     field :user_input, :string
     field :status, :string, default: "pending"
+    # Current state in the card's enforced workflow_graph, if any.
+    # Nil when the card has no `enforce: true` workflow.
+    field :workflow_state, :string
     field :final_answer, :string
     field :errors, :map
     field :started_at, :utc_datetime_usec
@@ -31,7 +34,7 @@ defmodule AgenticAiAgent.Traces.Run do
     timestamps(type: :utc_datetime)
   end
 
-  @castable ~w(agentic_card_id parent_run_id skill_slug user_input status final_answer errors started_at finished_at latency_ms cost_cents cost_micro_usd prompt_tokens completion_tokens)a
+  @castable ~w(agentic_card_id parent_run_id skill_slug user_input status workflow_state final_answer errors started_at finished_at latency_ms cost_cents cost_micro_usd prompt_tokens completion_tokens)a
 
   def changeset(run, attrs) do
     run

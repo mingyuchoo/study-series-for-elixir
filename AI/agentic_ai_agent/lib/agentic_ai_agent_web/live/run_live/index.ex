@@ -13,12 +13,16 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
     {:ok,
      socket
      |> assign(:runs, Traces.list_recent_runs(50))
+     |> assign(:total_runs, Traces.count_runs())
      |> assign(:retention_days, "30")}
   end
 
   @impl true
   def handle_info({:runs, _action, _payload}, socket) do
-    {:noreply, assign(socket, :runs, Traces.list_recent_runs(50))}
+    {:noreply,
+     socket
+     |> assign(:runs, Traces.list_recent_runs(50))
+     |> assign(:total_runs, Traces.count_runs())}
   end
 
   @impl true
@@ -34,11 +38,22 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
         {:noreply,
          socket
          |> put_flash(:info, gettext("Deleted %{n} run(s) older than %{d} day(s).", n: deleted, d: n))
-         |> assign(:runs, Traces.list_recent_runs(50))}
+         |> assign(:runs, Traces.list_recent_runs(50))
+         |> assign(:total_runs, Traces.count_runs())}
 
       _ ->
         {:noreply, put_flash(socket, :error, gettext("Pick a positive number of days."))}
     end
+  end
+
+  def handle_event("delete_all", _params, socket) do
+    deleted = Traces.delete_all_runs()
+
+    {:noreply,
+     socket
+     |> put_flash(:info, gettext("Deleted all %{n} run(s).", n: deleted))
+     |> assign(:runs, Traces.list_recent_runs(50))
+     |> assign(:total_runs, Traces.count_runs())}
   end
 
   @impl true
@@ -77,6 +92,21 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
               {gettext("Linked eval cases keep their scores. Sub-agent children become orphans (parent_run_id nilified).")}
             </span>
           </form>
+
+          <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-base-300 pt-3 text-sm">
+            <span class="text-[11px] opacity-60">
+              {gettext("Total runs in DB:")} <span class="font-mono">{@total_runs}</span>
+            </span>
+            <button
+              type="button"
+              phx-click="delete_all"
+              disabled={@total_runs == 0}
+              data-confirm={gettext("Delete ALL %{n} runs? This cannot be undone.", n: @total_runs)}
+              class="ml-auto rounded-full border border-red-400 dark:border-red-600 px-4 py-1 text-xs font-medium text-red-700 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-40"
+            >
+              {gettext("Delete all runs")}
+            </button>
+          </div>
         </section>
 
         <div :if={@runs == []} class="rounded border border-dashed p-6 text-center opacity-70">

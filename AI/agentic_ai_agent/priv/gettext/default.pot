@@ -154,7 +154,7 @@ msgstr ""
 msgid "Embeddings adapter not configured (missing %{key}). Set AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:108
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:115
 #, elixir-autogen, elixir-format
 msgid "Errors"
 msgstr ""
@@ -182,7 +182,7 @@ msgstr ""
 msgid "Every chat turn is a run. Inspect step-by-step traces."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:53
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:68
 #, elixir-autogen, elixir-format
 msgid "Every chat turn opens a run. Steps and tool calls are persisted for replay and offline evaluation."
 msgstr ""
@@ -192,7 +192,7 @@ msgstr ""
 msgid "External Model Context Protocol servers and their tools."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:104
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:111
 #, elixir-autogen, elixir-format
 msgid "Final answer"
 msgstr ""
@@ -207,12 +207,12 @@ msgstr ""
 msgid "Golden dataset runs scored against the rubric."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:138
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:145
 #, elixir-autogen, elixir-format
 msgid "HITL approvals"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:90
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:97
 #, elixir-autogen, elixir-format
 msgid "LLM"
 msgstr ""
@@ -283,7 +283,7 @@ msgstr ""
 msgid "No memories yet."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:83
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:113
 #, elixir-autogen, elixir-format
 msgid "No runs yet. Try chatting at"
 msgstr ""
@@ -298,7 +298,7 @@ msgstr ""
 msgid "Output Contract"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:112
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:119
 #, elixir-autogen, elixir-format
 msgid "Parent run"
 msgstr ""
@@ -345,8 +345,8 @@ msgstr ""
 
 #: lib/agentic_ai_agent_web/components/layouts.ex:217
 #: lib/agentic_ai_agent_web/live/home_live.ex:152
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:50
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:51
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:65
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:66
 #: lib/agentic_ai_agent_web/live/run_live/show.ex:73
 #, elixir-autogen, elixir-format
 msgid "Runs"
@@ -406,7 +406,7 @@ msgstr ""
 msgid "Stopped after %{n} steps without a final answer."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:121
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:128
 #, elixir-autogen, elixir-format
 msgid "Sub-agents"
 msgstr ""
@@ -436,7 +436,7 @@ msgstr ""
 msgid "The chat surface will return"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:156
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:163
 #, elixir-autogen, elixir-format
 msgid "Timeline"
 msgstr ""
@@ -451,7 +451,7 @@ msgstr ""
 msgid "Type a message..."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:100
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:107
 #, elixir-autogen, elixir-format
 msgid "User input"
 msgstr ""
@@ -531,12 +531,12 @@ msgstr ""
 msgid "constraints:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:150
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:157
 #, elixir-autogen, elixir-format
 msgid "decided by %{by} at %{at}"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:332
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:339
 #, elixir-autogen, elixir-format
 msgid "delegated to sub-agent"
 msgstr ""
@@ -556,7 +556,7 @@ msgstr ""
 msgid "embed"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:238
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:245
 #, elixir-autogen, elixir-format
 msgid "error:"
 msgstr ""
@@ -586,7 +586,7 @@ msgstr ""
 msgid "frontmatter"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:230
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:237
 #, elixir-autogen, elixir-format
 msgid "input"
 msgstr ""
@@ -626,7 +626,7 @@ msgstr ""
 msgid "model:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:148
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:155
 #, elixir-autogen, elixir-format
 msgid "notes:"
 msgstr ""
@@ -636,7 +636,7 @@ msgstr ""
 msgid "open"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:234
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:241
 #, elixir-autogen, elixir-format
 msgid "output"
 msgstr ""
@@ -687,7 +687,7 @@ msgstr ""
 msgid "reflecting…"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:206
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:213
 #, elixir-autogen, elixir-format
 msgid "requested tool calls:"
 msgstr ""
@@ -725,8 +725,8 @@ msgid "runs recorded"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:187
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:277
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:306
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:284
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:313
 #, elixir-autogen, elixir-format
 msgid "score:"
 msgstr ""
@@ -741,9 +741,9 @@ msgstr ""
 msgid "servers connected"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:117
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:131
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:333
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:124
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:138
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:340
 #, elixir-autogen, elixir-format
 msgid "skill:"
 msgstr ""
@@ -763,7 +763,7 @@ msgstr ""
 msgid "starting…"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:91
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:98
 #, elixir-autogen, elixir-format
 msgid "steps"
 msgstr ""
@@ -784,7 +784,7 @@ msgstr ""
 msgid "threshold"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:90
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:97
 #, elixir-autogen, elixir-format
 msgid "tool"
 msgstr ""
@@ -964,17 +964,17 @@ msgstr ""
 msgid "cancelled"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:320
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:327
 #, elixir-autogen, elixir-format
 msgid "user steering guidance:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:299
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:306
 #, elixir-autogen, elixir-format
 msgid "memory matches for query:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:299
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:306
 #, elixir-autogen, elixir-format
 msgid "retrieved"
 msgstr ""
@@ -1001,7 +1001,7 @@ msgid "d"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:236
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:66
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:81
 #, elixir-autogen, elixir-format
 msgid "days"
 msgstr ""
@@ -1100,22 +1100,22 @@ msgstr ""
 msgid "output schema"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:268
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:275
 #, elixir-autogen, elixir-format
 msgid "Tree of Thoughts — %{n} candidates"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:279
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:286
 #, elixir-autogen, elixir-format
 msgid "chosen"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:250
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:257
 #, elixir-autogen, elixir-format
 msgid "self-critique"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/show.ex:94
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:101
 #, elixir-autogen, elixir-format
 msgid "tokens"
 msgstr ""
@@ -1215,7 +1215,7 @@ msgid "Could not toggle %{name}."
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/mcp_live/index.ex:167
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:74
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:89
 #, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr ""
@@ -1670,12 +1670,12 @@ msgstr ""
 msgid "new file"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:58
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:73
 #, elixir-autogen, elixir-format
 msgid "Cleanup"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:71
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:86
 #, elixir-autogen, elixir-format
 msgid "Delete every run older than %{d} days? This cannot be undone."
 msgstr ""
@@ -1685,7 +1685,7 @@ msgstr ""
 msgid "Delete run"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:60
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:75
 #, elixir-autogen, elixir-format
 msgid "Delete runs older than"
 msgstr ""
@@ -1695,7 +1695,7 @@ msgstr ""
 msgid "Delete this run? Steps, tool calls, and approvals are removed too. Linked eval cases keep their scores."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:36
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:40
 #, elixir-autogen, elixir-format
 msgid "Deleted %{n} run(s) older than %{d} day(s)."
 msgstr ""
@@ -1705,12 +1705,12 @@ msgstr ""
 msgid "Deleted run %{id}."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:77
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:92
 #, elixir-autogen, elixir-format
 msgid "Linked eval cases keep their scores. Sub-agent children become orphans (parent_run_id nilified)."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/run_live/index.ex:40
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:45
 #, elixir-autogen, elixir-format
 msgid "Pick a positive number of days."
 msgstr ""
@@ -1733,4 +1733,29 @@ msgstr ""
 #: lib/agentic_ai_agent_web/live/mcp_live/form.ex:162
 #, elixir-autogen, elixir-format
 msgid "streamable_http (2025-03-26 spec)"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/run_live/show.ex:91
+#, elixir-autogen, elixir-format
+msgid "workflow state"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:104
+#, elixir-autogen, elixir-format
+msgid "Delete ALL %{n} runs? This cannot be undone."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:107
+#, elixir-autogen, elixir-format
+msgid "Delete all runs"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:54
+#, elixir-autogen, elixir-format
+msgid "Deleted all %{n} run(s)."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/run_live/index.ex:98
+#, elixir-autogen, elixir-format
+msgid "Total runs in DB:"
 msgstr ""

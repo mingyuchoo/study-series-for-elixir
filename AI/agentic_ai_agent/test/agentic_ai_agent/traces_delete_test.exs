@@ -52,6 +52,39 @@ defmodule AgenticAiAgent.TracesDeleteTest do
     end
   end
 
+  describe "count_runs/0" do
+    test "returns 0 when empty, then reflects inserts" do
+      assert Traces.count_runs() == 0
+      _ = make_run!()
+      _ = make_run!()
+      assert Traces.count_runs() == 2
+    end
+  end
+
+  describe "delete_all_runs/0" do
+    test "wipes the table and returns the deleted count" do
+      _ = make_run!()
+      _ = make_run!()
+      _ = make_run!()
+
+      assert Traces.delete_all_runs() == 3
+      assert Traces.count_runs() == 0
+    end
+
+    test "cascades children — steps disappear too" do
+      run = make_run!()
+      _ = Traces.add_step!(run, :llm_call, %{"prompt" => "x"}, 50)
+      assert Traces.list_steps(run.id) != []
+
+      _ = Traces.delete_all_runs()
+      assert Traces.list_steps(run.id) == []
+    end
+
+    test "is safe on an already-empty table" do
+      assert Traces.delete_all_runs() == 0
+    end
+  end
+
   describe "delete_runs_older_than/1" do
     test "deletes only rows older than the cutoff and returns the count" do
       _old1 = make_run!(inserted_at: days_ago(40))

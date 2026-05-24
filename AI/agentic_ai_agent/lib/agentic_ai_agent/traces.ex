@@ -65,6 +65,27 @@ defmodule AgenticAiAgent.Traces do
 
   def delete_runs_older_than(_), do: 0
 
+  @doc "Total number of run rows in the table."
+  @spec count_runs() :: non_neg_integer()
+  def count_runs, do: Repo.aggregate(Run, :count, :id)
+
+  @doc """
+  Hard-delete *every* run. Returns the number of rows deleted.
+
+  Cascading is identical to `delete_run!/1`: `steps`, `tool_calls`,
+  `approvals`, `failure_occurrences` are pruned; `eval_cases.run_id` and
+  child `runs.parent_run_id` are nilified so eval scores and sub-agent
+  history survive.
+
+  This is the most destructive action in the system — callers MUST gate
+  it behind a count-aware confirmation prompt.
+  """
+  @spec delete_all_runs() :: non_neg_integer()
+  def delete_all_runs do
+    {n, _} = Repo.delete_all(Run)
+    n
+  end
+
   # ----- Steps -----
 
   def add_step!(%Run{id: run_id}, kind, payload, latency_ms \\ nil, extra \\ %{}) do

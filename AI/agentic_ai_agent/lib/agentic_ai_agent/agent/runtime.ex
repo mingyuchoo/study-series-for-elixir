@@ -579,6 +579,12 @@ defmodule AgenticAiAgent.Agent.Runtime do
     state = %{state | pending_tool_calls: rest}
 
     cond do
+      not workflow_permits_tool?(state, tc) ->
+        # Surface the constraint as a tool error so the LLM can adapt.
+        state = reject_tool_for_workflow(state, tc)
+        send(self(), :process_next_tool)
+        {:noreply, state}
+
       tc.name == "delegate" ->
         start_delegate(state, tc)
 
@@ -590,6 +596,28 @@ defmodule AgenticAiAgent.Agent.Runtime do
         send(self(), :process_next_tool)
         {:noreply, state}
     end
+  end
+
+  defp workflow_permits_tool?(state, %{name: name}) do
+    Workflow.tool_allowed_in?(state.workflow, state.status, name)
+  end
+
+  defp reject_tool_for_workflow(state, %{id: tc_id, name: name}) do
+    allowed = Map.get(state.workflow.allowed_actions, to_string(state.status), [])
+
+    reason =
+      "workflow_violation: tool #{inspect(name)} not allowed in state " <>
+        "#{inspect(to_string(state.status))} (allowed: #{inspect(allowed)})"
+
+    Traces.add_step!(state.run, :reflect, %{
+      "workflow_warning" => "tool_blocked",
+      "state" => to_string(state.status),
+      "tool" => name,
+      "allowed" => allowed,
+      "enforce" => Workflow.enforce?(state.workflow)
+    }, nil)
+
+    append_tool_result(state, tc_id, {:error, reason}, name)
   end
 
   # ----- Normal tool execution -----
@@ -871,6 +899,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
   defp push_status(state, status) do
     case Workflow.validate(state.workflow, state.status, status) do
       :ok ->
+        state = persist_workflow_state(state, status)
         notify(state, {:agent, :status, status})
         %{state | status: status}
 
@@ -882,6 +911,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
           "enforce" => Workflow.enforce?(state.workflow)
         }, nil)
 
+        state = persist_workflow_state(state, status)
         notify(state, {:agent, :status, status})
         notify(state, {:agent, :workflow_warning, %{from: from, to: to}})
 
@@ -892,6 +922,19 @@ defmodule AgenticAiAgent.Agent.Runtime do
         else
           state
         end
+    end
+  end
+
+  # Persist the workflow state on the Run so the UI / replays can show it.
+  # Only writes when it actually changes — saves a round-trip per tick.
+  defp persist_workflow_state(state, new_status) do
+    new_str = to_string(new_status)
+
+    if state.run.workflow_state == new_str do
+      state
+    else
+      run = Traces.update_run!(state.run, %{workflow_state: new_str})
+      %{state | run: run}
     end
   end
 

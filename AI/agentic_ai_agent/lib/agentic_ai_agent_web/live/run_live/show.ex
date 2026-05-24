@@ -85,6 +85,13 @@ defmodule AgenticAiAgentWeb.RunLive.Show do
             <span class={["rounded px-2 py-0.5 font-mono uppercase", status_color(@run.status)]}>
               {@run.status}
             </span>
+            <span
+              :if={@run.workflow_state}
+              class="rounded border border-base-300 px-2 py-0.5 font-mono text-[10px] uppercase opacity-80"
+              title={gettext("workflow state")}
+            >
+              ⛬ {@run.workflow_state}
+            </span>
             <span class="opacity-70">
               {format_latency(@run.latency_ms)} ·
               {@totals.llm_call_count} {gettext("LLM")} · {@totals.tool_call_count} {gettext("tool")} ·

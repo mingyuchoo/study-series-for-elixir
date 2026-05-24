@@ -103,6 +103,21 @@ defmodule AgenticAiAgent.Agent.Workflow do
     do: to_string(state) in aps
 
   @doc """
+  Whether `tool_name` is allowed while the workflow is in `state`.
+
+  The check is **opt-in per state**: if `allowed_actions` has no entry for the
+  current state, there is no restriction (returns true). If an entry exists,
+  the tool must be listed by name. The wildcard `"*"` allows any tool.
+  """
+  def tool_allowed_in?(%__MODULE__{allowed_actions: allowed}, state, tool_name) do
+    case Map.get(allowed, to_string(state)) do
+      nil -> true
+      list when is_list(list) -> tool_name in list or "*" in list
+      _ -> true
+    end
+  end
+
+  @doc """
   Whether the graph wants the runtime to fail-fast on invalid transitions.
   """
   def enforce?(%__MODULE__{enforce?: v}), do: v
