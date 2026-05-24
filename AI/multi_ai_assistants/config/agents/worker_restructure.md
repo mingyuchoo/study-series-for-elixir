@@ -3,7 +3,7 @@ type: worker
 name: restructure_worker
 display_name: Restructure Worker
 description: 사용자나 다른 에이전트가 요청한 구조로 내용을 재구성하는 Worker
-model: gpt-5.3-chat
+model: gpt-5.4
 temperature: 0.7
 max_iterations: 3
 status: active

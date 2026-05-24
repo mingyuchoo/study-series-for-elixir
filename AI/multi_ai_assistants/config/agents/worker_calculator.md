@@ -3,7 +3,7 @@ type: worker
 name: calculator_worker
 display_name: Calculator Worker
 description: 수학 계산, 단위 변환, 통계 분석을 수행하는 Worker
-model: gpt-5.3-chat
+model: gpt-5.4
 temperature: 0.0
 max_iterations: 5
 status: active

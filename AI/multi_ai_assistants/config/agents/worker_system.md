@@ -3,7 +3,7 @@ type: worker
 name: system_worker
 display_name: System Worker
 description: 최종 답변의 시스템 품질 점검과 로컬 시스템 MCP(filesystem, desktop-commander) 작업을 담당하는 Worker
-model: gpt-5.3-chat
+model: gpt-5.4
 temperature: 0.4
 max_iterations: 3
 status: active

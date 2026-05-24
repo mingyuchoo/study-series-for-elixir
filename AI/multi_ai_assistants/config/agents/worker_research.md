@@ -3,7 +3,7 @@ type: worker
 name: research_worker
 display_name: Research Worker
 description: 외부 웹에서 정보를 수집하는 전담 Worker (검색 + 스크래핑)
-model: gpt-5.3-chat
+model: gpt-5.4
 temperature: 1.0
 max_iterations: 10
 status: active
