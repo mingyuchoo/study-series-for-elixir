@@ -11,7 +11,7 @@ defmodule AgenticAiAgent.Memory.Memory do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @kinds ~w(semantic episodic preference task_solution profile)
+  @kinds ~w(semantic episodic preference task_solution profile reflexion)
   @sensitivities ~w(public internal private secret)
   @update_rules ~w(append_only overwrite_by_source overwrite_by_id)
   @deletion_rules ~w(manual ttl on_request)
