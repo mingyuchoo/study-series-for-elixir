@@ -56,6 +56,7 @@ defmodule AgenticAiAgentWeb.ToolLive.Index do
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="space-y-6">
         <header>
+          <div class="eyebrow mb-2">{gettext("Tools")}</div>
           <h1 class="text-2xl font-semibold">{gettext("Tools")}</h1>
           <p class="text-sm opacity-70">
             {gettext("Tool Contract catalog. risk_level and enabled can be edited from here — changes apply to the runtime immediately. Code-defined fields (purpose, schemas, failure_modes) remain read-only.")}

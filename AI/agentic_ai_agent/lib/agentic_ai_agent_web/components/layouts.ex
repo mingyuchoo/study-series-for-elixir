@@ -46,14 +46,32 @@ defmodule AgenticAiAgentWeb.Layouts do
 
     ~H"""
     <div class="flex min-h-screen flex-col md:flex-row">
-      <!-- Sidebar (md+) -->
-      <aside class="hidden md:flex md:w-56 md:flex-col md:border-r md:bg-base-100" aria-label={gettext("Primary")}>
-        <div class="border-b p-4">
-          <.link navigate={~p"/"} class="block">
-            <span class="text-base font-semibold tracking-tight">
+      <!-- Sidebar: drawer on mobile (slide-in), sticky full-viewport on md+ -->
+      <aside
+        id="sidebar"
+        class={[
+          "flex flex-col bg-base-200",
+          "fixed inset-y-0 left-0 z-50 w-64 -translate-x-full transform transition-transform duration-200",
+          "md:sticky md:top-0 md:h-screen md:w-56 md:translate-x-0"
+        ]}
+        style="box-shadow: rgba(0,0,0,0.04) 4px 0 24px 0;"
+        aria-label={gettext("Primary")}
+      >
+        <div class="flex items-center justify-between border-b border-base-300 p-4">
+          <.link navigate={~p"/"} class="block" phx-click={close_drawer()}>
+            <span class="text-[15px] font-medium" style="letter-spacing: -0.02em;">
               {gettext("Agentic AI Agent")}
             </span>
           </.link>
+          <!-- Mobile close button -->
+          <button
+            type="button"
+            class="md:hidden"
+            aria-label={gettext("Close menu")}
+            phx-click={close_drawer()}
+          >
+            <.icon name="hero-x-mark-micro" class="size-5 opacity-70" />
+          </button>
         </div>
 
         <nav class="flex-1 overflow-y-auto px-2 py-3">
@@ -69,17 +87,35 @@ defmodule AgenticAiAgentWeb.Layouts do
           />
         </nav>
 
-        <div class="flex items-center justify-between gap-2 border-t p-3">
+        <div class="flex items-center justify-between gap-2 border-t border-base-300 p-3">
           <.locale_toggle locale={@locale} current_path={@current_path} />
           <.theme_toggle />
         </div>
       </aside>
 
-      <!-- Mobile top bar -->
-      <header class="flex items-center justify-between border-b bg-base-100 p-3 md:hidden">
-        <.link navigate={~p"/"} class="text-base font-semibold tracking-tight">
-          {gettext("Agentic AI Agent")}
-        </.link>
+      <!-- Mobile backdrop (only visible when drawer is open) -->
+      <div
+        id="drawer-backdrop"
+        class="fixed inset-0 z-40 hidden bg-black/30 md:hidden"
+        phx-click={close_drawer()}
+        aria-hidden="true"
+      />
+
+      <!-- Mobile top bar with hamburger -->
+      <header class="flex items-center justify-between border-b border-base-300 bg-base-200 p-3 md:hidden">
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="rounded-full p-1.5 hover:bg-base-300/40"
+            aria-label={gettext("Open menu")}
+            phx-click={open_drawer()}
+          >
+            <.icon name="hero-bars-3" class="size-5" />
+          </button>
+          <.link navigate={~p"/"} class="text-base font-medium" style="letter-spacing: -0.02em;">
+            {gettext("Agentic AI Agent")}
+          </.link>
+        </div>
         <div class="flex items-center gap-2">
           <.locale_toggle locale={@locale} current_path={@current_path} />
           <.theme_toggle />
@@ -97,6 +133,22 @@ defmodule AgenticAiAgentWeb.Layouts do
     """
   end
 
+  # ----- Mobile drawer JS commands -----
+
+  defp open_drawer do
+    %JS{}
+    |> JS.remove_class("-translate-x-full", to: "#sidebar")
+    |> JS.add_class("translate-x-0", to: "#sidebar")
+    |> JS.show(to: "#drawer-backdrop")
+  end
+
+  defp close_drawer do
+    %JS{}
+    |> JS.remove_class("translate-x-0", to: "#sidebar")
+    |> JS.add_class("-translate-x-full", to: "#sidebar")
+    |> JS.hide(to: "#drawer-backdrop")
+  end
+
   # ----- Sidebar nav section (collapsible) -----
 
   attr :label, :string, required: true
@@ -107,19 +159,21 @@ defmodule AgenticAiAgentWeb.Layouts do
     assigns = assign(assigns, :open?, any_active?(assigns.items, assigns.current_path))
 
     ~H"""
-    <details open={@open?} class="group mb-1">
-      <summary class="flex cursor-pointer select-none items-center justify-between rounded px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider opacity-60 hover:bg-base-200 hover:opacity-100 [&::-webkit-details-marker]:hidden">
-        <span>{@label}</span>
+    <details open={@open?} class="group mb-2">
+      <summary class="flex cursor-pointer select-none items-center justify-between px-2 py-2 [&::-webkit-details-marker]:hidden">
+        <span class="eyebrow">{@label}</span>
         <.icon
           name="hero-chevron-right-micro"
-          class="size-3 transition-transform group-open:rotate-90"
+          class="size-3 opacity-60 transition-transform group-open:rotate-90"
         />
       </summary>
-      <ul class="mt-1 space-y-0.5">
+      <ul class="mt-1 space-y-1">
         <li :for={item <- @items}>
           <.link
             navigate={item.path}
+            phx-click={close_drawer()}
             class={nav_item_class(active?(item.path, @current_path))}
+            style={nav_item_style(active?(item.path, @current_path))}
           >
             {item.label.()}
           </.link>
@@ -129,13 +183,20 @@ defmodule AgenticAiAgentWeb.Layouts do
     """
   end
 
+  # Active item is the Ink Pill: cream text on warm-ink, 20px radius.
   defp nav_item_class(true),
     do:
-      "block rounded px-3 py-1.5 text-sm font-semibold bg-base-200 text-base-content"
+      "block px-3 py-1.5 text-sm font-medium"
 
   defp nav_item_class(false),
     do:
-      "block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
+      "block px-3 py-1.5 text-sm font-medium opacity-70 hover:opacity-100 hover:bg-base-300/40"
+
+  defp nav_item_style(true),
+    do: "background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
+
+  defp nav_item_style(false),
+    do: "border-radius:20px;letter-spacing:-0.02em;"
 
   defp any_active?(items, current_path),
     do: Enum.any?(items, &active?(&1.path, current_path))
@@ -182,8 +243,9 @@ defmodule AgenticAiAgentWeb.Layouts do
         href={~p"/locale/#{code}?#{[return_to: @current_path]}"}
         class={[
           "rounded-full px-2.5 py-1 transition",
-          if(@locale == code, do: "bg-black text-white shadow-sm", else: "opacity-70 hover:opacity-100")
+          if(@locale == code, do: "text-base-100 shadow-sm", else: "opacity-70 hover:opacity-100")
         ]}
+        style={if @locale == code, do: "background:#141413;", else: nil}
       >
         {@labels[code] || code}
       </.link>

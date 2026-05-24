@@ -67,6 +67,7 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
       <div class="space-y-6">
         <header class="flex items-baseline justify-between gap-3">
           <div>
+            <div class="eyebrow mb-2">{gettext("Failures")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Failure modes")}</h1>
             <p class="text-sm opacity-70">
               {gettext("Catalog of known failure shapes (authored as YAML under priv/failures/) and every occurrence the runtime has detected.")}

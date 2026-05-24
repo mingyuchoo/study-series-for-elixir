@@ -127,6 +127,7 @@ defmodule AgenticAiAgentWeb.MemoryLive.Index do
       <div class="space-y-6">
         <header class="flex items-baseline justify-between gap-3">
           <div>
+            <div class="eyebrow mb-2">{gettext("Memories")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Memories")}</h1>
             <p class="text-sm opacity-70">
               {gettext("Long-term memory store. Embedding-based semantic search runs in-process over the SQLite-backed corpus.")}
@@ -163,7 +164,11 @@ defmodule AgenticAiAgentWeb.MemoryLive.Index do
               autocomplete="off"
               class="flex-1 rounded border px-3 py-2 text-sm"
             />
-            <button type="submit" class="rounded bg-black px-4 py-2 text-sm text-white">
+            <button
+              type="submit"
+              class="px-6 py-2 text-sm font-medium"
+              style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
+            >
               {gettext("Search")}
             </button>
           </.form>
@@ -234,7 +239,8 @@ defmodule AgenticAiAgentWeb.MemoryLive.Index do
               />
               <button
                 type="submit"
-                class="ml-auto rounded bg-black px-3 py-1 text-xs text-white"
+                class="ml-auto px-5 py-1.5 text-xs font-medium"
+                style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
               >
                 {gettext("Remember")}
               </button>

@@ -22,6 +22,7 @@ defmodule AgenticAiAgent.Application do
        name: AgenticAiAgent.Agent.RuntimeSupervisor, strategy: :one_for_one},
       AgenticAiAgent.MCP,
       AgenticAiAgent.Memory.Cleaner,
+      AgenticAiAgent.Traces.Cleaner,
       # Start to serve requests, typically the last entry
       AgenticAiAgentWeb.Endpoint
     ]

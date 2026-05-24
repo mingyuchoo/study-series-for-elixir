@@ -106,7 +106,7 @@ defmodule AgenticAiAgentWeb.ToolLive.Form do
           </div>
 
           <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="rounded bg-black px-4 py-2 text-sm text-white">
+            <button type="submit" class="px-6 py-2 text-sm font-medium" style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;">
               {gettext("Save")}
             </button>
             <.link navigate={~p"/tools"} class="text-sm opacity-70 hover:underline">

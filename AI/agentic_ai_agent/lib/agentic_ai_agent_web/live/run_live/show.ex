@@ -18,6 +18,17 @@ defmodule AgenticAiAgentWeb.RunLive.Show do
   def handle_info({:agent, _kind, _payload, _id}, socket), do: {:noreply, refresh(socket)}
   def handle_info(_other, socket), do: {:noreply, socket}
 
+  @impl true
+  def handle_event("delete_run", _params, socket) do
+    short_id = String.slice(socket.assigns.run.id, 0, 8)
+    _ = Traces.delete_run!(socket.assigns.run)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, gettext("Deleted run %{id}.", id: short_id))
+     |> push_navigate(to: ~p"/runs")}
+  end
+
   defp refresh(socket), do: load(socket, socket.assigns.run.id)
 
   defp load(socket, id) do
@@ -58,7 +69,17 @@ defmodule AgenticAiAgentWeb.RunLive.Show do
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="space-y-6">
         <header class="space-y-1">
-          <.link navigate={~p"/runs"} class="text-sm opacity-70 hover:underline">&larr; {gettext("Runs")}</.link>
+          <div class="flex items-baseline justify-between">
+            <.link navigate={~p"/runs"} class="text-sm opacity-70 hover:underline">&larr; {gettext("Runs")}</.link>
+            <button
+              type="button"
+              phx-click="delete_run"
+              data-confirm={gettext("Delete this run? Steps, tool calls, and approvals are removed too. Linked eval cases keep their scores.")}
+              class="rounded-full border border-base-300 px-3 py-1 text-[11px] font-medium text-base-content/70 hover:bg-base-300/40"
+            >
+              {gettext("Delete run")}
+            </button>
+          </div>
           <h1 class="font-mono text-lg">{String.slice(@run.id, 0, 8)}</h1>
           <div class="flex items-center gap-2 text-xs">
             <span class={["rounded px-2 py-0.5 font-mono uppercase", status_color(@run.status)]}>

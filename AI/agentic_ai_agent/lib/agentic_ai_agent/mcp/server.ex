@@ -27,7 +27,7 @@ defmodule AgenticAiAgent.MCP.Server do
   @foreign_key_type :binary_id
 
   @risk_levels ~w(low medium high critical)
-  @transports ~w(stdio http_sse)
+  @transports ~w(stdio http_sse streamable_http)
 
   schema "mcp_servers" do
     field :name, :string
@@ -77,6 +77,11 @@ defmodule AgenticAiAgent.MCP.Server do
       "http_sse" ->
         changeset
         |> validate_required([:url], message: "is required for http_sse transport")
+        |> validate_format(:url, ~r/\Ahttps?:\/\//, message: "must start with http:// or https://")
+
+      "streamable_http" ->
+        changeset
+        |> validate_required([:url], message: "is required for streamable_http transport")
         |> validate_format(:url, ~r/\Ahttps?:\/\//, message: "must start with http:// or https://")
 
       _ ->

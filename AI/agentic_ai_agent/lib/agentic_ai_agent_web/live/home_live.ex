@@ -420,7 +420,8 @@ defmodule AgenticAiAgentWeb.HomeLive do
       <div class="mt-6">
         <.link
           navigate={~p"/chat"}
-          class="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-zinc-800"
+          class="inline-flex items-center gap-2 px-6 py-2 text-sm font-medium"
+          style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
         >
           <.icon name="hero-chat-bubble-left-right-solid" class="h-4 w-4" />
           {gettext("Start a chat")}

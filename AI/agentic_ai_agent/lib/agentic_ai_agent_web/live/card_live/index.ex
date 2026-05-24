@@ -49,6 +49,7 @@ defmodule AgenticAiAgentWeb.CardLive.Index do
       <div class="space-y-6">
         <header class="flex items-baseline justify-between gap-3">
           <div>
+            <div class="eyebrow mb-2">{gettext("Cards")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Agentic Cards")}</h1>
             <p class="text-sm opacity-70">
               {gettext("Cards are authored as YAML under priv/cards/. The database is a cache — use the button to re-sync after editing files.")}

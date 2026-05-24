@@ -80,6 +80,7 @@ defmodule AgenticAiAgentWeb.MCPLive.Index do
       <div class="space-y-6">
         <header class="flex items-baseline justify-between gap-4">
           <div>
+            <div class="eyebrow mb-2">{gettext("MCP")}</div>
             <h1 class="text-2xl font-semibold">{gettext("MCP servers")}</h1>
             <p class="text-sm opacity-70">
               {gettext("MCP servers are persisted in the database and launched at boot. Add, edit, or remove them here — changes apply immediately.")}
@@ -88,7 +89,7 @@ defmodule AgenticAiAgentWeb.MCPLive.Index do
               {gettext("configured:")} {@configured} · {gettext("running:")} {Enum.count(@rows, &(&1.status == :ready))}
             </p>
           </div>
-          <.link navigate={~p"/mcp/new"} class="rounded bg-black px-3 py-1.5 text-sm text-white">
+          <.link navigate={~p"/mcp/new"} class="px-5 py-1.5 text-sm font-medium" style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;">
             + {gettext("New server")}
           </.link>
         </header>

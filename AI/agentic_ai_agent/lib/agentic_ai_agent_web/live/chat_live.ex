@@ -335,7 +335,8 @@ defmodule AgenticAiAgentWeb.ChatLive do
           <button
             type="submit"
             disabled={@awaiting}
-            class="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+            class="px-6 py-2 text-sm font-medium disabled:opacity-50"
+            style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
           >
             {gettext("Send")}
           </button>

@@ -102,6 +102,7 @@ defmodule AgenticAiAgentWeb.EvalLive.Index do
       <div class="space-y-6">
         <header class="flex items-baseline justify-between gap-3">
           <div>
+            <div class="eyebrow mb-2">{gettext("Evals")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Eval runs")}</h1>
             <p class="text-sm opacity-70">
               {gettext("Each run executes a golden dataset against an agentic card and scores every case with the heuristic rubric.")}
@@ -136,7 +137,8 @@ defmodule AgenticAiAgentWeb.EvalLive.Index do
               type="button"
               phx-click="run"
               disabled={@starting? or @selected_slug == nil}
-              class="rounded bg-black px-3 py-1.5 text-sm text-white disabled:opacity-50"
+              class="px-5 py-1.5 text-sm font-medium disabled:opacity-50"
+              style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
             >
               {if @starting?, do: gettext("Starting…"), else: gettext("Run eval")}
             </button>

@@ -23,8 +23,9 @@ defmodule AgenticAiAgentWeb.SkillLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="space-y-6">
-        <header class="flex items-baseline justify-between">
+        <header class="flex items-baseline justify-between gap-3">
           <div>
+            <div class="eyebrow mb-2">{gettext("Skills")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Skills")}</h1>
             <p class="text-sm opacity-70">
               {gettext("Skills live as Markdown files under priv/skills/<slug>/SKILL.md with optional YAML frontmatter. Only the description is consulted for matching; the body is injected into a sub-agent's system prompt via the delegate tool.")}
@@ -33,9 +34,9 @@ defmodule AgenticAiAgentWeb.SkillLive.Index do
           <button
             phx-click="reload"
             type="button"
-            class="rounded border px-3 py-1 text-xs hover:bg-base-200"
+            class="shrink-0 whitespace-nowrap rounded border px-3 py-1 text-xs hover:bg-base-200"
           >
-            {gettext("Reload from disk")}
+            {gettext("Reload from files")}
           </button>
         </header>
 

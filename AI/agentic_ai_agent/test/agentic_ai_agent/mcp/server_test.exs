@@ -128,6 +128,12 @@ defmodule AgenticAiAgent.MCP.ServerTest do
       assert cs(%{"name" => "fs", "transport" => "http_sse", "url" => "https://x.example/sse"}).valid?
       assert cs(%{"name" => "fs", "transport" => "http_sse", "url" => "http://x/sse"}).valid?
     end
+
+    test "streamable_http requires url (parallel rules to http_sse)" do
+      refute cs(%{"name" => "fs", "transport" => "streamable_http"}).valid?
+      refute cs(%{"name" => "fs", "transport" => "streamable_http", "url" => "ftp://x"}).valid?
+      assert cs(%{"name" => "fs", "transport" => "streamable_http", "url" => "https://x/mcp"}).valid?
+    end
   end
 
   describe "headers normalization" do

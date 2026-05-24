@@ -33,6 +33,38 @@ defmodule AgenticAiAgent.Traces do
     |> Repo.all()
   end
 
+  @doc """
+  Hard-delete a single run. Children are pruned by FK cascade
+  (`steps`, `tool_calls`, `approvals`, `failure_occurrences`).
+  References that should outlive the trace are nilified
+  (`eval_cases.run_id`, child `runs.parent_run_id`).
+  """
+  @spec delete_run!(Run.t() | binary()) :: Run.t()
+  def delete_run!(%Run{} = run), do: Repo.delete!(run)
+  def delete_run!(id) when is_binary(id), do: id |> get_run!() |> Repo.delete!()
+
+  @doc """
+  Hard-delete every run whose `inserted_at` is strictly older than
+  `days_ago` days from now (UTC). Returns the number of rows deleted.
+  Children cascade as in `delete_run!/1`.
+
+  `days_ago` must be a positive integer — refuses 0 / negative values
+  so a misclick never wipes the whole table.
+  """
+  @spec delete_runs_older_than(pos_integer()) :: non_neg_integer()
+  def delete_runs_older_than(days_ago) when is_integer(days_ago) and days_ago > 0 do
+    cutoff = DateTime.utc_now() |> DateTime.add(-days_ago * 86_400, :second)
+
+    {n, _} =
+      Run
+      |> where([r], r.inserted_at < ^cutoff)
+      |> Repo.delete_all()
+
+    n
+  end
+
+  def delete_runs_older_than(_), do: 0
+
   # ----- Steps -----
 
   def add_step!(%Run{id: run_id}, kind, payload, latency_ms \\ nil, extra \\ %{}) do

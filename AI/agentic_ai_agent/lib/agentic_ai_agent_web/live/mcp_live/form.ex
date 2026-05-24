@@ -156,7 +156,11 @@ defmodule AgenticAiAgentWeb.MCPLive.Form do
           </p>
 
           <.input field={@form[:transport]} type="select" label={gettext("Transport")}
-            options={[{gettext("stdio (local child process)"), "stdio"}, {gettext("http_sse (remote URL)"), "http_sse"}]} />
+            options={[
+              {gettext("stdio (local child process)"), "stdio"},
+              {gettext("http_sse (2024-11-05 spec)"), "http_sse"},
+              {gettext("streamable_http (2025-03-26 spec)"), "streamable_http"}
+            ]} />
 
           <!-- stdio fields -->
           <div :if={@transport == "stdio"} class="space-y-4">
@@ -185,8 +189,8 @@ defmodule AgenticAiAgentWeb.MCPLive.Form do
             </div>
           </div>
 
-          <!-- http_sse fields -->
-          <div :if={@transport == "http_sse"} class="space-y-4">
+          <!-- http_sse / streamable_http fields (both need url + headers) -->
+          <div :if={@transport in ["http_sse", "streamable_http"]} class="space-y-4">
             <.input field={@form[:url]} type="text" label={gettext("SSE URL")}
               placeholder="https://server.example.com/sse"
               phx-debounce="200" />
@@ -214,7 +218,7 @@ defmodule AgenticAiAgentWeb.MCPLive.Form do
           <.input field={@form[:enabled]} type="checkbox" label={gettext("Enabled")} />
 
           <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="rounded bg-black px-4 py-2 text-sm text-white">
+            <button type="submit" class="px-6 py-2 text-sm font-medium" style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;">
               {gettext("Save")}
             </button>
             <.link navigate={~p"/mcp"} class="text-sm opacity-70 hover:underline">

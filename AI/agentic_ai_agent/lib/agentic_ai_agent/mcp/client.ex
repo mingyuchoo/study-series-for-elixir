@@ -139,6 +139,15 @@ defmodule AgenticAiAgent.MCP.Client do
     {:ok, %{state | sse_task: pid, status: :connecting}}
   end
 
+  defp start_transport(%{transport: "streamable_http"} = state) do
+    # Streamable HTTP (MCP 2025-03-26): no upfront connection. Every JSON-RPC
+    # message is POSTed to the same `url`; the response Content-Type chooses
+    # the dispatch path (`application/json` → single message, `text/event-stream`
+    # → SSE frames). Handshake fires immediately.
+    Process.send_after(self(), :handshake, 0)
+    {:ok, %{state | status: :initializing}}
+  end
+
   defp start_transport(%{transport: other}),
     do: {:error, {:unknown_transport, other}}
 
@@ -176,8 +185,10 @@ defmodule AgenticAiAgent.MCP.Client do
     {:noreply, %{state | post_url: post_url, status: :initializing}}
   end
 
-  # Every other JSON-RPC frame arrives as a "message" event.
-  def handle_info({:sse_event, "message", data}, %{transport: "http_sse"} = state) do
+  # Every other JSON-RPC frame arrives as a "message" event. Both HTTP+SSE
+  # and Streamable HTTP funnel their JSON-RPC payloads through this clause.
+  def handle_info({:sse_event, "message", data}, %{transport: transport} = state)
+      when transport in ["http_sse", "streamable_http"] do
     {:noreply, handle_line(data, state)}
   end
 
@@ -388,9 +399,8 @@ defmodule AgenticAiAgent.MCP.Client do
     _ =
       Task.start(fn ->
         case Req.post(url,
-               headers: headers_list,
+               headers: [{"content-type", "application/json"} | headers_list],
                body: body,
-               headers_extra: [{"content-type", "application/json"}],
                receive_timeout: 10_000
              ) do
           {:ok, %{status: status}} when status >= 200 and status < 300 -> :ok
@@ -401,7 +411,79 @@ defmodule AgenticAiAgent.MCP.Client do
     :ok
   end
 
+  defp do_send(%{transport: "streamable_http", url: url, headers: headers, server_name: server}, payload)
+       when is_binary(url) do
+    headers_list = headers_to_list(headers)
+    parent = self()
+
+    # Streamable HTTP: POST the request and dispatch the response based on
+    # Content-Type. The server may answer with a single JSON-RPC message
+    # (application/json) or an SSE stream (text/event-stream); we forward
+    # each parsed message back to the GenServer as {:sse_event, "message", _}.
+    _ =
+      Task.start(fn ->
+        post_headers = [
+          {"content-type", "application/json"},
+          {"accept", "application/json, text/event-stream"}
+          | headers_list
+        ]
+
+        case Req.post(url,
+               headers: post_headers,
+               body: payload,
+               decode_body: false,
+               receive_timeout: 30_000
+             ) do
+          {:ok, %{status: status, headers: resp_headers, body: body}}
+          when status >= 200 and status < 300 ->
+            handle_streamable_response(parent, body, content_type(resp_headers))
+
+          {:ok, %{status: status}} ->
+            Logger.warning("MCP[#{server}] Streamable POST → HTTP #{status}")
+
+          {:error, err} ->
+            Logger.warning("MCP[#{server}] Streamable POST transport error: #{inspect(err)}")
+        end
+      end)
+
+    :ok
+  end
+
   defp do_send(_state, _payload), do: :ok
+
+  defp handle_streamable_response(parent, body, ct) when is_binary(body) do
+    cond do
+      String.starts_with?(ct, "application/json") ->
+        # Whole body is one JSON-RPC frame.
+        send(parent, {:sse_event, "message", body})
+
+      String.starts_with?(ct, "text/event-stream") ->
+        # SSE-encoded body; parse frames and forward each.
+        {events, _rest} = parse_sse_frames(body <> "\n\n")
+        for {event, data} <- events, do: send(parent, {:sse_event, event, data})
+
+      true ->
+        # Empty body / 202 Accepted (notifications) / unknown content type.
+        :ok
+    end
+  end
+
+  defp handle_streamable_response(_parent, _body, _ct), do: :ok
+
+  defp content_type(headers) do
+    # Req returns headers as a map of lower-case-string → [value]. Fall back
+    # to empty for any shape we don't recognise.
+    case headers do
+      %{} = m -> m |> Map.get("content-type", []) |> List.first() |> to_string()
+      list when is_list(list) ->
+        list
+        |> Enum.find_value("", fn
+          {k, v} -> if String.downcase(to_string(k)) == "content-type", do: to_string(v)
+          _ -> nil
+        end)
+      _ -> ""
+    end
+  end
 
   # ----- HTTP+SSE streaming task -----
 

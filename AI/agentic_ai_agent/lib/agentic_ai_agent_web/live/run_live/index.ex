@@ -10,7 +10,10 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
       Phoenix.PubSub.subscribe(AgenticAiAgent.PubSub, Runtime.runs_topic())
     end
 
-    {:ok, assign(socket, :runs, Traces.list_recent_runs(50))}
+    {:ok,
+     socket
+     |> assign(:runs, Traces.list_recent_runs(50))
+     |> assign(:retention_days, "30")}
   end
 
   @impl true
@@ -19,16 +22,62 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
   end
 
   @impl true
+  def handle_event("select_retention", %{"days" => days}, socket) do
+    {:noreply, assign(socket, :retention_days, days)}
+  end
+
+  def handle_event("delete_older", _params, socket) do
+    case Integer.parse(socket.assigns.retention_days || "") do
+      {n, ""} when n > 0 ->
+        deleted = Traces.delete_runs_older_than(n)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, gettext("Deleted %{n} run(s) older than %{d} day(s).", n: deleted, d: n))
+         |> assign(:runs, Traces.list_recent_runs(50))}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, gettext("Pick a positive number of days."))}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="space-y-4">
         <header>
+          <div class="eyebrow mb-2">{gettext("Runs")}</div>
           <h1 class="text-2xl font-semibold">{gettext("Runs")}</h1>
           <p class="text-sm opacity-70">
             {gettext("Every chat turn opens a run. Steps and tool calls are persisted for replay and offline evaluation.")}
           </p>
         </header>
+
+        <section class="rounded-lg border border-base-300 bg-base-200 p-3">
+          <div class="mb-2 eyebrow">{gettext("Cleanup")}</div>
+          <form phx-change="select_retention" phx-submit="delete_older" class="flex flex-wrap items-center gap-2 text-sm">
+            <span>{gettext("Delete runs older than")}</span>
+            <select
+              name="days"
+              class="rounded-full border border-base-300 bg-base-100 px-3 py-1 text-sm"
+            >
+              <option :for={d <- ~w(7 30 90 180)} value={d} selected={d == @retention_days}>
+                {d} {gettext("days")}
+              </option>
+            </select>
+            <button
+              type="submit"
+              data-confirm={gettext("Delete every run older than %{d} days? This cannot be undone.", d: @retention_days)}
+              class="rounded-full border border-base-300 px-4 py-1 text-xs font-medium hover:bg-base-300/40"
+            >
+              {gettext("Delete")}
+            </button>
+            <span class="ml-auto text-[11px] opacity-60">
+              {gettext("Linked eval cases keep their scores. Sub-agent children become orphans (parent_run_id nilified).")}
+            </span>
+          </form>
+        </section>
 
         <div :if={@runs == []} class="rounded border border-dashed p-6 text-center opacity-70">
           {gettext("No runs yet. Try chatting at")} <.link navigate={~p"/chat"} class="underline">/chat</.link>.
