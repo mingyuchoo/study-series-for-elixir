@@ -55,12 +55,14 @@ defmodule AgenticAiAgent.Agent.ReflexionInsights do
   Callers should treat errors as advisory — failure to record an
   insight must never break the parent run.
   """
-  @spec record(map() | nil, map() | nil, String.t() | nil) ::
+  @spec record(map() | nil, map() | nil, String.t() | nil, keyword()) ::
           {:ok, Insight.t(), :new | :existing} | {:error, term()}
-  def record(_run, _card, critique) when critique in [nil, ""],
+  def record(run, card, critique, opts \\ [])
+
+  def record(_run, _card, critique, _opts) when critique in [nil, ""],
     do: {:error, :empty_critique}
 
-  def record(run, card, critique) when is_binary(critique) do
+  def record(run, card, critique, opts) when is_binary(critique) do
     run_id = run && Map.get(run, :id)
     card_slug = card && Map.get(card, :slug)
     theme = extract_theme(critique)
@@ -74,7 +76,10 @@ defmodule AgenticAiAgent.Agent.ReflexionInsights do
           run_id: run_id,
           card_slug: card_slug,
           critique: String.slice(critique, 0, 4_000),
-          theme: theme
+          theme: theme,
+          compliance_outcome: Keyword.get(opts, :compliance_outcome),
+          noncompliance_count: Keyword.get(opts, :noncompliance_count, 0),
+          escalated_at_iteration: Keyword.get(opts, :escalated_at_iteration)
         }
 
         case %Insight{} |> Insight.changeset(attrs) |> Repo.insert() do
@@ -88,7 +93,7 @@ defmodule AgenticAiAgent.Agent.ReflexionInsights do
     end
   rescue
     e ->
-      Logger.warning("ReflexionInsights.record/3 crashed: #{Exception.message(e)}")
+      Logger.warning("ReflexionInsights.record/4 crashed: #{Exception.message(e)}")
       {:error, Exception.message(e)}
   end
 

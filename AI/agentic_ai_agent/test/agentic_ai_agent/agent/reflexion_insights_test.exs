@@ -177,6 +177,43 @@ defmodule AgenticAiAgent.Agent.ReflexionInsightsTest do
     end
   end
 
+  # ----- compliance metadata (Phase 8) -----
+
+  describe "record/4 — compliance opts" do
+    test "persists compliance_outcome + noncompliance_count + escalated_at_iteration" do
+      run = insert_run!()
+
+      {:ok, i, :new} =
+        ReflexionInsights.record(run, card(), "skipped retrieve before search",
+          compliance_outcome: "escalated",
+          noncompliance_count: 3,
+          escalated_at_iteration: 6
+        )
+
+      assert i.compliance_outcome == "escalated"
+      assert i.noncompliance_count == 3
+      assert i.escalated_at_iteration == 6
+    end
+
+    test "defaults: compliance_outcome=nil, noncompliance_count=0" do
+      run = insert_run!()
+      {:ok, i, :new} = ReflexionInsights.record(run, card(), "skipped retrieve")
+
+      assert i.compliance_outcome == nil
+      assert i.noncompliance_count == 0
+      assert i.escalated_at_iteration == nil
+    end
+
+    test "rejects an unknown compliance_outcome via changeset" do
+      run = insert_run!()
+
+      assert {:error, %Ecto.Changeset{}} =
+               ReflexionInsights.record(run, card(), "skipped retrieve",
+                 compliance_outcome: "noodle"
+               )
+    end
+  end
+
   # ----- link_proposal!/3 -----
 
   describe "link_proposal!/3" do

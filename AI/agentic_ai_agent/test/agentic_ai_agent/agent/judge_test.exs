@@ -81,7 +81,10 @@ defmodule AgenticAiAgent.Agent.JudgeTest do
       j2 = %{score: 0.05, verdict: "bad", reason: "second reason"}
 
       {:ok, first} = Feedback.flag_from_judge(run, card, j1)
-      assert {:already_flagged, %GoldenCandidate{id: same_id}} = Feedback.flag_from_judge(run, card, j2)
+
+      assert {:already_flagged, %GoldenCandidate{id: same_id}} =
+               Feedback.flag_from_judge(run, card, j2)
+
       assert same_id == first.id
 
       # Confirm only one row exists for this run.
@@ -99,6 +102,35 @@ defmodule AgenticAiAgent.Agent.JudgeTest do
 
       rows = from(c in GoldenCandidate, where: c.run_id == ^run.id) |> Repo.all()
       assert length(rows) == 2
+    end
+  end
+
+  # ----- praise_from_judge symmetry -----
+
+  describe "Feedback.praise_from_judge/3" do
+    test "creates a positive candidate with polarity=positive" do
+      run = insert_run!()
+      card = %{slug: "default"}
+      judgment = %{score: 0.92, verdict: "good", reason: "Direct and grounded"}
+
+      assert {:ok, %GoldenCandidate{} = c} = Feedback.praise_from_judge(run, card, judgment)
+      assert c.polarity == "positive"
+      assert c.flagged_by == "judge"
+      assert c.judge_score == 0.92
+    end
+
+    test "negative judge flag and positive judge praise on same run coexist" do
+      run = insert_run!()
+      card = %{slug: "default"}
+
+      _ = Feedback.flag_from_judge(run, card, %{score: 0.1, verdict: "bad", reason: "x"})
+      _ = Feedback.praise_from_judge(run, card, %{score: 0.95, verdict: "good", reason: "y"})
+
+      rows = from(c in GoldenCandidate, where: c.run_id == ^run.id) |> Repo.all()
+      assert length(rows) == 2
+
+      polarities = rows |> Enum.map(& &1.polarity) |> Enum.sort()
+      assert polarities == ["negative", "positive"]
     end
   end
 end

@@ -18,6 +18,8 @@ defmodule AgenticAiAgent.Agent.ReflexionInsights.Insight do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
+  @compliance_outcomes ~w(complied ignored escalated)
+
   schema "reflexion_insights" do
     belongs_to :run, Run
     field :card_slug, :string
@@ -25,14 +27,23 @@ defmodule AgenticAiAgent.Agent.ReflexionInsights.Insight do
     field :theme, :string
     belongs_to :triggered_proposal, Proposal, foreign_key: :triggered_proposal_id
 
+    # Mid-run compliance tracking (Phase 8) — was this critique acted on?
+    field :compliance_outcome, :string
+    field :noncompliance_count, :integer, default: 0
+    field :escalated_at_iteration, :integer
+
     timestamps(type: :utc_datetime)
   end
 
-  @castable ~w(run_id card_slug critique theme triggered_proposal_id)a
+  def compliance_outcomes, do: @compliance_outcomes
+
+  @castable ~w(run_id card_slug critique theme triggered_proposal_id
+               compliance_outcome noncompliance_count escalated_at_iteration)a
 
   def changeset(insight, attrs) do
     insight
     |> cast(attrs, @castable)
     |> validate_required([:critique])
+    |> validate_inclusion(:compliance_outcome, @compliance_outcomes ++ [nil])
   end
 end

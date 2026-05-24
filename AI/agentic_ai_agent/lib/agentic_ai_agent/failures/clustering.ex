@@ -82,9 +82,11 @@ defmodule AgenticAiAgent.Failures.Clustering do
     threshold = Keyword.get(opts, :threshold, @default_threshold)
     min_size = Keyword.get(opts, :min_cluster_size, @default_min_cluster_size)
     adapter = Keyword.get(opts, :adapter, Embeddings.default())
+    unclassified_only? = Keyword.get(opts, :unclassified_only, false)
 
     occurrences =
       Failures.list_recent_occurrences(limit)
+      |> maybe_filter_unclassified(unclassified_only?)
       |> Enum.reject(&blank?(&1.reason))
 
     case occurrences do
@@ -234,4 +236,28 @@ defmodule AgenticAiAgent.Failures.Clustering do
   defp blank?(nil), do: true
   defp blank?(s) when is_binary(s), do: String.trim(s) == ""
   defp blank?(_), do: true
+
+  defp maybe_filter_unclassified(occurrences, false), do: occurrences
+
+  defp maybe_filter_unclassified(occurrences, true) do
+    Enum.filter(occurrences, &is_nil(&1.failure_mode_id))
+  end
+
+  @doc """
+  Convenience wrapper that only embeds occurrences the catalog has NOT
+  yet matched (failure_mode_id is nil). These are exactly the failures
+  the `Improver` should consider when proposing a new `failure_mode_add`.
+
+  Forwards all other opts to `cluster_recent/1`.
+  """
+  @spec unclassified_clusters(keyword()) :: %{
+          status: :ok | :no_failures | :embedding_failed,
+          clusters: [cluster()],
+          singletons: non_neg_integer(),
+          embedded: non_neg_integer(),
+          reason: term() | nil
+        }
+  def unclassified_clusters(opts \\ []) do
+    cluster_recent(Keyword.put(opts, :unclassified_only, true))
+  end
 end

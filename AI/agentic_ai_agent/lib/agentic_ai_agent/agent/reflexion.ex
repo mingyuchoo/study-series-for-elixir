@@ -94,15 +94,19 @@ defmodule AgenticAiAgent.Agent.Reflexion do
   insert fails. Callers should treat the error as advisory — failure to
   persist a reflexion must never break the parent run.
   """
-  @spec persist_run_critique(map() | nil, map() | nil, String.t() | nil) ::
+  @spec persist_run_critique(map() | nil, map() | nil, String.t() | nil, keyword()) ::
           :ok | {:error, term()}
-  def persist_run_critique(_run, _card, note) when note in [nil, ""], do: :ok
+  def persist_run_critique(run, card, note, opts \\ [])
 
-  def persist_run_critique(run, card, note) when is_binary(note) do
+  def persist_run_critique(_run, _card, note, _opts) when note in [nil, ""], do: :ok
+
+  def persist_run_critique(run, card, note, opts) when is_binary(note) do
     # Structured insight first — this is what the Improver consumes.
     # Memory persistence is best-effort and depends on embeddings being
-    # configured, so we don't tie the two together.
-    _ = ReflexionInsights.record(run, card, note)
+    # configured, so we don't tie the two together. `opts` may carry
+    # mid-run compliance metadata produced by
+    # `AgenticAiAgent.Agent.ReflexionCompliance` — it's just forwarded.
+    _ = ReflexionInsights.record(run, card, note, opts)
 
     user_input = run && Map.get(run, :user_input)
     run_id = run && Map.get(run, :id)

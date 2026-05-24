@@ -1,16 +1,20 @@
 defmodule AgenticAiAgent.Agent.Judge do
   @moduledoc """
   LLM-as-judge: a small post-run pass that grades an assistant answer
-  against the user's question and, if quality is low, auto-creates a
-  `golden_candidate` for HITL curation (Phase 5).
+  and auto-creates a `golden_candidate` on either side of quality:
 
-  Closes the dataset-growth loop without depending on the user clicking
-  👎. Designed to be opt-in per card via:
+    * **score < flag_threshold**    → negative candidate (regression target)
+    * **score >= praise_threshold** → positive candidate (win to preserve)
+    * **between**                   → no persistence
+
+  Closes the dataset-growth loop in BOTH directions without depending
+  on user clicks. Opt-in per card via:
 
       reasoning_policy:
         auto_judge:
           enabled: true            # default false
           flag_threshold: 0.5      # candidates with score < this are flagged
+          praise_threshold: 0.85   # candidates with score >= this are praised
           min_input_chars: 12      # skip judging trivial prompts
 
   Cost note: each judged run is ONE additional LLM call. Disabled by
@@ -23,6 +27,7 @@ defmodule AgenticAiAgent.Agent.Judge do
   require Logger
 
   @default_threshold 0.5
+  @default_praise_threshold 0.85
   @default_min_input_chars 12
 
   @system_prompt """
@@ -71,11 +76,15 @@ defmodule AgenticAiAgent.Agent.Judge do
 
     prompt = [
       %{"role" => "system", "content" => @system_prompt},
-      %{"role" => "user",
+      %{
+        "role" => "user",
         "content" =>
-          "User question:\n" <> user_input <>
-            "\n\nAgent's final answer:\n" <> answer <>
-            "\n\nGrade it."}
+          "User question:\n" <>
+            user_input <>
+            "\n\nAgent's final answer:\n" <>
+            answer <>
+            "\n\nGrade it."
+      }
     ]
 
     case adapter.chat(prompt, max_completion_tokens: max_tokens, temperature: 0.0) do
@@ -93,13 +102,22 @@ defmodule AgenticAiAgent.Agent.Judge do
   end
 
   @doc """
-  Post-run helper: judges a run's answer per the card's auto_judge config
-  and, if quality is below the threshold, creates a `golden_candidate`
-  via `Feedback.flag_from_judge/3`. Idempotent per run.
+  Post-run helper: judges a run's answer per the card's auto_judge
+  config and persists a golden candidate when the score crosses a
+  threshold:
+
+    * `score < flag_threshold`     → negative candidate (`Feedback.flag_from_judge`)
+    * `score >= praise_threshold`  → positive candidate (`Feedback.praise_from_judge`)
+    * otherwise                    → no persistence
+
+  Idempotent per (run, polarity). A single run can produce both a
+  negative and positive judge row in principle (different polarities),
+  but with default thresholds (0.5 / 0.85) the bands don't overlap.
 
   Returns:
-    * `{:flagged, candidate}` — a candidate was created
-    * `{:ok_quality, score}`   — judge ran, score above threshold
+    * `{:flagged, candidate}`  — negative candidate was created
+    * `{:praised, candidate}`  — positive candidate was created
+    * `{:ok_quality, score}`   — score landed in the neutral band
     * `{:skipped, reason}`     — auto_judge disabled, input too short, etc.
     * `{:error, reason}`       — judge call or persistence failed
   """
@@ -127,20 +145,10 @@ defmodule AgenticAiAgent.Agent.Judge do
   defp do_judge_run(run, card, input, answer, cfg) do
     case critique(input, answer) do
       {:ok, %{score: score} = j} when is_number(score) and score < cfg.flag_threshold ->
-        case Feedback.flag_from_judge(run, card, j) do
-          {:ok, candidate} ->
-            Logger.info(
-              "Judge flagged run #{inspect(run.id)} (score=#{score}, reason=#{j.reason})"
-            )
+        auto_persist(run, card, j, :flag)
 
-            {:flagged, candidate}
-
-          {:already_flagged, existing} ->
-            {:flagged, existing}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+      {:ok, %{score: score} = j} when is_number(score) and score >= cfg.praise_threshold ->
+        auto_persist(run, card, j, :praise)
 
       {:ok, %{score: score}} ->
         {:ok_quality, score}
@@ -150,12 +158,36 @@ defmodule AgenticAiAgent.Agent.Judge do
     end
   end
 
+  defp auto_persist(run, card, %{score: score, reason: reason} = j, direction) do
+    {feedback_fn, action_word} =
+      case direction do
+        :flag -> {&Feedback.flag_from_judge/3, "flagged"}
+        :praise -> {&Feedback.praise_from_judge/3, "praised"}
+      end
+
+    case feedback_fn.(run, card, j) do
+      {:ok, candidate} ->
+        Logger.info(
+          "Judge #{action_word} run #{inspect(run.id)} (score=#{score}, reason=#{reason})"
+        )
+
+        {if(direction == :flag, do: :flagged, else: :praised), candidate}
+
+      {:already_flagged, existing} ->
+        {if(direction == :flag, do: :flagged, else: :praised), existing}
+
+      {:error, err} ->
+        {:error, err}
+    end
+  end
+
   # ----- Config -----
 
   defp config_from_card(card) do
     base = %{
       enabled: false,
       flag_threshold: @default_threshold,
+      praise_threshold: @default_praise_threshold,
       min_input_chars: @default_min_input_chars
     }
 
@@ -164,6 +196,7 @@ defmodule AgenticAiAgent.Agent.Judge do
         %{
           enabled: Map.get(map, "enabled", false) == true,
           flag_threshold: Map.get(map, "flag_threshold", @default_threshold),
+          praise_threshold: Map.get(map, "praise_threshold", @default_praise_threshold),
           min_input_chars: Map.get(map, "min_input_chars", @default_min_input_chars)
         }
 

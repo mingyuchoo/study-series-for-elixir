@@ -17,7 +17,7 @@ defmodule AgenticAiAgent.Improver.Proposal do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @kinds ~w(card_edit skill_add tool_policy_change golden_case_add noop)
+  @kinds ~w(card_edit skill_add tool_policy_change failure_mode_add golden_case_add noop)
   @statuses ~w(pending approved staging staged_passed staged_failed rejected applied failed malformed)
 
   schema "improvement_proposals" do

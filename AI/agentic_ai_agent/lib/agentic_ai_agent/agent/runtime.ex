@@ -21,9 +21,20 @@ defmodule AgenticAiAgent.Agent.Runtime do
   """
 
   use GenServer
+  require Logger
 
   alias AgenticAiAgent.{Conversation, Failures, Skills, Traces}
-  alias AgenticAiAgent.Agent.{Context, Judge, Reflexion, ToT, Workflow}
+
+  alias AgenticAiAgent.Agent.{
+    Context,
+    Judge,
+    Reflexion,
+    ReflexionCompliance,
+    ReflexionInsights,
+    ToT,
+    Workflow
+  }
+
   alias AgenticAiAgent.LLM.{Adapter, Pricing, Response}
   alias AgenticAiAgent.Tools.Registry, as: ToolRegistry
 
@@ -141,6 +152,19 @@ defmodule AgenticAiAgent.Agent.Runtime do
       # ↓ Planning/Reflection extensions (§4)
       reflexion_count: 0,
       reflexion_note: nil,
+      # Per-run history of critique themes, newest-first. Used by
+      # `Agent.ReflexionCompliance` to detect a stuck planner.
+      reflexion_theme_history: [],
+      # Set to {theme, count} on the iteration escalation fires; the
+      # next planner turn picks it up via `inject_reflexion`. Cleared
+      # back to nil once the escalation message has been injected once.
+      reflexion_escalation: nil,
+      # Sticky for persistence at end-of-run — once true, the final
+      # insight row carries `compliance_outcome="escalated"` even if
+      # the latest critique pivoted to a different theme.
+      reflexion_escalated_run?: false,
+      # Iteration index where escalation first fired, for audit.
+      reflexion_escalated_at: nil,
       tot_note: nil
     }
 
@@ -159,15 +183,35 @@ defmodule AgenticAiAgent.Agent.Runtime do
 
   # SubAgent's final answer arrives via subscriber send/2 (we set ourselves as the
   # subscriber when spawning the sub).
-  def handle_info({:agent, :final, content, sub_run_id}, %{pending_delegate: %{sub_run_id: sub_run_id, tc_id: tc_id}} = state) do
-    state = append_tool_result(state, tc_id, {:ok, %{"summary" => content, "sub_run_id" => sub_run_id}}, "delegate")
+  def handle_info(
+        {:agent, :final, content, sub_run_id},
+        %{pending_delegate: %{sub_run_id: sub_run_id, tc_id: tc_id}} = state
+      ) do
+    state =
+      append_tool_result(
+        state,
+        tc_id,
+        {:ok, %{"summary" => content, "sub_run_id" => sub_run_id}},
+        "delegate"
+      )
+
     state = %{state | pending_delegate: nil}
     send(self(), :process_next_tool)
     {:noreply, state}
   end
 
-  def handle_info({:agent, :failed, reason, sub_run_id}, %{pending_delegate: %{sub_run_id: sub_run_id, tc_id: tc_id}} = state) do
-    state = append_tool_result(state, tc_id, {:error, "sub-agent failed: #{format_reason(reason)}"}, "delegate")
+  def handle_info(
+        {:agent, :failed, reason, sub_run_id},
+        %{pending_delegate: %{sub_run_id: sub_run_id, tc_id: tc_id}} = state
+      ) do
+    state =
+      append_tool_result(
+        state,
+        tc_id,
+        {:error, "sub-agent failed: #{format_reason(reason)}"},
+        "delegate"
+      )
+
     state = %{state | pending_delegate: nil}
     send(self(), :process_next_tool)
     {:noreply, state}
@@ -180,7 +224,10 @@ defmodule AgenticAiAgent.Agent.Runtime do
   # ----- Decisions (HITL) -----
 
   @impl true
-  def handle_cast({:decision, approval_id, kind, opts}, %{pending_approval: %{approval_id: approval_id, tc: tc}} = state) do
+  def handle_cast(
+        {:decision, approval_id, kind, opts},
+        %{pending_approval: %{approval_id: approval_id, tc: tc}} = state
+      ) do
     approval = Traces.get_approval!(approval_id)
 
     case kind do
@@ -300,11 +347,19 @@ defmodule AgenticAiAgent.Agent.Runtime do
     {messages, retrieved_step, state} = inject_retrieved_context(state, messages)
     {messages, state} = inject_tot_plan(state, messages)
     messages = inject_reflexion(state, messages)
+    # Clear the escalation tuple — it's been injected once, don't
+    # repeat it on subsequent iterations until the next reflexion check
+    # decides whether to re-escalate.
+    state = clear_reflexion_escalation(state)
     tools = available_tools(state)
     started = System.monotonic_time(:millisecond)
 
     if retrieved_step do
-      notify(state, {:agent, :step, %{kind: :retrieve, idx: retrieved_step.idx, payload: retrieved_step.payload}})
+      notify(
+        state,
+        {:agent, :step,
+         %{kind: :retrieve, idx: retrieved_step.idx, payload: retrieved_step.payload}}
+      )
     end
 
     case Adapter.chat(messages, tools: tools, tool_choice: "auto") do
@@ -431,7 +486,9 @@ defmodule AgenticAiAgent.Agent.Runtime do
 
   defp embedding_cost(%Context{embedding_meta: %{model: model, usage: usage}}) do
     p = get_in(usage || %{}, ["prompt_tokens"]) || get_in(usage || %{}, ["total_tokens"]) || 0
-    {Pricing.cost_micro_usd(model, usage || %{"prompt_tokens" => p, "completion_tokens" => 0}), p, 0}
+
+    {Pricing.cost_micro_usd(model, usage || %{"prompt_tokens" => p, "completion_tokens" => 0}), p,
+     0}
   end
 
   # Conversation already starts with the card's main system prompt. We slip
@@ -468,22 +525,57 @@ defmodule AgenticAiAgent.Agent.Runtime do
       {:ok, text} ->
         latency = System.monotonic_time(:millisecond) - started
 
-        step =
-          Traces.add_step!(state.run, :reflect, %{
-            "critique" => text,
-            "iteration" => state.iteration,
-            "reflexion_count" => state.reflexion_count + 1
-          }, latency)
+        theme = ReflexionInsights.extract_theme(text)
+        new_history = [theme | state.reflexion_theme_history]
+        compliance = ReflexionCompliance.check_themes(new_history)
+
+        step_payload = %{
+          "critique" => text,
+          "iteration" => state.iteration,
+          "reflexion_count" => state.reflexion_count + 1,
+          "theme" => theme,
+          "compliance" => format_compliance(compliance)
+        }
+
+        step = Traces.add_step!(state.run, :reflect, step_payload, latency)
 
         notify(state, {:agent, :step, %{kind: :reflect, idx: step.idx, payload: step.payload}})
         notify(state, {:agent, :reflexion, %{critique: text}})
 
-        %{state | reflexion_note: text, reflexion_count: state.reflexion_count + 1}
+        state
+        |> Map.put(:reflexion_note, text)
+        |> Map.put(:reflexion_count, state.reflexion_count + 1)
+        |> Map.put(:reflexion_theme_history, new_history)
+        |> maybe_escalate(compliance)
 
       {:error, _reason} ->
         # Reflexion is advisory — failures must not break the run.
         state
     end
+  end
+
+  defp format_compliance(:ok), do: "ok"
+  defp format_compliance({:escalate, theme, count}), do: "escalate:#{theme}:#{count}"
+
+  # When ReflexionCompliance signals an escalation, stash the
+  # escalation tuple on state so `inject_reflexion` picks it up on the
+  # next planner turn. Also mark the sticky `reflexion_escalated_run?`
+  # so the end-of-run persist records "escalated" even if the agent
+  # later pivots to a different theme.
+  defp maybe_escalate(state, :ok), do: state
+
+  defp maybe_escalate(state, {:escalate, theme, count}) do
+    Logger.warning(
+      "ReflexionCompliance ESCALATION on run #{inspect(state.run.id)}: " <>
+        "theme=#{theme} count=#{count} iteration=#{state.iteration}"
+    )
+
+    %{
+      state
+      | reflexion_escalation: {theme, count},
+        reflexion_escalated_run?: true,
+        reflexion_escalated_at: state.reflexion_escalated_at || state.iteration
+    }
   end
 
   defp reflexion_config(card) do
@@ -514,11 +606,16 @@ defmodule AgenticAiAgent.Agent.Runtime do
       case ToT.brainstorm(messages) do
         {:ok, %{candidates: cands, chosen: chosen} = result} ->
           step =
-            Traces.add_step!(state.run, :plan, %{
-              "strategy" => "tot",
-              "candidates" => cands,
-              "chosen" => chosen
-            }, nil)
+            Traces.add_step!(
+              state.run,
+              :plan,
+              %{
+                "strategy" => "tot",
+                "candidates" => cands,
+                "chosen" => chosen
+              },
+              nil
+            )
 
           notify(state, {:agent, :step, %{kind: :plan, idx: step.idx, payload: step.payload}})
           notify(state, {:agent, :tot, %{candidates: cands, chosen: chosen}})
@@ -548,15 +645,43 @@ defmodule AgenticAiAgent.Agent.Runtime do
     end
   end
 
-  # Stash the latest critique into the next planner turn.
-  defp inject_reflexion(%{reflexion_note: nil}, messages), do: messages
+  # Stash the latest critique into the next planner turn. When a
+  # `reflexion_escalation` is pending, also prepend a stronger system
+  # message produced by `Agent.ReflexionCompliance` that names the
+  # recurring theme and demands a different action class.
+  defp inject_reflexion(%{reflexion_note: nil, reflexion_escalation: nil}, messages),
+    do: messages
 
-  defp inject_reflexion(%{reflexion_note: note}, messages) do
-    case Reflexion.to_system_message(note) do
-      nil -> messages
-      msg -> append_planning_system(messages, msg)
+  defp inject_reflexion(state, messages) do
+    messages =
+      case state.reflexion_note do
+        nil ->
+          messages
+
+        note ->
+          case Reflexion.to_system_message(note) do
+            nil -> messages
+            msg -> append_planning_system(messages, msg)
+          end
+      end
+
+    case state.reflexion_escalation do
+      nil ->
+        messages
+
+      {theme, count} ->
+        case ReflexionCompliance.escalation_system_message(theme, count) do
+          nil -> messages
+          msg -> append_planning_system(messages, msg)
+        end
     end
   end
+
+  # After the planner consumes its messages we clear the escalation
+  # flag so the next iteration doesn't double-inject. The sticky
+  # `reflexion_escalated_run?` survives for end-of-run persistence.
+  defp clear_reflexion_escalation(state),
+    do: %{state | reflexion_escalation: nil}
 
   # Both reflexion + ToT messages slot in after the retrieved-context block
   # so the main system + retrieval still come first.
@@ -609,13 +734,18 @@ defmodule AgenticAiAgent.Agent.Runtime do
       "workflow_violation: tool #{inspect(name)} not allowed in state " <>
         "#{inspect(to_string(state.status))} (allowed: #{inspect(allowed)})"
 
-    Traces.add_step!(state.run, :reflect, %{
-      "workflow_warning" => "tool_blocked",
-      "state" => to_string(state.status),
-      "tool" => name,
-      "allowed" => allowed,
-      "enforce" => Workflow.enforce?(state.workflow)
-    }, nil)
+    Traces.add_step!(
+      state.run,
+      :reflect,
+      %{
+        "workflow_warning" => "tool_blocked",
+        "state" => to_string(state.status),
+        "tool" => name,
+        "allowed" => allowed,
+        "enforce" => Workflow.enforce?(state.workflow)
+      },
+      nil
+    )
 
     append_tool_result(state, tc_id, {:error, reason}, name)
   end
@@ -672,7 +802,17 @@ defmodule AgenticAiAgent.Agent.Runtime do
       %{run_id: state.run.id, tool: tc.name, error: not is_nil(error_text)}
     )
 
-    notify(state, {:agent, :tool_call, %{name: tc.name, input: args, output: output_payload, error: error_text, latency_ms: latency}})
+    notify(
+      state,
+      {:agent, :tool_call,
+       %{
+         name: tc.name,
+         input: args,
+         output: output_payload,
+         error: error_text,
+         latency_ms: latency
+       }}
+    )
 
     append_tool_result(state, tc.id, result, tc.name)
   end
@@ -689,7 +829,9 @@ defmodule AgenticAiAgent.Agent.Runtime do
   end
 
   defp tool_result_payload({:ok, output}), do: Jason.encode!(output)
-  defp tool_result_payload({:error, reason}), do: Jason.encode!(%{"error" => format_reason(reason)})
+
+  defp tool_result_payload({:error, reason}),
+    do: Jason.encode!(%{"error" => format_reason(reason)})
 
   # ----- HITL: risk gating -----
 
@@ -717,12 +859,17 @@ defmodule AgenticAiAgent.Agent.Runtime do
     Traces.update_run!(state.run, %{status: "awaiting_approval"})
 
     state = push_status(state, :awaiting_approval)
-    notify(state, {:agent, :approval_requested, %{
-      approval_id: approval.id,
-      tool_name: tc.name,
-      input: tc.arguments,
-      risk_level: risk
-    }})
+
+    notify(
+      state,
+      {:agent, :approval_requested,
+       %{
+         approval_id: approval.id,
+         tool_name: tc.name,
+         input: tc.arguments,
+         risk_level: risk
+       }}
+    )
 
     Phoenix.PubSub.broadcast(@pubsub, @runs_topic, {:runs, :updated, state.run.id})
 
@@ -760,23 +907,39 @@ defmodule AgenticAiAgent.Agent.Runtime do
       {:ok, _sub_pid} ->
         sub_run_id = wait_for_sub_run_id(state)
 
-        notify(state, {:agent, :delegated, %{
-          sub_run_id: sub_run_id,
-          tool_call_id: tc_id,
-          skill: skill && skill.slug,
-          task: task
-        }})
+        notify(
+          state,
+          {:agent, :delegated,
+           %{
+             sub_run_id: sub_run_id,
+             tool_call_id: tc_id,
+             skill: skill && skill.slug,
+             task: task
+           }}
+        )
 
-        Traces.add_step!(state.run, :delegate, %{
-          "task" => task,
-          "skill" => skill && skill.slug,
-          "sub_run_id" => sub_run_id
-        }, nil)
+        Traces.add_step!(
+          state.run,
+          :delegate,
+          %{
+            "task" => task,
+            "skill" => skill && skill.slug,
+            "sub_run_id" => sub_run_id
+          },
+          nil
+        )
 
         {:noreply, %{state | pending_delegate: %{sub_run_id: sub_run_id, tc_id: tc_id}}}
 
       {:error, reason} ->
-        state = append_tool_result(state, tc_id, {:error, "could not start sub-agent: #{inspect(reason)}"}, "delegate")
+        state =
+          append_tool_result(
+            state,
+            tc_id,
+            {:error, "could not start sub-agent: #{inspect(reason)}"},
+            "delegate"
+          )
+
         send(self(), :process_next_tool)
         {:noreply, state}
     end
@@ -923,16 +1086,44 @@ defmodule AgenticAiAgent.Agent.Runtime do
     if is_binary(note) and note != "" do
       run = state.run
       card = state.card
+      compliance_opts = compliance_persist_opts(state)
 
       _ =
         Task.Supervisor.start_child(
           AgenticAiAgent.Tools.TaskSupervisor,
-          fn -> Reflexion.persist_run_critique(run, card, note) end
+          fn -> Reflexion.persist_run_critique(run, card, note, compliance_opts) end
         )
     end
 
     :ok
   end
+
+  # Derive the keyword opts that flow into ReflexionInsights.record/4.
+  # `noncompliance_count` is the length of the longest same-theme run
+  # in the history; `escalated_at_iteration` is the iteration where
+  # ReflexionCompliance first fired.
+  defp compliance_persist_opts(state) do
+    count = current_streak_length(state.reflexion_theme_history)
+    any? = state.reflexion_theme_history != []
+
+    outcome =
+      ReflexionCompliance.outcome_for_persist(count, state.reflexion_escalated_run?, any?)
+
+    [
+      compliance_outcome: outcome,
+      noncompliance_count: count,
+      escalated_at_iteration: state.reflexion_escalated_at
+    ]
+  end
+
+  # Length of the leading same-theme run in a newest-first history.
+  # `[a, a, b]` → 2. `[nil, a, a]` → 0 (no signal at the front).
+  defp current_streak_length([nil | _]), do: 0
+
+  defp current_streak_length([h | _] = list) when is_binary(h),
+    do: Enum.take_while(list, &(&1 == h)) |> length()
+
+  defp current_streak_length(_), do: 0
 
   # ----- Helpers -----
 
@@ -948,12 +1139,17 @@ defmodule AgenticAiAgent.Agent.Runtime do
         %{state | status: status}
 
       {:error, {:invalid_transition, from, to}} ->
-        Traces.add_step!(state.run, :reflect, %{
-          "workflow_warning" => "invalid_transition",
-          "from" => from,
-          "to" => to,
-          "enforce" => Workflow.enforce?(state.workflow)
-        }, nil)
+        Traces.add_step!(
+          state.run,
+          :reflect,
+          %{
+            "workflow_warning" => "invalid_transition",
+            "from" => from,
+            "to" => to,
+            "enforce" => Workflow.enforce?(state.workflow)
+          },
+          nil
+        )
 
         state = persist_workflow_state(state, status)
         notify(state, {:agent, :status, status})

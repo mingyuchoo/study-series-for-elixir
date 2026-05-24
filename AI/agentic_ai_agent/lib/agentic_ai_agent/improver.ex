@@ -21,9 +21,10 @@ defmodule AgenticAiAgent.Improver do
 
   import Ecto.Query
 
-  alias AgenticAiAgent.{Analytics, Design, Eval, Failures, LLM, Repo, Safety, Skills}
+  alias AgenticAiAgent.{Analytics, Design, Eval, Failures, Feedback, LLM, Repo, Safety, Skills}
   alias AgenticAiAgent.Agent.{Diagnostics, ReflexionInsights}
   alias AgenticAiAgent.Eval.EvalRun
+  alias AgenticAiAgent.Failures.Clustering
   alias AgenticAiAgent.Improver.{Patterns, Proposal}
   alias AgenticAiAgent.LLM.Response
 
@@ -223,8 +224,37 @@ defmodule AgenticAiAgent.Improver do
       existing_skills: list_skill_summaries(),
       root_cause: if(diagnose?, do: maybe_diagnose(slug, opts), else: nil),
       recurring_critiques: ReflexionInsights.recurring_themes_for_card(slug, days: days),
-      transferable_patterns: Patterns.recent_successful(slug, days: days)
+      transferable_patterns: Patterns.recent_successful(slug, days: days),
+      positive_patterns: Feedback.recent_positive_for_card(slug, limit: 5),
+      failure_clusters: maybe_failure_clusters(opts),
+      existing_failure_modes: list_failure_mode_summaries()
     }
+  end
+
+  # Embedding-based clustering of UNCLASSIFIED recent failures. Returns
+  # `[]` when the embeddings adapter is unreachable so build_context
+  # never crashes — the LLM just won't have cluster context that tick.
+  # Opt out with `cluster_failures: false` (used by tests that don't
+  # want HTTP-bound calls).
+  defp maybe_failure_clusters(opts) do
+    if Keyword.get(opts, :cluster_failures, true) do
+      case Clustering.unclassified_clusters(limit: 30) do
+        %{status: :ok, clusters: clusters} -> clusters
+        _ -> []
+      end
+    else
+      []
+    end
+  rescue
+    _ -> []
+  end
+
+  defp list_failure_mode_summaries do
+    for m <- Failures.list_modes() do
+      %{slug: m.slug, name: m.name, failure_type: m.failure_type, severity: m.severity}
+    end
+  rescue
+    _ -> []
   end
 
   # Best-effort root-cause pass. Diagnostics is advisory — if it fails
@@ -477,7 +507,68 @@ defmodule AgenticAiAgent.Improver do
   defp validate_attrs(%{kind: "tool_policy_change"}),
     do: {:error, "tool_policy_change requires target (card slug) and proposed_change map"}
 
+  defp validate_attrs(%{kind: "failure_mode_add", target: slug, proposed_body: body})
+       when is_binary(slug) and slug != "" and is_binary(body) and body != "" do
+    cond do
+      not Regex.match?(~r/\A[a-z0-9][a-z0-9_]*\z/, slug) ->
+        {:error, "failure_mode slug must be lowercase letters/digits/underscores"}
+
+      true ->
+        validate_failure_mode_body(body, slug)
+    end
+  end
+
+  defp validate_attrs(%{kind: "failure_mode_add"}),
+    do: {:error, "failure_mode_add requires target (slug) and proposed_body (YAML)"}
+
   defp validate_attrs(_), do: :ok
+
+  # A valid failure_mode YAML body is a mapping with required keys
+  # `slug`, `name`, plus `severity` and `failure_type` from the
+  # whitelists. Slug in the YAML must match the proposal's target.
+  defp validate_failure_mode_body(body, target_slug) do
+    alias AgenticAiAgent.Failures.FailureMode
+
+    with {:ok, %{} = parsed} <- YamlElixir.read_from_string(body),
+         {:ok, _} <- validate_fm_required(parsed),
+         {:ok, _} <- validate_fm_slug_match(parsed, target_slug),
+         {:ok, _} <- validate_fm_severity(parsed, FailureMode.severities()),
+         {:ok, _} <- validate_fm_type(parsed, FailureMode.failure_types()) do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      _ -> {:error, "failure_mode YAML is not a mapping"}
+    end
+  end
+
+  defp validate_fm_required(%{"slug" => slug, "name" => name})
+       when is_binary(slug) and is_binary(name) and slug != "" and name != "",
+       do: {:ok, :present}
+
+  defp validate_fm_required(_),
+    do: {:error, "failure_mode YAML missing required slug or name"}
+
+  defp validate_fm_slug_match(%{"slug" => slug}, target) when slug == target,
+    do: {:ok, slug}
+
+  defp validate_fm_slug_match(%{"slug" => slug}, target),
+    do: {:error, "failure_mode slug in body (#{slug}) does not match target (#{target})"}
+
+  defp validate_fm_severity(%{"severity" => sev}, allowed) when is_binary(sev) do
+    if sev in allowed,
+      do: {:ok, sev},
+      else: {:error, "severity must be one of: #{Enum.join(allowed, ", ")}"}
+  end
+
+  defp validate_fm_severity(_, _), do: {:ok, :defaulted}
+
+  defp validate_fm_type(%{"failure_type" => ft}, allowed) when is_binary(ft) do
+    if ft in allowed,
+      do: {:ok, ft},
+      else: {:error, "failure_type must be one of: #{Enum.join(allowed, ", ")}"}
+  end
+
+  defp validate_fm_type(_, _), do: {:ok, :defaulted}
 
   defp all_strings?(list) when is_list(list),
     do: Enum.all?(list, &is_binary/1)
@@ -747,7 +838,36 @@ defmodule AgenticAiAgent.Improver do
     end
   end
 
+  defp do_apply(
+         %Proposal{kind: "failure_mode_add", target: slug, proposed_body: body} = _p,
+         _by
+       )
+       when is_binary(slug) and is_binary(body) do
+    write_failure_mode_yaml_and_upsert(slug, body)
+  end
+
   defp do_apply(%Proposal{kind: kind}, _by), do: {:error, {:unsupported_kind, kind}}
+
+  # Writes the proposed failure_mode YAML under priv/failures/auto/ — a
+  # separate subdirectory so LLM-authored entries are distinguishable
+  # from hand-curated ones. Then upserts into the catalog so the
+  # detector and dashboard see it immediately without a server
+  # restart.
+  defp write_failure_mode_yaml_and_upsert(slug, body) do
+    path =
+      Application.app_dir(:agentic_ai_agent, "priv/failures/auto")
+      |> Path.join("#{slug}.yaml")
+
+    with :ok <- File.mkdir_p(Path.dirname(path)),
+         :ok <- File.write(path, body),
+         {:ok, parsed} <- YamlElixir.read_from_string(body),
+         {:ok, mode} <- Failures.upsert_mode_from_map(parsed) do
+      {:ok, %{mode: mode, path: path}}
+    else
+      {:error, reason} -> {:error, reason}
+      err -> {:error, err}
+    end
+  end
 
   @doc """
   Replace ONLY the `tool_policy:` block in a card YAML body. All other
@@ -847,7 +967,7 @@ defmodule AgenticAiAgent.Improver do
 
   Reply with a SINGLE JSON object — no markdown fences, no prose around it.
 
-  You may choose between three kinds of change:
+  You may choose between four kinds of change:
 
   (A) `card_edit` — modify the YAML of an existing agentic card:
 
@@ -920,10 +1040,35 @@ defmodule AgenticAiAgent.Improver do
   - Removing a tool from `deny` or adding a known-risky tool to `allow`
     will fail the safety audit and require human approval.
 
+  (D) `failure_mode_add` — extend the failure catalog with a new shape
+  the runtime keeps hitting but the catalog doesn't recognize. Use ONLY
+  when the `failure_clusters` context section lists an UNCLASSIFIED
+  cluster (size ≥ 2) that shares a common cause:
+
+      {
+        "kind": "failure_mode_add",
+        "target": "<new failure_mode slug, lowercase_underscored>",
+        "proposed_body": "<the COMPLETE failure_mode YAML body>",
+        "justification": "<one paragraph: which unclassified cluster does this codify, and what's the recovery hint?>",
+        "expected_score_delta": <float — usually 0.0; this grows observability, not score>,
+        "supporting_run_ids": ["<run id>", "..."]
+      }
+
+  Rules for `failure_mode_add`:
+  - `proposed_body` MUST be a YAML mapping with at least `slug` (matching target) and `name`.
+  - Should include `severity` (low|medium|high|critical) and
+    `failure_type` (planning|llm|tool|sandbox|mcp|memory|policy|infrastructure|unknown).
+  - SHOULD include `trigger_condition`, `example`, `expected_recovery`,
+    `detection_method` (a regex or short description the runtime classifier can use).
+  - The new slug must not collide with an existing mode (see catalog
+    list under the context section).
+
   Selection guidance:
   - Use `card_edit` for prompt / role / reasoning_policy / output_contract changes.
   - Use `skill_add` when a recurring task pattern needs its own procedure.
   - Use `tool_policy_change` for surgical changes to tool gating ONLY.
+  - Use `failure_mode_add` when the `failure_clusters` section shows
+    repeated UNCLASSIFIED failures the catalog should learn.
 
   Cross-card learning:
   - You will be shown a list of `transferable_patterns` — applied
@@ -985,6 +1130,16 @@ defmodule AgenticAiAgent.Improver do
     == Existing skills (do NOT duplicate; revise an existing one if relevant) ==
     #{inspect(ctx.existing_skills, pretty: true)}
 
+    == Existing failure modes (catalog — do NOT propose a duplicate slug) ==
+    #{render_existing_failure_modes(ctx.existing_failure_modes)}
+
+    == Failure clusters (UNCLASSIFIED — catalog doesn't recognize these yet) ==
+    Each cluster is a group of recent failures whose reason strings are
+    semantically similar but match no existing failure_mode. When a
+    cluster has size ≥ 2 and a clear shared cause, propose a
+    `failure_mode_add` to teach the catalog this shape.
+    #{render_failure_clusters(ctx.failure_clusters)}
+
     == Root-cause diagnosis of recent failed runs ==
     #{render_root_cause(ctx.root_cause)}
 
@@ -999,6 +1154,13 @@ defmodule AgenticAiAgent.Improver do
     score. Consider whether the same pattern fits this card; if so, set
     `inspired_by` to the listed id.
     #{render_transferable_patterns(ctx.transferable_patterns)}
+
+    == What's working on THIS card (positive feedback) ==
+    These are answers users praised (👍) or the judge auto-rated
+    highly. They define what the card is GOOD at — do NOT propose
+    changes that would break these patterns. If your proposal would
+    invalidate one of these wins, reconsider.
+    #{render_positive_patterns(ctx.positive_patterns)}
 
     == Current card YAML ==
     ```yaml
@@ -1066,6 +1228,57 @@ defmodule AgenticAiAgent.Improver do
         pattern_tag: #{tag}
         score_delta: +#{delta}
         justification: #{just}
+      """
+    end)
+  end
+
+  defp render_existing_failure_modes([]), do: "(catalog is empty)"
+
+  defp render_existing_failure_modes(list) when is_list(list) do
+    list
+    |> Enum.map_join("\n", fn m ->
+      "- #{m.slug} (#{m.failure_type}/#{m.severity}): #{m.name}"
+    end)
+  end
+
+  defp render_failure_clusters([]),
+    do: "(no unclassified clusters — catalog covers everything recent)"
+
+  defp render_failure_clusters(list) when is_list(list) do
+    list
+    |> Enum.map_join("\n\n", fn c ->
+      ids = c.member_ids |> Enum.take(3) |> Enum.map(&String.slice(&1, 0, 8)) |> Enum.join(", ")
+
+      """
+      - cluster ##{c.cluster_id} (size ×#{c.size})
+        exemplar: #{String.slice(c.exemplar_reason, 0, 240)}
+        sample member ids: #{ids}
+      """
+    end)
+  end
+
+  defp render_positive_patterns([]),
+    do: "(no praised answers recorded for this card yet)"
+
+  defp render_positive_patterns(list) when is_list(list) do
+    list
+    |> Enum.map_join("\n\n", fn c ->
+      score =
+        cond do
+          c.judge_score && is_number(c.judge_score) ->
+            "judge=#{Float.round(c.judge_score, 2)}"
+
+          true ->
+            "human"
+        end
+
+      input = (c.user_input || "") |> String.slice(0, 160)
+      answer = (c.assistant_answer || "") |> String.slice(0, 240)
+
+      """
+      - source: #{c.flagged_by} (#{score}), status: #{c.status}
+        user_asked: #{input}
+        agent_answered: #{answer}
       """
     end)
   end
