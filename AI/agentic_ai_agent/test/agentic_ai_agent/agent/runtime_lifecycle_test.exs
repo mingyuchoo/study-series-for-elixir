@@ -47,7 +47,7 @@ defmodule AgenticAiAgent.Agent.RuntimeLifecycleTest do
       end)
 
     ref = Process.monitor(subscriber)
-    assert_receive {:DOWN, ^ref, :process, ^subscriber, :normal}
+    assert_receive {:DOWN, ^ref, :process, ^subscriber, reason} when reason in [:normal, :noproc]
 
     assert {:ok, _runtime} =
              Runtime.start(

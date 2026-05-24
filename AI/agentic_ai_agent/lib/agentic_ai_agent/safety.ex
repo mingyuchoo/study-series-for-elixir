@@ -24,7 +24,7 @@ defmodule AgenticAiAgent.Safety do
     * `:fail` — at least one `severity: "high"` violation
   """
 
-  @known_high_risk_tools ~w(python_exec)
+  @known_high_risk_tools ~w(python_exec repo_patch)
 
   @doc """
   Audit a proposed card body against the current one. Both arguments are
@@ -77,7 +77,11 @@ defmodule AgenticAiAgent.Safety do
            verdict: :warn,
            violations: [],
            warnings: [
-             %{rule: "parse_failure", severity: "warn", detail: "YAML parse failed; audit incomplete"}
+             %{
+               rule: "parse_failure",
+               severity: "warn",
+               detail: "YAML parse failed; audit incomplete"
+             }
            ]
          }}
     end
@@ -150,7 +154,8 @@ defmodule AgenticAiAgent.Safety do
                   "workflow_graphs[*].allowed_actions.acting removed — acting state no longer restricts tool calls."
               }
 
-            is_list(before_acting) and is_list(after_acting) and "*" in after_acting and "*" not in before_acting ->
+            is_list(before_acting) and is_list(after_acting) and "*" in after_acting and
+                "*" not in before_acting ->
               %{
                 severity: "high",
                 detail:

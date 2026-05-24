@@ -96,6 +96,20 @@ defmodule AgenticAiAgent.SafetyTest do
 
       assert Enum.any?(violations, &(&1.rule == "high_risk_tool_added"))
     end
+
+    test "adds repo_patch to allow → fail" do
+      proposed =
+        yaml_minus(
+          baseline_yaml(),
+          "allow: [calculator, web_search]",
+          "allow: [calculator, web_search, repo_patch]"
+        )
+
+      assert {:ok, %{verdict: :fail, violations: violations}} =
+               Safety.audit_card(baseline_yaml(), proposed)
+
+      assert Enum.any?(violations, &(&1.rule == "high_risk_tool_added"))
+    end
   end
 
   # ----- Rule: workflow_acting_widened -----

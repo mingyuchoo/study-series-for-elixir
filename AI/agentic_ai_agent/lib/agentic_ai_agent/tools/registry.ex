@@ -52,6 +52,7 @@ defmodule AgenticAiAgent.Tools.Registry do
     AgenticAiAgent.Tools.MemorySearch,
     AgenticAiAgent.Tools.MemoryStore,
     AgenticAiAgent.Tools.PythonExec,
+    AgenticAiAgent.Tools.RepoPatch,
     AgenticAiAgent.Tools.Delegate
   ]
 
@@ -196,7 +197,8 @@ defmodule AgenticAiAgent.Tools.Registry do
               {:tool, :updated, updated.name}
             )
 
-            {:reply, {:ok, updated}, %{state | specs: Map.put(state.specs, updated.name, updated)}}
+            {:reply, {:ok, updated},
+             %{state | specs: Map.put(state.specs, updated.name, updated)}}
 
           {:error, _} = err ->
             {:reply, err, state}
@@ -267,8 +269,11 @@ defmodule AgenticAiAgent.Tools.Registry do
     e -> {:error, {:schema_error, Exception.message(e)}}
   end
 
-  defp safe_dispatch(module, input) when is_atom(module), do: rescue_call(fn -> module.call(input) end)
-  defp safe_dispatch(%DynamicEntry{dispatch: dispatch}, input), do: rescue_call(fn -> dispatch.(input) end)
+  defp safe_dispatch(module, input) when is_atom(module),
+    do: rescue_call(fn -> module.call(input) end)
+
+  defp safe_dispatch(%DynamicEntry{dispatch: dispatch}, input),
+    do: rescue_call(fn -> dispatch.(input) end)
 
   defp rescue_call(fun) do
     fun.()

@@ -43,7 +43,7 @@ capabilities:
   outputs: [markdown]
   languages: [en, ko]
 tool_policy:
-  allow: [web_search, http_fetch, memory_search, memory_store, delegate, python_exec]
+  allow: [web_search, http_fetch, memory_search, memory_store, delegate, python_exec, repo_patch]
   deny: []
   max_tool_calls_per_run: 10
   parallel_tool_calls: false
@@ -64,7 +64,7 @@ reasoning_policy:
 safety_policy:
   pii_handling: redact
   refuse_topics: [malware_authoring, credential_theft, destructive_operations]
-  human_approval_required_for: [medium, high, critical, memory_store, python_exec]
+  human_approval_required_for: [medium, high, critical, memory_store, python_exec, repo_patch]
   deployment_rules:
     require_explicit_human_approval: true
     require_tests_before_apply: true
@@ -112,7 +112,7 @@ task_taxonomies:
     domain: elixir_phoenix
     complexity: high
     risk_level: high
-    required_tools: [memory_search, delegate, python_exec]
+    required_tools: [memory_search, delegate, python_exec, repo_patch]
     success_criteria: |
       Identifies the root cause, proposes a minimal patch, defines tests that
       would fail before and pass after, and includes rollback guidance.
@@ -145,15 +145,16 @@ capability_matrix:
     - reflection
   supported_inputs: [text]
   supported_outputs: [markdown]
-  required_tools: [memory_search, delegate, python_exec]
+  required_tools: [memory_search, delegate, python_exec, repo_patch]
   constraints: |
-    Current built-in tools do not provide host file writes, git operations,
-    server restarts, release promotion, or production deployment. Treat any
-    future deployment or filesystem tool as critical-risk and require HITL.
+    The repo_patch tool can modify the host repository and run verification
+    commands, but it is critical-risk and must pass human approval before use.
+    It does not restart servers, run database migrations, push git branches,
+    or promote releases.
   known_limitations: |
-    Cannot directly modify or deploy code unless an authorized platform tool
-    is explicitly available and approved. Sandboxed python_exec cannot access
-    host files or the network.
+    Can apply source patches only through repo_patch after approval and
+    successful verification. Sandboxed python_exec cannot access host files
+    or the network.
 
 workflow_graphs:
   - name: guarded_runtime_deployment
@@ -185,7 +186,7 @@ workflow_graphs:
     terminal_states: [done, failed]
     approval_points: [awaiting_approval]
     allowed_actions:
-      acting: [web_search, http_fetch, memory_search, memory_store, delegate, python_exec]
+      acting: [web_search, http_fetch, memory_search, memory_store, delegate, python_exec, repo_patch]
     required_evidence:
       done:
         - risk_assessment
