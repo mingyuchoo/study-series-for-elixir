@@ -1,39 +1,46 @@
-<div class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-  <div class="mb-6">
-    <h1 class="text-2xl font-semibold">{gettext("Log in")}</h1>
-    <p class="mt-1 text-sm opacity-70">
-      {gettext("Use your account to open the agent workspace.")}
+<div class="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
+  <div class="rounded-[40px] border border-base-content/10 bg-base-200 p-8 shadow-[rgba(0,0,0,0.08)_0px_24px_48px_0px]">
+    <div class="mb-6">
+      <p class="eyebrow">{gettext("Agent workspace")}</p>
+      <h1 class="text-[40px] font-medium leading-none tracking-[-0.02em]">{gettext("Log in")}</h1>
+      <p class="mt-1 text-sm opacity-70">
+        {gettext("Use your account to open the agent workspace.")}
+      </p>
+    </div>
+
+    <div
+      :if={@error_message}
+      class="mb-4 rounded-[20px] border border-red-400 bg-red-50 p-3 text-sm text-red-700"
+    >
+      {@error_message}
+    </div>
+
+    <.form :let={f} for={%{}} as={:user} action={~p"/login"} class="space-y-4">
+      <input type="hidden" name="user[return_to]" value={@return_to} />
+      <div>
+        <label class="text-xs font-bold uppercase tracking-[0.04em] opacity-70">
+          {gettext("Email")}
+        </label>
+        <.input field={f[:email]} type="email" required />
+      </div>
+      <div>
+        <label class="text-xs font-bold uppercase tracking-[0.04em] opacity-70">
+          {gettext("Password")}
+        </label>
+        <.input field={f[:password]} type="password" required />
+      </div>
+
+      <button
+        type="submit"
+        class="w-full rounded-[20px] bg-primary px-6 py-3 text-sm font-medium tracking-[-0.02em] text-primary-content hover:opacity-90"
+      >
+        {gettext("Log in")}
+      </button>
+    </.form>
+
+    <p class="mt-5 text-center text-sm opacity-70">
+      {gettext("No account yet?")}
+      <.link href={~p"/register"} class="font-medium underline">{gettext("Create one")}</.link>
     </p>
   </div>
-
-  <div
-    :if={@error_message}
-    class="mb-4 rounded border border-red-400 bg-red-50 p-3 text-sm text-red-700"
-  >
-    {@error_message}
-  </div>
-
-  <.form :let={f} for={%{}} as={:user} action={~p"/login"} class="space-y-4">
-    <input type="hidden" name="user[return_to]" value={@return_to} />
-    <div>
-      <label class="text-xs font-semibold opacity-70">{gettext("Email")}</label>
-      <.input field={f[:email]} type="email" required />
-    </div>
-    <div>
-      <label class="text-xs font-semibold opacity-70">{gettext("Password")}</label>
-      <.input field={f[:password]} type="password" required />
-    </div>
-
-    <button
-      type="submit"
-      class="w-full rounded bg-primary px-4 py-2 text-sm font-medium text-primary-content hover:opacity-90"
-    >
-      {gettext("Log in")}
-    </button>
-  </.form>
-
-  <p class="mt-5 text-center text-sm opacity-70">
-    {gettext("No account yet?")}
-    <.link href={~p"/register"} class="font-medium underline">{gettext("Create one")}</.link>
-  </p>
 </div>

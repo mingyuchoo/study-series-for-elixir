@@ -277,7 +277,7 @@ defmodule AgenticAiAgentWeb.HomeLive do
           :if={group_tiles != []}
           class="space-y-3"
         >
-          <h2 class="text-sm font-semibold uppercase tracking-wide opacity-60">
+          <h2 class="eyebrow">
             {group_name}
           </h2>
           <div class={[
@@ -289,7 +289,7 @@ defmodule AgenticAiAgentWeb.HomeLive do
         </section>
 
         <section class="space-y-3">
-          <h2 class="text-sm font-semibold uppercase tracking-wide opacity-60">
+          <h2 class="eyebrow">
             {gettext("Quick reference")}
           </h2>
           <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
@@ -359,12 +359,12 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
   defp stat_card(assigns) do
     ~H"""
-    <div class="flex items-center gap-3 rounded-xl border bg-base-100 p-4 shadow-sm">
-      <div class={["flex h-10 w-10 items-center justify-center rounded-lg", @accent]}>
+    <div class="flex items-center gap-4 rounded-full border border-base-content/10 bg-base-200 px-5 py-4">
+      <div class={["flex h-11 w-11 items-center justify-center rounded-full", @accent]}>
         <.icon name={@icon} class="h-5 w-5" />
       </div>
       <div class="flex flex-col">
-        <span class="text-xs uppercase tracking-wide opacity-60">{@label}</span>
+        <span class="text-xs font-bold uppercase tracking-[0.04em] opacity-60">{@label}</span>
         {render_slot(@inner_block)}
       </div>
     </div>
@@ -384,18 +384,21 @@ defmodule AgenticAiAgentWeb.HomeLive do
     ~H"""
     <section class="space-y-3">
       <header class="flex items-baseline justify-between">
-        <h2 class="text-sm font-semibold uppercase tracking-wide opacity-60">
+        <h2 class="eyebrow">
           {gettext("Recent activity")}
         </h2>
-        <.link navigate={~p"/runs"} class="text-xs opacity-70 hover:underline">
+        <.link
+          navigate={~p"/runs"}
+          class="rounded-full border border-base-content/20 px-3 py-1 text-xs opacity-80 hover:bg-base-200"
+        >
           {gettext("all runs")} →
         </.link>
       </header>
 
-      <ul class="divide-y rounded-xl border bg-base-100">
+      <ul class="divide-y divide-base-content/10 overflow-hidden rounded-[40px] border border-base-content/10 bg-base-200">
         <li :for={r <- @runs} class="flex items-center gap-3 p-3 text-sm">
           <span class={[
-            "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
+            "rounded-full px-2 py-0.5 text-[10px] font-mono uppercase",
             run_status_color(r.status)
           ]}>
             {r.status}
@@ -449,11 +452,20 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
   defp hero(assigns) do
     ~H"""
-    <header class="rounded-2xl border bg-gradient-to-br from-base-200 to-base-100 p-6 shadow-sm">
-      <div class="flex flex-wrap items-start justify-between gap-4">
+    <header class="relative overflow-hidden rounded-2xl border border-base-content/10 bg-base-200 p-8 shadow-[rgba(0,0,0,0.08)_0px_24px_48px_0px]">
+      <div
+        class="pointer-events-none absolute -right-10 -top-8 hidden text-[96px] font-medium leading-none tracking-[-0.02em] text-base-300 md:block"
+        aria-hidden="true"
+      >
+        Agentic
+      </div>
+      <div class="relative flex flex-wrap items-start justify-between gap-6">
         <div class="space-y-2">
-          <h1 class="text-3xl font-semibold tracking-tight">{gettext("Agentic AI Agent")}</h1>
-          <p class="max-w-2xl text-sm opacity-70">
+          <p class="eyebrow">{gettext("Agent workspace")}</p>
+          <h1 class="max-w-3xl text-[40px] font-medium leading-[1] tracking-[-0.02em] md:text-[64px]">
+            {gettext("Agentic AI Agent")}
+          </h1>
+          <p class="max-w-2xl text-base leading-[1.4] opacity-70">
             {gettext(
               "An Elixir/Phoenix implementation of the agent architecture documented in docs/: core LLM, short- and long-term memory, tool registry, ReAct loop with HITL, sub-agents, MCP, sandbox, and a rubric-based eval harness."
             )}
@@ -463,10 +475,10 @@ defmodule AgenticAiAgentWeb.HomeLive do
         <.llm_chip llm={@llm} />
       </div>
 
-      <div class="mt-6">
+      <div class="relative mt-8 flex flex-wrap gap-2">
         <.link
           navigate={~p"/chat"}
-          class="inline-flex items-center gap-2 px-6 py-2 text-sm font-medium"
+          class="inline-flex items-center gap-2 px-6 py-2 text-base font-medium"
           style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
         >
           <.icon name="hero-chat-bubble-left-right-solid" class="h-4 w-4" />
@@ -474,7 +486,7 @@ defmodule AgenticAiAgentWeb.HomeLive do
         </.link>
         <.link
           navigate={~p"/runs"}
-          class="ml-2 inline-flex items-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-semibold hover:bg-base-200"
+          class="inline-flex items-center gap-2 rounded-full border border-base-content px-6 py-2 text-base font-medium tracking-[-0.02em] hover:bg-base-100"
         >
           <.icon name="hero-clock" class="h-4 w-4" />
           {gettext("View runs")}
@@ -488,7 +500,7 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
   defp llm_chip(%{llm: %{ok?: true}} = assigns) do
     ~H"""
-    <div class="rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-xs">
+    <div class="rounded-[40px] border border-emerald-300 dark:border-emerald-700 bg-base-100 px-4 py-3 text-xs">
       <div class="flex items-center gap-2 font-semibold text-emerald-800 dark:text-emerald-200">
         <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
         {gettext("LLM configured")}
@@ -509,7 +521,7 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
   defp llm_chip(assigns) do
     ~H"""
-    <div class="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs">
+    <div class="rounded-[40px] border border-red-300 dark:border-red-700 bg-base-100 px-4 py-3 text-xs">
       <div class="flex items-center gap-2 font-semibold text-red-800 dark:text-red-200">
         <span class="inline-block h-2 w-2 rounded-full bg-red-500"></span>
         {gettext("LLM not configured")}
@@ -525,7 +537,7 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
   defp llm_banner(assigns) do
     ~H"""
-    <div class="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/40 p-4">
+    <div class="rounded-[40px] border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/40 p-5">
       <div class="flex items-start gap-3">
         <.icon name="hero-exclamation-triangle" class="h-5 w-5 flex-none text-red-600" />
         <div class="space-y-2 text-sm text-red-900 dark:text-red-200">
@@ -553,29 +565,23 @@ defmodule AgenticAiAgentWeb.HomeLive do
     <.link
       navigate={@tile.path}
       class={[
-        "group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-base-100 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+        "group relative flex min-h-64 flex-col gap-4 overflow-hidden rounded-[40px] border border-base-content/10 bg-base-200 p-6 transition hover:-translate-y-0.5 hover:shadow-[rgba(0,0,0,0.08)_0px_24px_48px_0px]",
         @tile[:primary?] && "ring-2 ring-base-content/10"
       ]}
     >
-      <div class={[
-        "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
-        @tile.accent
-      ]} />
+      <div class="absolute -right-24 -top-24 h-56 w-56 rounded-full border border-[#F37338]/50" />
 
       <div class="flex items-start justify-between">
-        <div class={[
-          "inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm",
-          @tile.accent
-        ]}>
+        <div class="inline-flex h-14 w-14 items-center justify-center rounded-full border border-base-content/10 bg-base-100 text-base-content">
           <.icon name={@tile.icon} class="h-5 w-5" />
         </div>
-        <code class="rounded bg-base-200 px-2 py-0.5 font-mono text-[10px] opacity-70">
+        <code class="rounded-full bg-base-100 px-3 py-1 font-mono text-[10px] opacity-70">
           {@tile.path}
         </code>
       </div>
 
       <div class="space-y-1">
-        <h3 class="text-lg font-semibold leading-tight">{@tile.title}</h3>
+        <h3 class="text-2xl font-medium leading-[1.2] tracking-[-0.02em]">{@tile.title}</h3>
         <p class="text-sm opacity-70">{@tile.subtitle}</p>
       </div>
 
@@ -584,8 +590,8 @@ defmodule AgenticAiAgentWeb.HomeLive do
           <span class="text-2xl font-bold tabular-nums">{@tile.stat}</span>
           <span class="ml-1 text-xs opacity-60">{@tile.stat_label}</span>
         </div>
-        <span class="text-xs opacity-50 transition group-hover:translate-x-0.5 group-hover:opacity-100">
-          {gettext("open")} →
+        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-[#141413] transition group-hover:translate-x-0.5">
+          →
         </span>
       </div>
     </.link>
@@ -597,8 +603,8 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
   defp quick_card(assigns) do
     ~H"""
-    <div class="rounded-lg border bg-base-100 p-4">
-      <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">{@title}</h3>
+    <div class="rounded-[40px] border border-base-content/10 bg-base-200 p-5">
+      <h3 class="eyebrow mb-3">{@title}</h3>
       <ul class="space-y-1 font-mono text-xs">
         <li :for={line <- @lines} class="opacity-80">{line}</li>
       </ul>

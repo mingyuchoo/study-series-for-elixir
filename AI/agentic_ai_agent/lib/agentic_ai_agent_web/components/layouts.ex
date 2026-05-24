@@ -48,96 +48,75 @@ defmodule AgenticAiAgentWeb.Layouts do
       |> assign_new(:locale, fn -> Gettext.get_locale(AgenticAiAgentWeb.Gettext) end)
       |> assign(:use_items, nav_use_items())
       |> assign(:setup_items, nav_setup_items())
+      |> assign(:primary_items, nav_primary_items())
 
     ~H"""
-    <div class="flex min-h-screen flex-col md:flex-row">
-      <!-- Sidebar: drawer on mobile (slide-in), sticky full-viewport on md+ -->
-      <aside
-        id="sidebar"
-        class={[
-          "flex flex-col bg-base-200",
-          "fixed inset-y-0 left-0 z-50 w-64 -translate-x-full transform transition-transform duration-200",
-          "md:sticky md:top-0 md:h-screen md:w-56 md:translate-x-0"
-        ]}
-        style="box-shadow: rgba(0,0,0,0.04) 4px 0 24px 0;"
-        aria-label={gettext("Primary")}
-      >
-        <div class="flex items-center justify-between border-b border-base-300 p-4">
-          <.link navigate={~p"/"} class="block" phx-click={close_drawer()}>
-            <span class="text-[15px] font-medium" style="letter-spacing: -0.02em;">
+    <div class="min-h-screen bg-base-100 text-base-content">
+      <header class="sticky top-0 z-40 px-3 pt-4 sm:px-6">
+        <nav
+          class="mx-auto flex max-w-7xl items-center gap-3 rounded-full border border-black/5 bg-white/95 px-4 py-3 text-[#141413] shadow-[rgba(0,0,0,0.04)_0px_4px_24px_0px] backdrop-blur md:px-8"
+          aria-label={gettext("Primary")}
+        >
+          <.link navigate={~p"/"} class="flex shrink-0 items-center gap-2">
+            <span class="relative inline-flex h-8 w-12 items-center">
+              <span class="absolute left-0 h-8 w-8 rounded-full bg-[#EB001B]"></span>
+              <span class="absolute left-4 h-8 w-8 rounded-full bg-[#F79E1B] mix-blend-multiply">
+              </span>
+            </span>
+            <span class="hidden text-[15px] font-medium tracking-[-0.02em] sm:inline">
               {gettext("Agentic AI Agent")}
             </span>
           </.link>
-          <!-- Mobile close button -->
-          <button
-            type="button"
-            class="md:hidden"
-            aria-label={gettext("Close menu")}
-            phx-click={close_drawer()}
-          >
-            <.icon name="hero-x-mark-micro" class="size-5 opacity-70" />
-          </button>
-        </div>
 
-        <nav class="flex-1 overflow-y-auto px-2 py-3">
-          <.nav_section
-            label={gettext("Use")}
-            items={@use_items}
-            current_path={@current_path}
-          />
-          <.nav_section
-            label={gettext("Setup")}
-            items={@setup_items}
-            current_path={@current_path}
-          />
-        </nav>
-
-        <div class="space-y-2 border-t border-base-300 p-3">
-          <div class="flex items-center justify-between gap-2">
-            <.locale_toggle locale={@locale} current_path={@current_path} />
-            <.theme_toggle />
+          <div class="hidden flex-1 items-center justify-center gap-2 lg:flex">
+            <.link
+              :for={item <- @primary_items}
+              navigate={item.path}
+              class={top_nav_item_class(active?(item.path, @current_path))}
+              style={top_nav_item_style(active?(item.path, @current_path))}
+            >
+              {item.label.()}
+            </.link>
           </div>
-          <.link
-            href={~p"/logout"}
-            method="delete"
-            class="block w-full rounded border border-base-300 px-3 py-1.5 text-center text-xs font-medium opacity-70 hover:bg-base-300/40 hover:opacity-100"
-          >
-            {gettext("Log out")}
-          </.link>
-        </div>
-      </aside>
 
-    <!-- Mobile backdrop (only visible when drawer is open) -->
-      <div
-        id="drawer-backdrop"
-        class="fixed inset-0 z-40 hidden bg-black/30 md:hidden"
-        phx-click={close_drawer()}
-        aria-hidden="true"
-      />
+          <div class="ml-auto flex items-center gap-2">
+            <details class="group relative">
+              <summary class="flex h-10 cursor-pointer list-none items-center gap-2 rounded-full border border-[#141413]/20 bg-white px-4 text-sm font-medium tracking-[-0.02em] [&::-webkit-details-marker]:hidden">
+                <.icon name="hero-bars-3" class="size-4 lg:hidden" />
+                <span class="hidden lg:inline">{gettext("More")}</span>
+                <span class="lg:hidden">{gettext("Menu")}</span>
+              </summary>
+              <div class="absolute right-0 mt-3 w-72 rounded-[40px] border border-black/5 bg-white p-4 text-[#141413] shadow-[rgba(0,0,0,0.08)_0px_24px_48px_0px]">
+                <.nav_section label={gettext("Use")} items={@use_items} current_path={@current_path} />
+                <.nav_section
+                  label={gettext("Setup")}
+                  items={@setup_items}
+                  current_path={@current_path}
+                />
+                <div class="mt-3 flex items-center justify-between gap-2 border-t border-[#141413]/10 pt-3 md:hidden">
+                  <.locale_toggle locale={@locale} current_path={@current_path} />
+                  <.theme_toggle />
+                </div>
+                <.link
+                  href={~p"/logout"}
+                  method="delete"
+                  class="mt-3 block rounded-full border border-[#141413]/30 px-4 py-2 text-center text-sm font-medium tracking-[-0.02em] hover:bg-[#F3F0EE]"
+                >
+                  {gettext("Log out")}
+                </.link>
+              </div>
+            </details>
 
-    <!-- Mobile top bar with hamburger -->
-      <header class="flex items-center justify-between border-b border-base-300 bg-base-200 p-3 md:hidden">
-        <div class="flex items-center gap-3">
-          <button
-            type="button"
-            class="rounded-full p-1.5 hover:bg-base-300/40"
-            aria-label={gettext("Open menu")}
-            phx-click={open_drawer()}
-          >
-            <.icon name="hero-bars-3" class="size-5" />
-          </button>
-          <.link navigate={~p"/"} class="text-base font-medium" style="letter-spacing: -0.02em;">
-            {gettext("Agentic AI Agent")}
-          </.link>
-        </div>
-        <div class="flex items-center gap-2">
-          <.locale_toggle locale={@locale} current_path={@current_path} />
-          <.theme_toggle />
-        </div>
+            <div class="hidden items-center gap-2 md:flex">
+              <.locale_toggle locale={@locale} current_path={@current_path} />
+              <.theme_toggle />
+            </div>
+          </div>
+        </nav>
       </header>
 
-      <main class="min-w-0 flex-1">
-        <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <main class="min-w-0 px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl">
           {render_slot(@inner_block)}
         </div>
       </main>
@@ -147,23 +126,7 @@ defmodule AgenticAiAgentWeb.Layouts do
     """
   end
 
-  # ----- Mobile drawer JS commands -----
-
-  defp open_drawer do
-    %JS{}
-    |> JS.remove_class("-translate-x-full", to: "#sidebar")
-    |> JS.add_class("translate-x-0", to: "#sidebar")
-    |> JS.show(to: "#drawer-backdrop")
-  end
-
-  defp close_drawer do
-    %JS{}
-    |> JS.remove_class("translate-x-0", to: "#sidebar")
-    |> JS.add_class("-translate-x-full", to: "#sidebar")
-    |> JS.hide(to: "#drawer-backdrop")
-  end
-
-  # ----- Sidebar nav section (collapsible) -----
+  # ----- Floating nav menu -----
 
   attr :label, :string, required: true
   attr :items, :list, required: true
@@ -185,7 +148,6 @@ defmodule AgenticAiAgentWeb.Layouts do
         <li :for={item <- @items}>
           <.link
             navigate={item.path}
-            phx-click={close_drawer()}
             class={nav_item_class(active?(item.path, @current_path))}
             style={nav_item_style(active?(item.path, @current_path))}
           >
@@ -220,6 +182,17 @@ defmodule AgenticAiAgentWeb.Layouts do
 
   defp active?(_, _), do: false
 
+  defp top_nav_item_class(true), do: "rounded-full px-4 py-2 text-sm font-medium"
+
+  defp top_nav_item_class(false),
+    do:
+      "rounded-full px-4 py-2 text-sm font-medium opacity-75 transition hover:bg-[#F3F0EE] hover:opacity-100"
+
+  defp top_nav_item_style(true),
+    do: "background:#141413;color:#F3F0EE;letter-spacing:-0.02em;"
+
+  defp top_nav_item_style(false), do: "letter-spacing:-0.02em;"
+
   # Labels are wrapped in a fn/0 so the active locale is consulted on every
   # render rather than at module-compile time.
 
@@ -242,6 +215,16 @@ defmodule AgenticAiAgentWeb.Layouts do
       %{label: fn -> gettext("Skills") end, path: ~p"/skills"},
       %{label: fn -> gettext("MCP") end, path: ~p"/mcp"},
       %{label: fn -> gettext("Evals") end, path: ~p"/evals"},
+      %{label: fn -> gettext("Tools") end, path: ~p"/tools"},
+      %{label: fn -> gettext("Profile") end, path: ~p"/profile"}
+    ]
+  end
+
+  defp nav_primary_items do
+    [
+      %{label: fn -> gettext("Chat") end, path: ~p"/chat"},
+      %{label: fn -> gettext("Runs") end, path: ~p"/runs"},
+      %{label: fn -> gettext("Cards") end, path: ~p"/cards"},
       %{label: fn -> gettext("Tools") end, path: ~p"/tools"},
       %{label: fn -> gettext("Profile") end, path: ~p"/profile"}
     ]

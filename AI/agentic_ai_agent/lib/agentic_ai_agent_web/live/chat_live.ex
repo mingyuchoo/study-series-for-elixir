@@ -328,10 +328,13 @@ defmodule AgenticAiAgentWeb.ChatLive do
       locale={@locale}
       current_user={@current_user}
     >
-      <div class="flex h-[calc(100vh-8rem)] flex-col">
-        <header class="mb-3 flex items-baseline justify-between">
+      <div class="flex h-[calc(100vh-9.5rem)] flex-col">
+        <header class="mb-4 flex items-end justify-between">
           <div>
-            <h1 class="text-2xl font-semibold">{gettext("Chat")}</h1>
+            <p class="eyebrow">{gettext("Conversation")}</p>
+            <h1 class="text-[40px] font-medium leading-none tracking-[-0.02em]">
+              {gettext("Chat")}
+            </h1>
             <p class="text-xs opacity-60">
               {gettext("Card:")}
               <code :if={@card}>{@card.slug}</code><span :if={!@card}>{gettext("(none)")}</span>
@@ -343,7 +346,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
           <button
             phx-click="reset"
             type="button"
-            class="rounded border px-3 py-1 text-xs hover:bg-base-200"
+            class="rounded-full border border-base-content px-5 py-2 text-sm font-medium tracking-[-0.02em] hover:bg-base-200"
           >
             {gettext("Reset")}
           </button>
@@ -352,7 +355,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
         <div
           id="messages"
           phx-hook=".AutoScroll"
-          class="flex-1 space-y-3 overflow-y-auto rounded border p-3"
+          class="flex-1 space-y-4 overflow-y-auto rounded-[40px] border border-base-content/80 bg-base-100 p-5"
         >
           <script :type={Phoenix.LiveView.ColocatedHook} name=".AutoScroll">
             // Auto-scroll the chat output so the latest message stays
@@ -390,7 +393,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
           <div :if={@awaiting} class="flex justify-start">
             <div class="flex items-start gap-2">
               <.agent_avatar path={@agent_avatar_path} />
-              <div class="rounded-lg bg-base-200 px-2.5 py-1 text-sm leading-snug opacity-70">
+              <div class="rounded-full bg-base-200 px-4 py-2 text-sm leading-snug opacity-70">
                 {status_label(@status)}
               </div>
             </div>
@@ -415,9 +418,9 @@ defmodule AgenticAiAgentWeb.ChatLive do
             type="button"
             phx-click="praise_good_answer"
             title={gettext("Mark this answer as great — it'll go to the wins queue at /feedback.")}
-            class="rounded-full border border-base-300 px-3 py-1 hover:bg-base-300/40"
+            class="inline-flex items-center gap-1 rounded-full border border-base-content/20 px-3 py-1 hover:bg-base-200"
           >
-            👍 {gettext("This answer was great")}
+            <.icon name="hero-hand-thumb-up" class="size-4" /> {gettext("This answer was great")}
           </button>
 
           <span :if={MapSet.member?(@flagged_run_ids, @run_id)} class="opacity-70">
@@ -433,9 +436,9 @@ defmodule AgenticAiAgentWeb.ChatLive do
             title={
               gettext("Mark this answer as wrong — it'll go to the curation queue at /feedback.")
             }
-            class="rounded-full border border-base-300 px-3 py-1 hover:bg-base-300/40"
+            class="inline-flex items-center gap-1 rounded-full border border-base-content/20 px-3 py-1 hover:bg-base-200"
           >
-            👎 {gettext("This answer was wrong")}
+            <.icon name="hero-hand-thumb-down" class="size-4" /> {gettext("This answer was wrong")}
           </button>
         </div>
 
@@ -444,7 +447,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
             <button
               type="button"
               phx-click="toggle_steering"
-              class="rounded-full border border-base-300 px-3 py-1 text-xs hover:bg-base-300/40"
+              class="rounded-full border border-base-content/20 px-3 py-1 text-xs hover:bg-base-200"
             >
               {gettext("Steering")}
             </button>
@@ -452,7 +455,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
               type="button"
               phx-click="cancel_run"
               data-confirm={gettext("Cancel this run?")}
-              class="rounded-full border border-red-400 dark:border-red-600 px-3 py-1 text-xs text-red-700 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
+              class="rounded-full border border-[#CF4500] px-3 py-1 text-xs text-[#CF4500] hover:bg-red-50 dark:hover:bg-red-950/40"
             >
               {gettext("Cancel run")}
             </button>
@@ -460,18 +463,18 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
           <div
             :if={@show_steering?}
-            class="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3"
+            class="rounded-[40px] border border-[#F37338] bg-base-200 p-4"
           >
             <form phx-submit="steer" class="flex gap-2">
               <input
                 name="guidance"
                 placeholder={gettext("Redirect the agent... (e.g. 'use http_fetch instead')")}
                 autocomplete="off"
-                class="flex-1 rounded border px-2 py-1 text-xs"
+                class="flex-1 rounded-full border border-base-content/50 bg-base-100 px-4 py-2 text-xs"
               />
               <button
                 type="submit"
-                class="rounded bg-amber-700 dark:bg-amber-600 px-3 py-1 text-xs text-white hover:bg-amber-800"
+                class="rounded-full bg-[#141413] px-4 py-2 text-xs text-[#F3F0EE]"
               >
                 {gettext("Steer")}
               </button>
@@ -481,7 +484,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
         <div
           :if={@pending_approval}
-          class="mt-2 rounded-lg border-2 border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/40 p-3"
+          class="mt-2 rounded-[40px] border-2 border-[#CF4500] bg-red-50 dark:bg-red-950/40 p-4"
         >
           <div class="mb-2 font-semibold text-red-800 dark:text-red-200">
             ⚠ {gettext("Approval required")}
@@ -492,23 +495,23 @@ defmodule AgenticAiAgentWeb.ChatLive do
               {gettext("risk:")} <code class="font-mono">{@pending_approval.risk_level}</code>
             </div>
           </div>
-          <pre class="mt-2 overflow-x-auto rounded bg-base-100 p-2 text-xs">{Jason.encode!(@pending_approval.input, pretty: true)}</pre>
+          <pre class="mt-2 overflow-x-auto rounded-[20px] bg-base-100 p-3 text-xs">{Jason.encode!(@pending_approval.input, pretty: true)}</pre>
           <form phx-submit="deny" class="mt-2 flex items-center gap-2">
             <input
               name="reason"
               placeholder={gettext("reason (optional)")}
-              class="flex-1 rounded border px-2 py-1 text-xs"
+              class="flex-1 rounded-full border px-4 py-2 text-xs"
             />
             <button
               type="button"
               phx-click="approve"
-              class="rounded bg-emerald-600 px-3 py-1 text-xs text-white hover:bg-emerald-700"
+              class="rounded-full bg-[#141413] px-4 py-2 text-xs text-[#F3F0EE]"
             >
               {gettext("Approve")}
             </button>
             <button
               type="submit"
-              class="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+              class="rounded-full bg-[#CF4500] px-4 py-2 text-xs text-white"
             >
               {gettext("Deny")}
             </button>
@@ -517,7 +520,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
         <div
           :if={@error}
-          class="mt-2 rounded border border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/40 p-2 text-xs text-red-700 dark:text-red-200"
+          class="mt-2 rounded-[20px] border border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-200"
         >
           {@error}
         </div>
@@ -540,7 +543,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
             }
           }
         </script>
-        <.form for={@form} phx-submit="send" class="mt-3 flex gap-2">
+        <.form for={@form} phx-submit="send" class="mt-4 flex gap-3">
           <input
             id="chat-message-input"
             name="text"
@@ -548,13 +551,13 @@ defmodule AgenticAiAgentWeb.ChatLive do
             placeholder={gettext("Type a message...")}
             autocomplete="off"
             phx-hook=".FocusOnReady"
-            class="flex-1 rounded border px-3 py-2 text-sm"
+            class="flex-1 rounded-full border border-base-content bg-base-100 px-5 py-3 text-sm"
             disabled={@awaiting}
           />
           <button
             type="submit"
             disabled={@awaiting}
-            class="px-6 py-2 text-sm font-medium disabled:opacity-50"
+            class="px-7 py-3 text-sm font-medium disabled:opacity-50"
             style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
           >
             {gettext("Send")}
@@ -576,8 +579,10 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
     ~H"""
     <div class="flex max-w-[75%] items-start gap-2">
-      <div class="rounded-lg bg-blue-100 dark:bg-blue-900/40 px-2.5 py-1 text-sm leading-snug">
-        <div class="font-mono text-[10px] leading-none uppercase opacity-60">{gettext("user")}</div>
+      <div class="rounded-[32px] border border-base-content/10 bg-white px-4 py-2 text-sm leading-snug text-[#141413]">
+        <div class="text-[11px] font-bold uppercase leading-none tracking-[0.04em] opacity-55">
+          {gettext("user")}
+        </div>
         <div class="whitespace-pre-wrap">{@content}</div>
       </div>
       <.profile_avatar path={@user_avatar_path} />
@@ -595,8 +600,8 @@ defmodule AgenticAiAgentWeb.ChatLive do
     ~H"""
     <div class="flex max-w-[75%] items-start gap-2">
       <.agent_avatar path={@agent_avatar_path} />
-      <div class="space-y-0.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-sm leading-snug">
-        <div class="font-mono text-[10px] leading-none uppercase opacity-60">
+      <div class="space-y-1 rounded-[32px] border border-[#F37338]/50 bg-base-200 px-4 py-2 text-sm leading-snug">
+        <div class="text-[11px] font-bold uppercase leading-none tracking-[0.04em] opacity-55">
           {gettext("assistant · calling tools")}
         </div>
         <div :if={@content != ""} class="whitespace-pre-wrap">{@content}</div>
@@ -616,8 +621,8 @@ defmodule AgenticAiAgentWeb.ChatLive do
     ~H"""
     <div class="flex max-w-[75%] items-start gap-2">
       <.agent_avatar path={@agent_avatar_path} />
-      <div class="rounded-lg bg-base-200 px-2.5 py-1 text-sm leading-snug">
-        <div class="font-mono text-[10px] leading-none uppercase opacity-60">
+      <div class="rounded-[32px] bg-base-200 px-4 py-2 text-sm leading-snug">
+        <div class="text-[11px] font-bold uppercase leading-none tracking-[0.04em] opacity-55">
           {gettext("assistant")}
         </div>
         <div class="whitespace-pre-wrap">{@content}</div>
@@ -628,8 +633,8 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
   defp message(%{msg: %{"role" => "tool"}} = assigns) do
     ~H"""
-    <div class="max-w-[75%] rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 text-sm leading-snug">
-      <div class="font-mono text-[10px] leading-none uppercase opacity-60">
+    <div class="max-w-[75%] rounded-[32px] border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-2 text-sm leading-snug">
+      <div class="text-[11px] font-bold uppercase leading-none tracking-[0.04em] opacity-55">
         {gettext("tool result")}
       </div>
       <pre class="overflow-x-auto whitespace-pre-wrap text-xs">{trunc_text(@msg["content"], 600)}</pre>
@@ -641,7 +646,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
     assigns = assign(assigns, :msg, msg)
 
     ~H"""
-    <div class="max-w-[75%] rounded-lg bg-base-300 px-2.5 py-1 text-xs leading-snug opacity-70">
+    <div class="max-w-[75%] rounded-[32px] bg-base-300 px-4 py-2 text-xs leading-snug opacity-70">
       {inspect(@msg)}
     </div>
     """
