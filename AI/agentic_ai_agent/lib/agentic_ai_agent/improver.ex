@@ -24,7 +24,7 @@ defmodule AgenticAiAgent.Improver do
   alias AgenticAiAgent.{Analytics, Design, Eval, Failures, LLM, Repo, Safety, Skills}
   alias AgenticAiAgent.Agent.{Diagnostics, ReflexionInsights}
   alias AgenticAiAgent.Eval.EvalRun
-  alias AgenticAiAgent.Improver.Proposal
+  alias AgenticAiAgent.Improver.{Patterns, Proposal}
   alias AgenticAiAgent.LLM.Response
 
   @default_recent_failures 50
@@ -96,6 +96,86 @@ defmodule AgenticAiAgent.Improver do
   def find_previous_card_version(_), do: nil
 
   @doc """
+  Operator-triggered rollback of an applied proposal. Mirrors the
+  Scheduler's autonomous rollback path but synchronous: locates the
+  previous `CardVersion`, restores it, marks the proposal rolled back,
+  and runs the post-rollback safety re-audit (`Improver.Scheduler`
+  emits a notification if the rollback re-introduces a violation).
+
+  Refuses unless the proposal is `applied` and not already rolled back.
+
+  Returns:
+    * `{:ok, updated_proposal}` — restore + mark succeeded
+    * `{:error, :already_rolled_back}` — idempotent guard
+    * `{:error, :not_applied}` — proposal must be in `applied` status
+    * `{:error, :no_previous_version}` — nothing to roll back to
+    * `{:error, reason}` — restore_card_version failed
+  """
+  @spec rollback!(Proposal.t(), String.t()) ::
+          {:ok, Proposal.t()} | {:error, term()}
+  def rollback!(%Proposal{rolled_back_at: ts}, _by) when not is_nil(ts),
+    do: {:error, :already_rolled_back}
+
+  def rollback!(%Proposal{status: status} = _p, _by) when status != "applied",
+    do: {:error, :not_applied}
+
+  def rollback!(%Proposal{} = p, by) when is_binary(by) do
+    case find_previous_card_version(p) do
+      nil ->
+        _ =
+          AgenticAiAgent.Improver.SchedulerDecisions.record("no_previous_version",
+            dry_run: false,
+            card_slug: p.target,
+            proposal_id: p.id,
+            detail: "operator rollback requested but no version row predates applied_at"
+          )
+
+        {:error, :no_previous_version}
+
+      version ->
+        pre_rollback_yaml = read_card_yaml(p.target)
+        reason = "operator rollback by #{by}"
+
+        case Design.restore_card_version(version, reason: reason) do
+          {:ok, _} ->
+            updated = mark_rolled_back!(p, reason)
+
+            _ =
+              AgenticAiAgent.Improver.SchedulerDecisions.record("rolled_back",
+                dry_run: false,
+                card_slug: p.target,
+                proposal_id: p.id,
+                detail: reason,
+                metadata: %{"by" => by}
+              )
+
+            # Best-effort safety re-audit. Emits its own notification +
+            # decision row when the restored YAML re-introduces a
+            # high-severity violation.
+            _ =
+              AgenticAiAgent.Improver.Scheduler.audit_rollback_safety(
+                updated,
+                pre_rollback_yaml,
+                read_card_yaml(p.target)
+              )
+
+            {:ok, updated}
+
+          {:error, restore_err} ->
+            _ =
+              AgenticAiAgent.Improver.SchedulerDecisions.record("restore_failed",
+                dry_run: false,
+                card_slug: p.target,
+                proposal_id: p.id,
+                detail: inspect(restore_err) |> String.slice(0, 200)
+              )
+
+            {:error, restore_err}
+        end
+    end
+  end
+
+  @doc """
   Mark a proposal as rolled back (records reason + timestamp). Does NOT
   perform the restore — caller has already done so.
   """
@@ -142,7 +222,8 @@ defmodule AgenticAiAgent.Improver do
       current_yaml: read_card_yaml(slug),
       existing_skills: list_skill_summaries(),
       root_cause: if(diagnose?, do: maybe_diagnose(slug, opts), else: nil),
-      recurring_critiques: ReflexionInsights.recurring_themes_for_card(slug, days: days)
+      recurring_critiques: ReflexionInsights.recurring_themes_for_card(slug, days: days),
+      transferable_patterns: Patterns.recent_successful(slug, days: days)
     }
   end
 
@@ -218,11 +299,13 @@ defmodule AgenticAiAgent.Improver do
             justification: decoded["justification"],
             expected_score_delta: parse_float(decoded["expected_score_delta"]),
             supporting_run_ids: list_of_strings(decoded["supporting_run_ids"]),
+            inspired_by_proposal_id: Patterns.validate_inspired_by(decoded["inspired_by"]),
             status: "pending",
             raw_response: raw_text
           }
           |> add_safety_audit(ctx.current_yaml)
           |> add_root_cause(ctx.root_cause)
+          |> add_pattern_tag()
 
         case validate_attrs(attrs) do
           :ok ->
@@ -317,6 +400,15 @@ defmodule AgenticAiAgent.Improver do
     |> Map.put(:root_cause, narrative)
     |> Map.put(:root_cause_summary, Map.get(diag, :summary))
     |> Map.put(:root_cause_run_ids, Map.get(diag, :run_ids, []))
+  end
+
+  # Classify the new proposal so future build_context calls can surface
+  # it as a transferable pattern. Tag derives from kind + justification
+  # + root_cause_summary; see `Improver.Patterns.extract_pattern_tag/1`.
+  defp add_pattern_tag(attrs) do
+    Map.put(attrs, :pattern_tag, Patterns.extract_pattern_tag(attrs))
+  rescue
+    _ -> attrs
   end
 
   # SQLite's :map column needs string-keyed JSON-safe values. Atoms in
@@ -833,6 +925,16 @@ defmodule AgenticAiAgent.Improver do
   - Use `skill_add` when a recurring task pattern needs its own procedure.
   - Use `tool_policy_change` for surgical changes to tool gating ONLY.
 
+  Cross-card learning:
+  - You will be shown a list of `transferable_patterns` — applied
+    proposals from OTHER cards that lifted their eval score. When one
+    of these clearly applies to the current card's failure profile,
+    set `"inspired_by": "<that proposal's id>"` in your response so
+    the linkage is recorded. Only cite an id that actually appears in
+    the transferable_patterns list.
+  - When inspired, MIMIC the kind + pattern_tag of the source. Don't
+    invent a new change shape if a proven one fits.
+
   If you cannot identify a clear improvement, reply with
   `{"kind": "noop", "justification": "<reason>"}`.
   """
@@ -892,6 +994,12 @@ defmodule AgenticAiAgent.Improver do
     extra weight: it addresses something the agent is already aware of.
     #{render_recurring_critiques(ctx.recurring_critiques)}
 
+    == Transferable patterns (what worked on OTHER cards) ==
+    Each entry is an applied proposal that lifted its target's eval
+    score. Consider whether the same pattern fits this card; if so, set
+    `inspired_by` to the listed id.
+    #{render_transferable_patterns(ctx.transferable_patterns)}
+
     == Current card YAML ==
     ```yaml
     #{ctx.current_yaml}
@@ -937,6 +1045,27 @@ defmodule AgenticAiAgent.Improver do
       """
       - theme: #{t.theme} (×#{t.count})
         sample: #{t.sample_critique}
+      """
+    end)
+  end
+
+  defp render_transferable_patterns([]),
+    do: "(no successful proposals on other cards in the window)"
+
+  defp render_transferable_patterns(list) when is_list(list) do
+    list
+    |> Enum.map_join("\n\n", fn p ->
+      tag = p.pattern_tag || "untagged"
+      delta = (p.score_delta && Float.round(p.score_delta, 3)) || "?"
+      just = (p.justification || "") |> String.slice(0, 240)
+
+      """
+      - id: #{p.id}
+        from_card: #{p.target}
+        kind: #{p.kind}
+        pattern_tag: #{tag}
+        score_delta: +#{delta}
+        justification: #{just}
       """
     end)
   end

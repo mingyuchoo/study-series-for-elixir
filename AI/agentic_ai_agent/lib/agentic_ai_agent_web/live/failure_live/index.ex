@@ -1,8 +1,9 @@
 defmodule AgenticAiAgentWeb.FailureLive.Index do
   use AgenticAiAgentWeb, :live_view
 
-  alias AgenticAiAgent.Failures
   alias AgenticAiAgent.Agent.Runtime
+  alias AgenticAiAgent.Failures
+  alias AgenticAiAgent.Failures.Clustering
 
   @impl true
   def mount(_params, _session, socket) do
@@ -10,11 +11,31 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
       Phoenix.PubSub.subscribe(AgenticAiAgent.PubSub, Runtime.runs_topic())
     end
 
-    {:ok, refresh(socket)}
+    {:ok,
+     socket
+     |> assign(:cluster_state, :idle)
+     |> assign(:clusters, [])
+     |> assign(:cluster_singletons, 0)
+     |> assign(:cluster_embedded, 0)
+     |> assign(:cluster_error, nil)
+     |> refresh()}
   end
 
   @impl true
   def handle_info({:runs, _, _}, socket), do: {:noreply, refresh(socket)}
+
+  # Clustering is embedding-bound (one batch HTTP call); run it under
+  # the Task supervisor so the LiveView keeps responding.
+  def handle_info({:clusters_done, result}, socket) do
+    {:noreply,
+     socket
+     |> assign(:cluster_state, result.status)
+     |> assign(:clusters, result.clusters)
+     |> assign(:cluster_singletons, result.singletons)
+     |> assign(:cluster_embedded, result.embedded)
+     |> assign(:cluster_error, result.reason)}
+  end
+
   def handle_info(_other, socket), do: {:noreply, socket}
 
   @impl true
@@ -45,6 +66,17 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
       end
 
     {:noreply, socket |> put_flash(kind, msg) |> refresh()}
+  end
+
+  def handle_event("cluster_failures", _params, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(AgenticAiAgent.Tools.TaskSupervisor, fn ->
+      result = Clustering.cluster_recent()
+      send(parent, {:clusters_done, result})
+    end)
+
+    {:noreply, assign(socket, :cluster_state, :running)}
   end
 
   defp refresh(socket) do
@@ -86,6 +118,78 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
             {gettext("Reload from files")}
           </button>
         </header>
+
+        <section class="space-y-2">
+          <div class="flex items-baseline justify-between gap-2">
+            <h2 class="text-sm font-semibold uppercase tracking-wide opacity-70">
+              {gettext("Semantic clusters")}
+            </h2>
+            <button
+              phx-click="cluster_failures"
+              type="button"
+              disabled={@cluster_state == :running}
+              class="rounded border px-3 py-1 text-xs hover:bg-base-200 disabled:opacity-50"
+            >
+              {if @cluster_state == :running,
+                do: gettext("Clustering…"),
+                else: gettext("Cluster recent failures")}
+            </button>
+          </div>
+
+          <p :if={@cluster_state == :idle} class="text-xs opacity-70">
+            {gettext(
+              "Group recent reason strings by semantic similarity to surface hidden patterns the catalog can't see."
+            )}
+          </p>
+
+          <p :if={@cluster_state == :no_failures} class="text-xs opacity-70">
+            {gettext("No failures to cluster.")}
+          </p>
+
+          <p :if={@cluster_state == :embedding_failed} class="text-xs text-red-700 dark:text-red-300">
+            {gettext("Clustering failed: %{r}", r: inspect(@cluster_error))}
+          </p>
+
+          <div :if={@cluster_state == :ok and @clusters == []} class="text-xs opacity-70">
+            {gettext(
+              "No recurring clusters (each failure was unique enough to land alone). %{n} singletons skipped.",
+              n: @cluster_singletons
+            )}
+          </div>
+
+          <ul :if={@cluster_state == :ok and @clusters != []} class="space-y-2">
+            <li :for={c <- @clusters} class="rounded border border-base-300 p-3">
+              <div class="flex items-baseline justify-between gap-2">
+                <div class="flex items-baseline gap-2">
+                  <span class="rounded bg-base-200 px-2 py-0.5 text-[10px] font-mono uppercase">
+                    {gettext("cluster")} #{c.cluster_id}
+                  </span>
+                  <span class="rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 text-[10px] font-mono uppercase">
+                    ×{c.size}
+                  </span>
+                  <span :if={c.mode_slug} class="font-mono text-xs opacity-70">
+                    {c.mode_slug}
+                  </span>
+                  <span :if={is_nil(c.mode_slug)} class="font-mono text-xs opacity-60">
+                    {gettext("(unclassified)")}
+                  </span>
+                </div>
+                <span class="text-[11px] opacity-60">
+                  {gettext("exemplar:")} {String.slice(c.exemplar_occurrence_id, 0, 8)}
+                </span>
+              </div>
+              <p class="mt-1 font-mono text-[11px] opacity-80">{truncate(c.exemplar_reason, 240)}</p>
+            </li>
+          </ul>
+
+          <p
+            :if={@cluster_state == :ok and @cluster_singletons > 0}
+            class="text-[11px] opacity-60"
+          >
+            {gettext("%{n} singleton failures (size 1) hidden.", n: @cluster_singletons)}
+            {gettext("Embedded %{e} total.", e: @cluster_embedded)}
+          </p>
+        </section>
 
         <section class="space-y-2">
           <h2 class="text-sm font-semibold uppercase tracking-wide opacity-70">

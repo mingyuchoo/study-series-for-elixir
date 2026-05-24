@@ -269,4 +269,75 @@ defmodule AgenticAiAgent.ImproverSchedulerTest do
                Scheduler.check_perf_gate(p, gate_cfg(max_cost_ratio: 1.1))
     end
   end
+
+  # ----- Post-rollback safety re-audit -----
+
+  describe "Scheduler.audit_rollback_safety/3" do
+    alias AgenticAiAgent.Improver.Scheduler
+    alias AgenticAiAgent.Improver.SchedulerDecisions
+    alias AgenticAiAgent.Notifications.Notification
+
+    # Persisted proposal — the audit records a decision row whose
+    # proposal_id is a FK, so a transient struct would violate it.
+    defp p! do
+      Repo.insert!(%Proposal{
+        kind: "card_edit",
+        target: "rollback-test",
+        status: "applied"
+      })
+    end
+
+    defp safe_yaml(allow, deny \\ ["python_exec"]) do
+      """
+      slug: rollback-test
+      name: rb
+      role: r
+      goal: g
+      scope: s
+      capabilities: {}
+      tool_policy:
+        allow: #{inspect(allow)}
+        deny: #{inspect(deny)}
+      reasoning_policy: {}
+      safety_policy:
+        human_approval_required_for: [high]
+      output_contract: {}
+      evaluation_mapping: {}
+      """
+    end
+
+    test ":ok when post_rollback matches pre_rollback semantically" do
+      same = safe_yaml(["web_search"])
+      assert :ok = Scheduler.audit_rollback_safety(p!(), same, same)
+    end
+
+    test ":ok when nil yaml on either side (defensive)" do
+      assert :ok = Scheduler.audit_rollback_safety(p!(), nil, safe_yaml(["web_search"]))
+      assert :ok = Scheduler.audit_rollback_safety(p!(), safe_yaml(["web_search"]), nil)
+    end
+
+    test "emits :warning_emitted + notification when rollback re-introduces a deny shrink" do
+      # Pre-rollback (current safer state) has python_exec denied.
+      pre = safe_yaml(["web_search"], ["python_exec"])
+      # Post-rollback (older version) had an empty deny list —
+      # restoring it loses the python_exec deny → fails safety.
+      post = safe_yaml(["web_search"], [])
+
+      assert :warning_emitted = Scheduler.audit_rollback_safety(p!(), pre, post)
+
+      assert [%Notification{kind: "rollback_safety_warning"}] =
+               Repo.all(from(n in Notification, where: n.kind == "rollback_safety_warning"))
+
+      assert [%{action: "rollback_safety_warning"}] =
+               SchedulerDecisions.list(action: "rollback_safety_warning")
+    end
+
+    test "emits :warning_emitted when rollback re-adds a known-risky tool" do
+      # Pre-rollback had python_exec removed; post-rollback puts it back.
+      pre = safe_yaml(["web_search", "calculator"])
+      post = safe_yaml(["web_search", "calculator", "python_exec"])
+
+      assert :warning_emitted = Scheduler.audit_rollback_safety(p!(), pre, post)
+    end
+  end
 end

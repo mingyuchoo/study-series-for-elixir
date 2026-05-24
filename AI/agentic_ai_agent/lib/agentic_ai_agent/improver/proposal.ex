@@ -71,6 +71,10 @@ defmodule AgenticAiAgent.Improver.Proposal do
     field :root_cause_summary, :string
     field :root_cause_run_ids, {:array, :string}, default: []
 
+    # Cross-card learning — see `AgenticAiAgent.Improver.Patterns`.
+    field :pattern_tag, :string
+    belongs_to :inspired_by, __MODULE__, foreign_key: :inspired_by_proposal_id
+
     timestamps(type: :utc_datetime)
   end
 
@@ -83,7 +87,7 @@ defmodule AgenticAiAgent.Improver.Proposal do
                safety_audit safety_verdict root_cause root_cause_summary
                root_cause_run_ids baseline_cost_micro_usd
                baseline_latency_ms staging_cost_micro_usd
-               staging_latency_ms)a
+               staging_latency_ms pattern_tag inspired_by_proposal_id)a
 
   def changeset(proposal, attrs) do
     proposal

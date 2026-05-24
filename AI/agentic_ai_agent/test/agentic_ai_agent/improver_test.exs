@@ -93,6 +93,33 @@ defmodule AgenticAiAgent.ImproverTest do
       ctx = Improver.build_context(@card_slug, diagnose: false)
       assert [%{theme: "missing_retrieve", count: 3}] = ctx.recurring_critiques
     end
+
+    test "transferable_patterns excludes the current card and includes successful others" do
+      # A successful proposal on the *current* card → must be excluded.
+      Repo.insert!(%Proposal{
+        kind: "card_edit",
+        target: @card_slug,
+        status: "applied",
+        score_delta: 0.12,
+        pattern_tag: "added_retrieval"
+      })
+
+      # A successful proposal on a *different* card → must be included.
+      Repo.insert!(%Proposal{
+        kind: "card_edit",
+        target: "other-card-#{System.unique_integer([:positive])}",
+        status: "applied",
+        score_delta: 0.08,
+        pattern_tag: "tightened_deny",
+        applied_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      })
+
+      ctx = Improver.build_context(@card_slug, diagnose: false)
+      assert is_list(ctx.transferable_patterns)
+      assert length(ctx.transferable_patterns) == 1
+      [t] = ctx.transferable_patterns
+      assert t.pattern_tag == "tightened_deny"
+    end
   end
 
   # ----- generate_proposal/1 — early validation paths (no LLM call) -----

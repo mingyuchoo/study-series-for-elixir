@@ -121,6 +121,48 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
      |> load_proposals()}
   end
 
+  def handle_event("rollback", %{"id" => id}, socket) do
+    p = Improver.get_proposal!(id)
+
+    case Improver.rollback!(p, "hitl-user") do
+      {:ok, %_{target: target}} ->
+        msg =
+          gettext(
+            "Rolled back card %{target}. Safety re-audit ran; check notifications for any warnings.",
+            target: target
+          )
+
+        {:noreply, socket |> put_flash(:info, msg) |> load_proposals()}
+
+      {:error, :already_rolled_back} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, gettext("This proposal was already rolled back."))
+         |> load_proposals()}
+
+      {:error, :not_applied} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, gettext("Only applied proposals can be rolled back."))
+         |> load_proposals()}
+
+      {:error, :no_previous_version} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           gettext("Nothing to roll back to — no version row predates this proposal.")
+         )
+         |> load_proposals()}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, gettext("Rollback failed: %{r}", r: inspect(reason)))
+         |> load_proposals()}
+    end
+  end
+
   # ----- Messages -----
 
   @impl true
@@ -172,6 +214,21 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
     if File.exists?(path), do: File.read!(path), else: ""
   rescue
     _ -> ""
+  end
+
+  # For tool_policy_change proposals: synthesize the post-change YAML
+  # by piping the patch through the same code path the apply step uses.
+  # Falls back to the raw card YAML if synthesis fails — the diff will
+  # then look empty, which signals to the operator that something is
+  # off without crashing the page. The template guard (`is_map`) keeps
+  # nil changes from reaching here.
+  defp tool_policy_preview(slug, change) do
+    current = current_yaml(slug)
+
+    case Improver.apply_tool_policy_change(current, change) do
+      {:ok, new_yaml} -> new_yaml
+      _ -> current
+    end
   end
 
   # ----- Render -----
@@ -325,6 +382,20 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
               <.diff_view from={current_skill(p.target)} to={p.proposed_body} />
             </div>
 
+            <!-- tool_policy_change diff: synthesize the post-change YAML
+                 from the patch + current card body, then diff the two
+                 like a regular card_edit. -->
+            <div
+              :if={@expanded_id == p.id and p.kind == "tool_policy_change" and is_map(p.proposed_change)}
+              class="mt-3 space-y-2"
+            >
+              <div class="eyebrow">{gettext("Diff: current → proposed (tool_policy)")}</div>
+              <.diff_view
+                from={current_yaml(p.target)}
+                to={tool_policy_preview(p.target, p.proposed_change)}
+              />
+            </div>
+
             <!-- Staging info (when present) -->
             <div :if={p.staging_slug} class="mt-2 rounded border border-base-300 bg-base-100 p-2 text-xs">
               <div class="flex flex-wrap items-baseline gap-3">
@@ -454,6 +525,21 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                 class="rounded-full border border-base-300 px-4 py-1 text-xs hover:bg-base-300/40"
               >
                 {gettext("Discard staging")}
+              </button>
+
+              <!-- Rollback: applied + not already rolled back. The same
+                   Phase 6 path the autonomous scheduler uses, just
+                   operator-triggered. The destructive confirm names
+                   the target so a misclick is unlikely. -->
+              <button
+                :if={p.status == "applied" and is_nil(p.rolled_back_at) and p.kind in ["card_edit", "tool_policy_change"]}
+                type="button"
+                phx-click="rollback"
+                phx-value-id={p.id}
+                data-confirm={gettext("Roll back %{target} to the previous version? A safety re-audit will run automatically.", target: p.target)}
+                class="rounded-full border border-red-400 dark:border-red-600 px-4 py-1 text-xs text-red-700 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
+              >
+                ⤺ {gettext("Roll back")}
               </button>
 
               <.link

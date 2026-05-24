@@ -40,7 +40,8 @@ defmodule AgenticAiAgent.Improver.Scheduler do
   use GenServer
   require Logger
 
-  alias AgenticAiAgent.{Design, Eval, Improver, Notifications}
+  alias AgenticAiAgent.{Design, Eval, Improver, Notifications, Safety}
+  alias AgenticAiAgent.Improver.SchedulerDecisions
 
   @default_interval :timer.hours(24)
   @default_promote_threshold 0.05
@@ -189,6 +190,19 @@ defmodule AgenticAiAgent.Improver.Scheduler do
               card_slug: target
             )
 
+          _ =
+            SchedulerDecisions.record("would_apply",
+              dry_run: true,
+              card_slug: target,
+              proposal_id: latest.id,
+              detail: "Δ=#{format_delta(latest.score_delta)}",
+              metadata: %{
+                "score_delta" => latest.score_delta,
+                "baseline_score" => latest.baseline_score,
+                "staging_score" => latest.staging_score
+              }
+            )
+
           state
         else
           case Improver.apply!(latest, "scheduler") do
@@ -205,6 +219,19 @@ defmodule AgenticAiAgent.Improver.Scheduler do
                   body: "Proposal #{applied.id} applied. Watching next eval for regression.",
                   proposal_id: applied.id,
                   card_slug: target
+                )
+
+              _ =
+                SchedulerDecisions.record("applied",
+                  dry_run: false,
+                  card_slug: target,
+                  proposal_id: applied.id,
+                  detail: "Δ=#{format_delta(applied.score_delta)}",
+                  metadata: %{
+                    "score_delta" => applied.score_delta,
+                    "baseline_score" => applied.baseline_score,
+                    "staging_score" => applied.staging_score
+                  }
                 )
 
               %{
@@ -252,6 +279,15 @@ defmodule AgenticAiAgent.Improver.Scheduler do
           |> String.slice(0, 400),
         proposal_id: p.id,
         card_slug: p.target
+      )
+
+    _ =
+      SchedulerDecisions.record("blocked_safety",
+        dry_run: dry_run?(),
+        card_slug: p.target,
+        proposal_id: p.id,
+        detail: "safety verdict=fail",
+        metadata: %{"violations" => violations || []}
       )
 
     false
@@ -338,6 +374,21 @@ defmodule AgenticAiAgent.Improver.Scheduler do
         card_slug: p.target
       )
 
+    _ =
+      SchedulerDecisions.record("blocked_perf",
+        dry_run: dry_run?(),
+        card_slug: p.target,
+        proposal_id: p.id,
+        detail: "#{signal} #{Float.round(ratio, 2)}× > #{ceiling}×",
+        metadata: %{
+          "signal" => signal,
+          "ratio" => ratio,
+          "ceiling" => ceiling,
+          "baseline" => baseline_for(p, signal),
+          "staging" => staging_for(p, signal)
+        }
+      )
+
     :ok
   end
 
@@ -380,44 +431,172 @@ defmodule AgenticAiAgent.Improver.Scheduler do
       nil ->
         Logger.warning("Improver.Scheduler can't rollback proposal #{p.id}: no previous version")
 
-      version ->
-        if dry_run?() do
-          msg =
-            "[DRY RUN] would auto-rollback proposal #{p.id} (score #{Float.round(score, 4)} < baseline #{Float.round(baseline, 4)})"
+        _ =
+          SchedulerDecisions.record("no_previous_version",
+            dry_run: dry_run?(),
+            card_slug: p.target,
+            proposal_id: p.id,
+            detail: "no version row predates applied_at"
+          )
 
-          Logger.warning(msg)
+      version ->
+        do_attempt_rollback(p, version, baseline, score)
+    end
+  end
+
+  defp do_attempt_rollback(p, version, baseline, score) do
+    score_detail =
+      "score #{Float.round(score, 4)} < baseline #{Float.round(baseline, 4)}"
+
+    if dry_run?() do
+      msg = "[DRY RUN] would auto-rollback proposal #{p.id} (#{score_detail})"
+      Logger.warning(msg)
+
+      _ =
+        Notifications.emit("dry_run",
+          subject: "Would auto-rollback #{p.target}",
+          body: msg,
+          proposal_id: p.id,
+          card_slug: p.target
+        )
+
+      _ =
+        SchedulerDecisions.record("would_rollback",
+          dry_run: true,
+          card_slug: p.target,
+          proposal_id: p.id,
+          detail: score_detail,
+          metadata: %{"score" => score, "baseline" => baseline}
+        )
+    else
+      # Snapshot the current (about-to-be-replaced) YAML before restore.
+      # Needed by the post-rollback safety re-audit: we compare what the
+      # card looks like AFTER restore against what it looked like
+      # immediately before — if the restore re-introduces a safety
+      # violation, we surface that even though the operator chose
+      # rollback as the remediation.
+      pre_rollback_yaml = read_card_yaml(p.target)
+
+      case Design.restore_card_version(version,
+             reason: "auto-rollback: post-promote regression"
+           ) do
+        {:ok, _} ->
+          reason = "post-promote #{score_detail}"
+          _ = Improver.mark_rolled_back!(p, reason)
+          Logger.warning("Improver.Scheduler auto-rolled-back proposal #{p.id}: #{reason}")
 
           _ =
-            Notifications.emit("dry_run",
-              subject: "Would auto-rollback #{p.target}",
-              body: msg,
+            Notifications.emit("auto_rollback",
+              subject: "Auto-rolled back #{p.target}",
+              body: "Proposal #{p.id} reverted: #{reason}",
               proposal_id: p.id,
               card_slug: p.target
             )
-        else
-          case Design.restore_card_version(version,
-                 reason: "auto-rollback: post-promote regression"
-               ) do
-            {:ok, _} ->
-              reason =
-                "post-promote score #{Float.round(score, 4)} < baseline #{Float.round(baseline, 4)}"
 
-              _ = Improver.mark_rolled_back!(p, reason)
-              Logger.warning("Improver.Scheduler auto-rolled-back proposal #{p.id}: #{reason}")
+          _ =
+            SchedulerDecisions.record("rolled_back",
+              dry_run: false,
+              card_slug: p.target,
+              proposal_id: p.id,
+              detail: score_detail,
+              metadata: %{"score" => score, "baseline" => baseline}
+            )
 
-              _ =
-                Notifications.emit("auto_rollback",
-                  subject: "Auto-rolled back #{p.target}",
-                  body: "Proposal #{p.id} reverted: #{reason}",
-                  proposal_id: p.id,
-                  card_slug: p.target
-                )
+          _ = audit_rollback_safety(p, pre_rollback_yaml)
+          :ok
 
-            {:error, reason} ->
-              Logger.warning("Improver.Scheduler rollback failed for #{p.id}: #{inspect(reason)}")
-          end
-        end
+        {:error, reason} ->
+          Logger.warning("Improver.Scheduler rollback failed for #{p.id}: #{inspect(reason)}")
+
+          _ =
+            SchedulerDecisions.record("restore_failed",
+              dry_run: false,
+              card_slug: p.target,
+              proposal_id: p.id,
+              detail: inspect(reason) |> String.slice(0, 200)
+            )
+      end
     end
+  end
+
+  @doc """
+  Compare a freshly-restored card YAML against what was on disk before
+  the rollback. The same `Safety.audit_card/2` logic that gates
+  auto-promote runs here in reverse: if going backward to the previous
+  version trips a high-severity rule, the operator needs to know the
+  rollback didn't necessarily land them in a "safer" place.
+
+  Emits a `"rollback_safety_warning"` notification + records a
+  `rollback_safety_warning` decision when the restored YAML introduces
+  any high-severity violation relative to the pre-rollback state.
+
+  Returns `:ok | :warning_emitted` — the variant lets tests distinguish
+  the two cases without scraping logs.
+  """
+  @spec audit_rollback_safety(map(), String.t() | nil, String.t() | nil) ::
+          :ok | :warning_emitted
+  def audit_rollback_safety(_proposal, nil, _), do: :ok
+  def audit_rollback_safety(_proposal, _, nil), do: :ok
+
+  def audit_rollback_safety(p, pre_rollback_yaml, post_rollback_yaml)
+      when is_binary(pre_rollback_yaml) and is_binary(post_rollback_yaml) do
+    case Safety.audit_card(pre_rollback_yaml, post_rollback_yaml) do
+      {:ok, %{verdict: :fail, violations: violations}} ->
+        detail =
+          violations
+          |> Enum.map_join("; ", &Map.get(&1, :detail, "(no detail)"))
+          |> String.slice(0, 400)
+
+        Logger.warning(
+          "Improver.Scheduler: rollback of #{p.id} re-introduces a safety violation: #{detail}"
+        )
+
+        _ =
+          Notifications.emit("rollback_safety_warning",
+            subject: "Rollback re-introduced a safety issue on #{p.target}",
+            body:
+              "Restoring the previous version of `#{p.target}` re-introduced " <>
+                "a high-severity safety rule violation: #{detail}",
+            proposal_id: p.id,
+            card_slug: p.target
+          )
+
+        _ =
+          SchedulerDecisions.record("rollback_safety_warning",
+            dry_run: false,
+            card_slug: p.target,
+            proposal_id: p.id,
+            detail: detail,
+            metadata: %{"violations" => violations}
+          )
+
+        :warning_emitted
+
+      _ ->
+        :ok
+    end
+  rescue
+    e ->
+      Logger.warning(
+        "Improver.Scheduler: rollback safety audit crashed for #{p.id}: #{Exception.message(e)}"
+      )
+
+      :ok
+  end
+
+  # Convenience wrapper for the rollback path: reads the post-rollback
+  # YAML off disk and delegates to the 3-arg form.
+  defp audit_rollback_safety(p, pre_rollback_yaml) do
+    audit_rollback_safety(p, pre_rollback_yaml, read_card_yaml(p.target))
+  end
+
+  defp read_card_yaml(slug) when is_binary(slug) do
+    case Design.card_source_path(slug) do
+      nil -> nil
+      path -> File.read!(path)
+    end
+  rescue
+    _ -> nil
   end
 
   defp dry_run? do
