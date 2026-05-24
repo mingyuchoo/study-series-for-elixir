@@ -8,7 +8,7 @@ defmodule AgenticAiAgent.ImproverRollbackTest do
 
   @card_slug "rb-ui-test-#{System.unique_integer([:positive])}"
 
-  defp seed!(role \\ "v1") do
+  defp seed!(role) do
     yaml = """
     slug: #{@card_slug}
     name: Rollback UI Test
@@ -53,12 +53,25 @@ defmodule AgenticAiAgent.ImproverRollbackTest do
       assert {:error, :not_applied} = Improver.rollback!(p, "hitl-user")
     end
 
-    test ":already_rolled_back when called twice" do
-      # First create a real applied + previous version chain.
-      yaml_v2 =
-        seed!("v2")
-        |> String.replace("role: v1", "role: v2")
+    # Back-date the v1 CardVersion that the setup created so it lands
+    # in a UTC second strictly earlier than the upcoming v2 apply +
+    # applied_at. `find_previous_card_version` uses `<` (strict) so
+    # without this back-date the v1 and v2 timestamps collide in the
+    # same second and the v2 row qualifies as its own "previous"
+    # version, leaving disk at v2 after restore.
+    defp backdate_v1!(seconds_ago) do
+      past =
+        DateTime.utc_now()
+        |> DateTime.truncate(:second)
+        |> DateTime.add(-seconds_ago, :second)
 
+      Repo.update_all(
+        from(v in AgenticAiAgent.Design.CardVersion, where: v.slug == ^@card_slug),
+        set: [inserted_at: past]
+      )
+    end
+
+    defp apply_v2!(yaml_v2) do
       proposal =
         Repo.insert!(%Proposal{
           kind: "card_edit",
@@ -67,8 +80,13 @@ defmodule AgenticAiAgent.ImproverRollbackTest do
           proposed_body: yaml_v2
         })
 
-      applied = Improver.apply!(proposal, "test")
-      assert applied.status == "applied"
+      Improver.apply!(proposal, "test")
+    end
+
+    test ":already_rolled_back when called twice" do
+      backdate_v1!(120)
+      yaml_v2 = String.replace(seed!("v1"), "role: v1", "role: v2")
+      applied = apply_v2!(yaml_v2)
 
       assert {:ok, _rolled} = Improver.rollback!(applied, "hitl-user")
 
@@ -78,32 +96,9 @@ defmodule AgenticAiAgent.ImproverRollbackTest do
     end
 
     test "happy path: restores prev YAML, marks rolled_back, records decision" do
-      # v1 already on disk from setup. Apply a v2 via approved proposal.
-      yaml_v2 = """
-      slug: #{@card_slug}
-      name: Rollback UI Test
-      role: v2
-      goal: g
-      scope: s
-      capabilities: {}
-      tool_policy: {}
-      reasoning_policy: {}
-      safety_policy:
-        human_approval_required_for: [high]
-      output_contract: {}
-      evaluation_mapping: {}
-      """
-
-      proposal =
-        Repo.insert!(%Proposal{
-          kind: "card_edit",
-          target: @card_slug,
-          status: "approved",
-          proposed_body: yaml_v2
-        })
-
-      applied = Improver.apply!(proposal, "test")
-      assert applied.status == "applied"
+      backdate_v1!(120)
+      yaml_v2 = String.replace(seed!("v1"), "role: v1", "role: v2")
+      applied = apply_v2!(yaml_v2)
 
       # Disk reflects v2 now.
       assert File.read!(Design.card_source_path(@card_slug)) =~ "role: v2"

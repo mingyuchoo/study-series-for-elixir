@@ -85,7 +85,7 @@ defmodule AgenticAiAgent.Failures.Clustering do
 
     occurrences =
       Failures.list_recent_occurrences(limit)
-      |> Enum.reject(&(blank?(&1.reason)))
+      |> Enum.reject(&blank?(&1.reason))
 
     case occurrences do
       [] ->

@@ -97,7 +97,9 @@ defmodule AgenticAiAgent.Failures.ClusteringTest do
       })
 
       # Strict threshold (0.9) splits them.
-      strict = Clustering.cluster_recent(adapter: StubAdapter, threshold: 0.9, min_cluster_size: 1)
+      strict =
+        Clustering.cluster_recent(adapter: StubAdapter, threshold: 0.9, min_cluster_size: 1)
+
       assert length(strict.clusters) == 2
 
       # Loose threshold (0.5) merges them.

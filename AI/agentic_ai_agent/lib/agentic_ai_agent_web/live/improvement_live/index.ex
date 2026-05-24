@@ -52,7 +52,10 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
     {:noreply,
      socket
      |> assign(:generating?, true)
-     |> put_flash(:info, gettext("Asking the improver for a proposal on card %{slug}…", slug: slug))}
+     |> put_flash(
+       :info,
+       gettext("Asking the improver for a proposal on card %{slug}…", slug: slug)
+     )}
   end
 
   def handle_event("approve", %{"id" => id}, socket) do
@@ -243,12 +246,14 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
             <div class="eyebrow mb-2">{gettext("Improvements")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Improvement proposals")}</h1>
             <p class="text-sm opacity-70">
-              {gettext("The meta-agent reads recent failures and eval trends, then proposes ONE focused YAML edit at a time. Nothing is auto-applied — you approve, then apply.")}
+              {gettext(
+                "The meta-agent reads recent failures and eval trends, then proposes ONE focused YAML edit at a time. Nothing is auto-applied — you approve, then apply."
+              )}
             </p>
           </div>
         </header>
-
-        <!-- Generate panel -->
+        
+    <!-- Generate panel -->
         <section class="rounded-lg border border-base-300 bg-base-200 p-4">
           <div class="mb-2 eyebrow">{gettext("Ask the improver")}</div>
           <div class="flex flex-wrap items-center gap-3 text-sm">
@@ -278,20 +283,30 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
             </span>
           </div>
         </section>
-
-        <!-- Filter -->
+        
+    <!-- Filter -->
         <form phx-change="filter" class="flex flex-wrap items-center gap-2 text-xs">
           <span class="eyebrow">{gettext("Filter")}</span>
           <select name="status" class="rounded-full border border-base-300 bg-base-100 px-3 py-1">
-            <option :for={s <- ~w(all pending approved staging staged_passed staged_failed applied rejected failed malformed rolled_back)} value={s} selected={s == @status_filter}>
+            <option
+              :for={
+                s <-
+                  ~w(all pending approved staging staged_passed staged_failed applied rejected failed malformed rolled_back)
+              }
+              value={s}
+              selected={s == @status_filter}
+            >
               {s}
             </option>
           </select>
           <span class="opacity-60">{length(@proposals)} {gettext("shown")}</span>
         </form>
-
-        <!-- Queue -->
-        <div :if={@proposals == []} class="rounded border border-dashed p-6 text-center text-sm opacity-70">
+        
+    <!-- Queue -->
+        <div
+          :if={@proposals == []}
+          class="rounded border border-dashed p-6 text-center text-sm opacity-70"
+        >
           {gettext("No proposals match this filter.")}
         </div>
 
@@ -308,13 +323,22 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                   {Design.short_sha(p.id)}
                 </button>
                 <span class="font-mono text-[10px] uppercase opacity-60">{p.kind}</span>
-                <span class={["rounded px-2 py-0.5 text-[10px] font-mono uppercase", status_color(p.status)]}>
+                <span class={[
+                  "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
+                  status_color(p.status)
+                ]}>
                   {p.status}
                 </span>
-                <span :if={p.auto_promoted} class="rounded bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 px-2 py-0.5 text-[10px] font-mono uppercase">
+                <span
+                  :if={p.auto_promoted}
+                  class="rounded bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 px-2 py-0.5 text-[10px] font-mono uppercase"
+                >
                   🤖 {gettext("auto")}
                 </span>
-                <span :if={p.rolled_back_at} class="rounded bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 px-2 py-0.5 text-[10px] font-mono uppercase">
+                <span
+                  :if={p.rolled_back_at}
+                  class="rounded bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 px-2 py-0.5 text-[10px] font-mono uppercase"
+                >
                   ⤺ {gettext("rolled back")}
                 </span>
                 <code class="font-mono text-xs opacity-70">→ {p.target}</code>
@@ -322,16 +346,24 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
               <span class="text-xs opacity-60">{format_time(p.inserted_at)}</span>
             </div>
 
-            <p :if={p.rolled_back_reason} class="mt-1 font-mono text-xs text-red-700 dark:text-red-300">
+            <p
+              :if={p.rolled_back_reason}
+              class="mt-1 font-mono text-xs text-red-700 dark:text-red-300"
+            >
               ⤺ {p.rolled_back_reason}
-              <span :if={p.rolled_back_at} class="opacity-70"> · {format_time(p.rolled_back_at)}</span>
+              <span :if={p.rolled_back_at} class="opacity-70">
+                 ·  {format_time(p.rolled_back_at)}
+              </span>
             </p>
-
-            <!-- Safety audit (Phase 5) — surface alignment-drift signals -->
-            <div :if={p.safety_verdict in ["fail", "warn"]} class={[
-              "mt-2 rounded border p-2 text-xs",
-              safety_panel_class(p.safety_verdict)
-            ]}>
+            
+    <!-- Safety audit (Phase 5) — surface alignment-drift signals -->
+            <div
+              :if={p.safety_verdict in ["fail", "warn"]}
+              class={[
+                "mt-2 rounded border p-2 text-xs",
+                safety_panel_class(p.safety_verdict)
+              ]}
+            >
               <div class="mb-1 font-semibold uppercase tracking-wide">
                 ⚠ {gettext("Safety audit:")} {p.safety_verdict}
                 <span :if={p.safety_verdict == "fail"} class="ml-2 opacity-80">
@@ -370,23 +402,31 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
             <p :if={p.apply_error} class="mt-1 font-mono text-xs text-red-700 dark:text-red-300">
               {p.apply_error}
             </p>
-
-            <!-- Expanded diff -->
-            <div :if={@expanded_id == p.id and p.kind == "card_edit" and p.proposed_body} class="mt-3 space-y-2">
+            
+    <!-- Expanded diff -->
+            <div
+              :if={@expanded_id == p.id and p.kind == "card_edit" and p.proposed_body}
+              class="mt-3 space-y-2"
+            >
               <div class="eyebrow">{gettext("Diff: current → proposed")}</div>
               <.diff_view from={current_yaml(p.target)} to={p.proposed_body} />
             </div>
 
-            <div :if={@expanded_id == p.id and p.kind == "skill_add" and p.proposed_body} class="mt-3 space-y-2">
+            <div
+              :if={@expanded_id == p.id and p.kind == "skill_add" and p.proposed_body}
+              class="mt-3 space-y-2"
+            >
               <div class="eyebrow">{gettext("Diff: current → proposed (skill)")}</div>
               <.diff_view from={current_skill(p.target)} to={p.proposed_body} />
             </div>
-
-            <!-- tool_policy_change diff: synthesize the post-change YAML
+            
+    <!-- tool_policy_change diff: synthesize the post-change YAML
                  from the patch + current card body, then diff the two
                  like a regular card_edit. -->
             <div
-              :if={@expanded_id == p.id and p.kind == "tool_policy_change" and is_map(p.proposed_change)}
+              :if={
+                @expanded_id == p.id and p.kind == "tool_policy_change" and is_map(p.proposed_change)
+              }
               class="mt-3 space-y-2"
             >
               <div class="eyebrow">{gettext("Diff: current → proposed (tool_policy)")}</div>
@@ -395,9 +435,12 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                 to={tool_policy_preview(p.target, p.proposed_change)}
               />
             </div>
-
-            <!-- Staging info (when present) -->
-            <div :if={p.staging_slug} class="mt-2 rounded border border-base-300 bg-base-100 p-2 text-xs">
+            
+    <!-- Staging info (when present) -->
+            <div
+              :if={p.staging_slug}
+              class="mt-2 rounded border border-base-300 bg-base-100 p-2 text-xs"
+            >
               <div class="flex flex-wrap items-baseline gap-3">
                 <span class="font-mono opacity-70">
                   {gettext("staging:")} <code>{p.staging_slug}</code>
@@ -408,18 +451,24 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                 <span :if={p.staging_score} class="font-mono opacity-70">
                   {gettext("staging:")} {format_score(p.staging_score)}
                 </span>
-                <span :if={p.score_delta != nil} class={["font-mono font-semibold", delta_color(p.score_delta)]}>
+                <span
+                  :if={p.score_delta != nil}
+                  class={["font-mono font-semibold", delta_color(p.score_delta)]}
+                >
                   Δ {format_delta(p.score_delta)}
                 </span>
                 <span :if={p.staging_eval_run_id} class="ml-auto">
-                  <.link navigate={~p"/evals/#{p.staging_eval_run_id}"} class="opacity-70 hover:underline">
+                  <.link
+                    navigate={~p"/evals/#{p.staging_eval_run_id}"}
+                    class="opacity-70 hover:underline"
+                  >
                     {gettext("→ staging eval")}
                   </.link>
                 </span>
               </div>
             </div>
-
-            <!-- Action row -->
+            
+    <!-- Action row -->
             <div class="mt-3 flex flex-wrap items-center gap-2">
               <button
                 :if={p.status == "pending"}
@@ -450,8 +499,8 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                   {gettext("Reject")}
                 </button>
               </form>
-
-              <!-- Approved: card_edit can stage; skill_add applies directly -->
+              
+    <!-- Approved: card_edit can stage; skill_add applies directly -->
               <button
                 :if={p.status == "approved" and p.kind == "card_edit"}
                 type="button"
@@ -467,56 +516,72 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                 type="button"
                 phx-click="apply"
                 phx-value-id={p.id}
-                data-confirm={gettext("Apply this proposal to %{target} WITHOUT staging? Phase 2 versioning will snapshot the current state first.", target: p.target)}
+                data-confirm={
+                  gettext(
+                    "Apply this proposal to %{target} WITHOUT staging? Phase 2 versioning will snapshot the current state first.",
+                    target: p.target
+                  )
+                }
                 class="rounded-full border border-base-300 px-4 py-1 text-xs hover:bg-base-300/40"
               >
                 {gettext("Apply without staging")}
               </button>
-
-              <!-- skill_add: no staging path yet, apply direct (Phase 2 versioning still fires) -->
+              
+    <!-- skill_add: no staging path yet, apply direct (Phase 2 versioning still fires) -->
               <button
                 :if={p.status == "approved" and p.kind == "skill_add"}
                 type="button"
                 phx-click="apply"
                 phx-value-id={p.id}
-                data-confirm={gettext("Write %{target} SKILL.md? Phase 2 versioning will snapshot any prior version first.", target: p.target)}
+                data-confirm={
+                  gettext(
+                    "Write %{target} SKILL.md? Phase 2 versioning will snapshot any prior version first.",
+                    target: p.target
+                  )
+                }
                 class="px-5 py-1 text-xs font-medium"
                 style="background:#141413;color:#F3F0EE;border-radius:20px;"
               >
                 {gettext("Apply skill")}
               </button>
-
-              <!-- Staging in progress -->
+              
+    <!-- Staging in progress -->
               <span :if={p.status == "staging"} class="text-xs text-amber-700 dark:text-amber-300">
                 ⟳ {gettext("Staging eval running…")}
               </span>
-
-              <!-- Staged passed: prominent Apply button -->
+              
+    <!-- Staged passed: prominent Apply button -->
               <button
                 :if={p.status == "staged_passed"}
                 type="button"
                 phx-click="apply"
                 phx-value-id={p.id}
-                data-confirm={gettext("Apply this proposal? Delta = %{d}.", d: format_delta(p.score_delta))}
+                data-confirm={
+                  gettext("Apply this proposal? Delta = %{d}.", d: format_delta(p.score_delta))
+                }
                 class="px-5 py-1 text-xs font-medium"
                 style="background:#141413;color:#F3F0EE;border-radius:20px;"
               >
                 {gettext("Promote (apply)")}
               </button>
-
-              <!-- Staged failed: still applyable but with a stronger confirm -->
+              
+    <!-- Staged failed: still applyable but with a stronger confirm -->
               <button
                 :if={p.status == "staged_failed"}
                 type="button"
                 phx-click="apply"
                 phx-value-id={p.id}
-                data-confirm={gettext("Staging eval did WORSE (Δ %{d}). Apply anyway?", d: format_delta(p.score_delta))}
+                data-confirm={
+                  gettext("Staging eval did WORSE (Δ %{d}). Apply anyway?",
+                    d: format_delta(p.score_delta)
+                  )
+                }
                 class="rounded-full border border-red-400 dark:border-red-600 px-4 py-1 text-xs text-red-700 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
               >
                 {gettext("Apply anyway")}
               </button>
-
-              <!-- Discard staging — always available while staging slug exists -->
+              
+    <!-- Discard staging — always available while staging slug exists -->
               <button
                 :if={p.staging_slug and p.status in ["staging", "staged_passed", "staged_failed"]}
                 type="button"
@@ -526,17 +591,25 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
               >
                 {gettext("Discard staging")}
               </button>
-
-              <!-- Rollback: applied + not already rolled back. The same
+              
+    <!-- Rollback: applied + not already rolled back. The same
                    Phase 6 path the autonomous scheduler uses, just
                    operator-triggered. The destructive confirm names
                    the target so a misclick is unlikely. -->
               <button
-                :if={p.status == "applied" and is_nil(p.rolled_back_at) and p.kind in ["card_edit", "tool_policy_change"]}
+                :if={
+                  p.status == "applied" and is_nil(p.rolled_back_at) and
+                    p.kind in ["card_edit", "tool_policy_change"]
+                }
                 type="button"
                 phx-click="rollback"
                 phx-value-id={p.id}
-                data-confirm={gettext("Roll back %{target} to the previous version? A safety re-audit will run automatically.", target: p.target)}
+                data-confirm={
+                  gettext(
+                    "Roll back %{target} to the previous version? A safety re-audit will run automatically.",
+                    target: p.target
+                  )
+                }
                 class="rounded-full border border-red-400 dark:border-red-600 px-4 py-1 text-xs text-red-700 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
               >
                 ⤺ {gettext("Roll back")}
@@ -583,7 +656,9 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
 
   defp diff_line_class(:eq), do: "opacity-60"
   defp diff_line_class(:del), do: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
-  defp diff_line_class(:ins), do: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
+
+  defp diff_line_class(:ins),
+    do: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
 
   # ----- Formatters -----
 
@@ -609,10 +684,12 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
   end
 
   defp safety_panel_class("fail"),
-    do: "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200"
+    do:
+      "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200"
 
   defp safety_panel_class("warn"),
-    do: "border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
+    do:
+      "border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
 
   defp safety_panel_class(_), do: "border-base-300"
 
@@ -620,14 +697,29 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
   defp safety_items(%{} = audit, key), do: Map.get(audit, key, [])
   defp safety_items(_, _), do: []
 
-  defp status_color("pending"), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
-  defp status_color("approved"), do: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"
-  defp status_color("staging"), do: "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200"
-  defp status_color("staged_passed"), do: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200"
-  defp status_color("staged_failed"), do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
-  defp status_color("applied"), do: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
+  defp status_color("pending"),
+    do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
+
+  defp status_color("approved"),
+    do: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"
+
+  defp status_color("staging"),
+    do: "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200"
+
+  defp status_color("staged_passed"),
+    do: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200"
+
+  defp status_color("staged_failed"),
+    do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
+
+  defp status_color("applied"),
+    do: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
+
   defp status_color("rejected"), do: "bg-base-300"
   defp status_color("failed"), do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
-  defp status_color("malformed"), do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
+  defp status_color("malformed"),
+    do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
   defp status_color(_), do: "bg-base-200"
 end

@@ -51,7 +51,8 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
           {:error, gettext("No failure-mode YAML files found under priv/failures/.")}
 
         err_results == [] ->
-          {:info, gettext("Reloaded %{n} failure mode(s) from priv/failures/.", n: length(ok_results))}
+          {:info,
+           gettext("Reloaded %{n} failure mode(s) from priv/failures/.", n: length(ok_results))}
 
         true ->
           first_err = err_results |> List.first() |> elem(1) |> elem(1) |> inspect()
@@ -102,7 +103,9 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
             <div class="eyebrow mb-2">{gettext("Failures")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Failure modes")}</h1>
             <p class="text-sm opacity-70">
-              {gettext("Catalog of known failure shapes (authored as YAML under priv/failures/) and every occurrence the runtime has detected.")}
+              {gettext(
+                "Catalog of known failure shapes (authored as YAML under priv/failures/) and every occurrence the runtime has detected."
+              )}
             </p>
             <p class="text-xs opacity-60">
               {length(@modes)} {gettext("modes in catalog")} ·
@@ -195,17 +198,23 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
           <h2 class="text-sm font-semibold uppercase tracking-wide opacity-70">
             {gettext("Recent occurrences")}
           </h2>
-          <div :if={@recent == []} class="rounded border border-dashed p-6 text-center text-sm opacity-70">
+          <div
+            :if={@recent == []}
+            class="rounded border border-dashed p-6 text-center text-sm opacity-70"
+          >
             {gettext("No failures detected yet.")}
           </div>
           <ul :if={@recent != []} class="space-y-1">
             <li :for={o <- @recent} class="rounded border p-2 text-sm">
               <div class="flex items-baseline justify-between gap-2">
-                <span class={["rounded px-2 py-0.5 text-[10px] font-mono uppercase", severity_color(severity_of(o))]}>
+                <span class={[
+                  "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
+                  severity_color(severity_of(o))
+                ]}>
                   {severity_of(o)}
                 </span>
                 <span class="font-mono text-xs">
-                  {o.failure_mode && o.failure_mode.slug || gettext("(unclassified)")}
+                  {(o.failure_mode && o.failure_mode.slug) || gettext("(unclassified)")}
                 </span>
                 <span class="ml-auto text-xs opacity-60">{format_time(o.inserted_at)}</span>
               </div>
@@ -234,7 +243,10 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
                     <code class="ml-2 font-mono text-xs opacity-60">{m.slug}</code>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class={["rounded px-2 py-0.5 text-[10px] font-mono uppercase", severity_color(m.severity)]}>
+                    <span class={[
+                      "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
+                      severity_color(m.severity)
+                    ]}>
                       {m.severity}
                     </span>
                     <span class="rounded bg-base-200 px-2 py-0.5 text-[10px] font-mono">
@@ -281,10 +293,18 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
   defp severity_of(%{failure_mode: %{severity: s}}) when is_binary(s), do: s
   defp severity_of(_), do: "unknown"
 
-  defp severity_color("critical"), do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
-  defp severity_color("high"), do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
-  defp severity_color("medium"), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
-  defp severity_color("low"), do: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"
+  defp severity_color("critical"),
+    do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
+
+  defp severity_color("high"),
+    do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
+  defp severity_color("medium"),
+    do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
+
+  defp severity_color("low"),
+    do: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"
+
   defp severity_color(_), do: "bg-base-300"
 
   defp severity_border("critical"), do: "border-red-400 dark:border-red-600"
@@ -294,6 +314,7 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
   defp severity_border(_), do: ""
 
   defp truncate(nil, _), do: ""
+
   defp truncate(text, n) when is_binary(text) do
     if String.length(text) > n, do: String.slice(text, 0, n) <> "…", else: text
   end
