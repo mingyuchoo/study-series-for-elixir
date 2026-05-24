@@ -8,7 +8,10 @@ defmodule AgenticAiAgent.Skills do
 
   use GenServer
 
-  alias AgenticAiAgent.Skills.Loader
+  import Ecto.Query
+
+  alias AgenticAiAgent.Repo
+  alias AgenticAiAgent.Skills.{Loader, SkillVersion}
 
   # ----- Client -----
 
@@ -47,9 +50,13 @@ defmodule AgenticAiAgent.Skills do
   failure the previous file contents are restored.
 
   Returns `{:ok, skill}` or `{:error, reason}`.
+
+  ## Options
+
+    * `:reason` — optional short human note recorded on the version row.
   """
-  @spec save_source(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  def save_source(slug, body) when is_binary(slug) and is_binary(body) do
+  @spec save_source(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def save_source(slug, body, opts \\ []) when is_binary(slug) and is_binary(body) do
     path = source_path(slug)
     backup = if File.exists?(path), do: File.read!(path), else: nil
 
@@ -57,6 +64,7 @@ defmodule AgenticAiAgent.Skills do
          :ok <- File.write(path, body),
          skill when not is_nil(skill) <- Loader.load_one(path) do
       reload()
+      _ = snapshot_skill_version(slug, body, Keyword.get(opts, :reason))
       {:ok, skill}
     else
       err ->
@@ -67,6 +75,64 @@ defmodule AgenticAiAgent.Skills do
 
         {:error, err}
     end
+  end
+
+  # ----- Skill versions -----
+
+  @doc "All historical snapshots of a skill, newest first."
+  @spec list_versions(String.t()) :: [SkillVersion.t()]
+  def list_versions(slug) when is_binary(slug) do
+    SkillVersion
+    |> where(slug: ^slug)
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+  rescue
+    _ -> []
+  end
+
+  @spec get_version!(binary()) :: SkillVersion.t()
+  def get_version!(id), do: Repo.get!(SkillVersion, id)
+
+  @doc """
+  Roll the skill back to a historical version. Saves the historical body
+  as a fresh write (which itself produces a new version row so the
+  rollback is auditable).
+  """
+  @spec restore_version(SkillVersion.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def restore_version(%SkillVersion{} = v, opts \\ []) do
+    reason = Keyword.get(opts, :reason, "restore version #{short_sha(v.sha)}")
+    save_source(v.slug, v.body, reason: reason)
+  end
+
+  @doc "Short 12-char SHA for UI display."
+  def short_sha(sha) when is_binary(sha), do: String.slice(sha, 0, 12)
+  def short_sha(_), do: ""
+
+  defp snapshot_skill_version(slug, body, reason) do
+    sha = sha256(body)
+
+    last_sha =
+      SkillVersion
+      |> where(slug: ^slug)
+      |> order_by(desc: :inserted_at)
+      |> limit(1)
+      |> select([v], v.sha)
+      |> Repo.one()
+
+    if last_sha == sha do
+      :ok
+    else
+      %SkillVersion{}
+      |> SkillVersion.changeset(%{slug: slug, body: body, sha: sha, reason: reason})
+      |> Repo.insert()
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp sha256(body) when is_binary(body) do
+    :crypto.hash(:sha256, body) |> Base.encode16(case: :lower)
   end
 
   # ----- Server -----

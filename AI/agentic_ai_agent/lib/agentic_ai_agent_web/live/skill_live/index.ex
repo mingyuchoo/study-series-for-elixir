@@ -58,6 +58,12 @@ defmodule AgenticAiAgentWeb.SkillLive.Index do
             >
               {gettext("Edit")}
             </.link>
+            <.link
+              navigate={~p"/skills/#{s.slug}/history"}
+              class="ml-1 rounded border px-1.5 py-0 text-[10px] opacity-80 hover:bg-base-200"
+            >
+              {gettext("History")}
+            </.link>
           </p>
 
           <p class="text-sm opacity-80">{s.description}</p>

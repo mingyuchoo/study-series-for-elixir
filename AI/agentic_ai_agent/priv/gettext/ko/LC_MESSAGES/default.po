@@ -7,7 +7,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:240
+#: lib/agentic_ai_agent_web/live/chat_live.ex:264
 #, elixir-autogen, elixir-format
 msgid "(none)"
 msgstr "(없음)"
@@ -59,23 +59,24 @@ msgstr "전체 기억"
 msgid "An Elixir/Phoenix implementation of the agent architecture documented in docs/: core LLM, short- and long-term memory, tool registry, ReAct loop with HITL, sub-agents, MCP, sandbox, and a rubric-based eval harness."
 msgstr "docs/에 문서화된 에이전트 아키텍처의 Elixir/Phoenix 구현: 핵심 LLM, 단기·장기 기억, 도구 레지스트리, HITL이 적용된 ReAct 루프, 하위 에이전트, MCP, 샌드박스, 그리고 루브릭 기반 평가 도구까지."
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:296
+#: lib/agentic_ai_agent_web/live/chat_live.ex:339
 #, elixir-autogen, elixir-format
 msgid "Approval required"
 msgstr "승인 필요"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:314
+#: lib/agentic_ai_agent_web/live/chat_live.ex:357
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:327
 #, elixir-autogen, elixir-format
 msgid "Approve"
 msgstr "승인"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:255
+#: lib/agentic_ai_agent_web/live/chat_live.ex:279
 #, elixir-autogen, elixir-format
 msgid "Ask something to begin."
 msgstr "질문을 입력해 시작하세요."
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:280
-#: lib/agentic_ai_agent_web/components/layouts.ex:292
+#: lib/agentic_ai_agent_web/components/layouts.ex:283
+#: lib/agentic_ai_agent_web/components/layouts.ex:295
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr "재연결 시도 중"
@@ -85,7 +86,7 @@ msgstr "재연결 시도 중"
 msgid "Authoring"
 msgstr "작성"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:213
+#: lib/agentic_ai_agent_web/live/chat_live.ex:237
 #, elixir-autogen, elixir-format
 msgid "Azure OpenAI is not configured (missing %{key}). Set AZURE_OPENAI_* env vars."
 msgstr "Azure OpenAI 설정이 비어 있습니다 (%{key} 누락). AZURE_OPENAI_* 환경변수를 지정하세요."
@@ -100,17 +101,18 @@ msgstr "Azure OpenAI 설정이 완전하지 않습니다."
 msgid "CLI"
 msgstr "CLI"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:110
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:118
 #, elixir-autogen, elixir-format
 msgid "Capability Matrix"
 msgstr "역량 매트릭스"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:240
+#: lib/agentic_ai_agent_web/live/chat_live.ex:264
 #, elixir-autogen, elixir-format
 msgid "Card:"
 msgstr "카드:"
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:225
+#: lib/agentic_ai_agent_web/components/layouts.ex:228
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:69
 #: lib/agentic_ai_agent_web/live/card_live/index.ex:52
 #: lib/agentic_ai_agent_web/live/card_live/show.ex:44
 #: lib/agentic_ai_agent_web/live/home_live.ex:170
@@ -124,7 +126,7 @@ msgid "Cases"
 msgstr "케이스"
 
 #: lib/agentic_ai_agent_web/components/layouts.ex:216
-#: lib/agentic_ai_agent_web/live/chat_live.ex:238
+#: lib/agentic_ai_agent_web/live/chat_live.ex:262
 #: lib/agentic_ai_agent_web/live/home_live.ex:142
 #, elixir-autogen, elixir-format
 msgid "Chat"
@@ -135,7 +137,7 @@ msgstr "대화하기"
 msgid "Delete this memory?"
 msgstr "이 기억을 삭제하시겠습니까?"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:317
+#: lib/agentic_ai_agent_web/live/chat_live.ex:360
 #, elixir-autogen, elixir-format
 msgid "Deny"
 msgstr "거부"
@@ -150,6 +152,7 @@ msgstr "임베딩 HTTP %{status}: %{body}"
 msgid "Embeddings adapter not configured (missing %{key}). Set AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT."
 msgstr "임베딩 어댑터 설정이 비어 있습니다 (%{key} 누락). AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT 를 지정하세요."
 
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:138
 #: lib/agentic_ai_agent_web/live/run_live/show.ex:115
 #, elixir-autogen, elixir-format
 msgid "Errors"
@@ -160,7 +163,7 @@ msgstr "오류"
 msgid "Eval runs"
 msgstr "평가 실행"
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:228
+#: lib/agentic_ai_agent_web/components/layouts.ex:231
 #: lib/agentic_ai_agent_web/live/eval_live/index.ex:105
 #: lib/agentic_ai_agent_web/live/eval_live/show.ex:40
 #: lib/agentic_ai_agent_web/live/home_live.ex:197
@@ -168,7 +171,7 @@ msgstr "평가 실행"
 msgid "Evals"
 msgstr "평가 실행"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:93
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:101
 #, elixir-autogen, elixir-format
 msgid "Evaluation Mapping"
 msgstr "평가 매핑"
@@ -193,7 +196,7 @@ msgstr "외부 MCP(Model Context Protocol) 서버와 그 도구."
 msgid "Final answer"
 msgstr "최종 답변"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:69
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:77
 #, elixir-autogen, elixir-format
 msgid "Goal"
 msgstr "목표"
@@ -213,7 +216,7 @@ msgstr "HITL 승인"
 msgid "LLM"
 msgstr "LLM"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:216
+#: lib/agentic_ai_agent_web/live/chat_live.ex:240
 #, elixir-autogen, elixir-format
 msgid "LLM HTTP %{status}: %{body}"
 msgstr "LLM HTTP %{status}: %{body}"
@@ -238,7 +241,7 @@ msgstr "장기 기억 저장소. SQLite 코퍼스 위에서 임베딩 기반 의
 msgid "Long-term store with embedding-based semantic search."
 msgstr "임베딩 기반 의미 검색을 갖춘 장기 저장소."
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:227
+#: lib/agentic_ai_agent_web/components/layouts.ex:230
 #: lib/agentic_ai_agent_web/live/home_live.ex:188
 #: lib/agentic_ai_agent_web/live/mcp_live/index.ex:83
 #, elixir-autogen, elixir-format
@@ -250,7 +253,7 @@ msgstr "MCP 서버"
 msgid "MCP servers"
 msgstr "MCP 서버"
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:218
+#: lib/agentic_ai_agent_web/components/layouts.ex:221
 #: lib/agentic_ai_agent_web/live/home_live.ex:161
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:130
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:131
@@ -263,12 +266,12 @@ msgstr "기억 저장"
 msgid "Missing env:"
 msgstr "누락된 환경변수:"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:225
+#: lib/agentic_ai_agent_web/live/chat_live.ex:249
 #, elixir-autogen, elixir-format
 msgid "Model returned neither text nor a tool call."
 msgstr "모델이 텍스트도 도구 호출도 반환하지 않았습니다."
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:219
+#: lib/agentic_ai_agent_web/live/chat_live.ex:243
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:97
 #, elixir-autogen, elixir-format
 msgid "Network error: %{msg}"
@@ -289,7 +292,7 @@ msgstr "아직 실행이 없습니다. 대화는 다음에서 시작하세요:"
 msgid "No skills loaded. Add a file at priv/skills/<slug>/SKILL.md."
 msgstr "로드된 스킬이 없습니다. priv/skills/<slug>/SKILL.md 파일을 추가하세요."
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:89
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:97
 #, elixir-autogen, elixir-format
 msgid "Output Contract"
 msgstr "출력 계약"
@@ -309,7 +312,7 @@ msgstr "빠른 해결:"
 msgid "Quick reference"
 msgstr "단축 참조"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:81
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:89
 #, elixir-autogen, elixir-format
 msgid "Reasoning Policy"
 msgstr "추론 정책"
@@ -319,7 +322,7 @@ msgstr "추론 정책"
 msgid "Remember"
 msgstr "기억하기"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:249
+#: lib/agentic_ai_agent_web/live/chat_live.ex:273
 #, elixir-autogen, elixir-format
 msgid "Reset"
 msgstr "초기화"
@@ -329,7 +332,7 @@ msgstr "초기화"
 msgid "Reusable procedures loaded into sub-agents on demand."
 msgstr "필요 시 하위 에이전트에 주입되는 재사용 가능한 절차."
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:65
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:73
 #, elixir-autogen, elixir-format
 msgid "Role"
 msgstr "역할"
@@ -341,6 +344,7 @@ msgstr "루브릭 가중치"
 
 #: lib/agentic_ai_agent_web/components/layouts.ex:217
 #: lib/agentic_ai_agent_web/live/home_live.ex:152
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:168
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:65
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:66
 #: lib/agentic_ai_agent_web/live/run_live/show.ex:73
@@ -348,12 +352,12 @@ msgstr "루브릭 가중치"
 msgid "Runs"
 msgstr "실행 내역"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:85
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:93
 #, elixir-autogen, elixir-format
 msgid "Safety Policy"
 msgstr "안전 정책"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:73
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:81
 #, elixir-autogen, elixir-format
 msgid "Scope"
 msgstr "범위"
@@ -369,13 +373,14 @@ msgstr "검색"
 msgid "Semantic query..."
 msgstr "의미 검색 질의..."
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:341
+#: lib/agentic_ai_agent_web/live/chat_live.ex:384
 #, elixir-autogen, elixir-format
 msgid "Send"
 msgstr "전송"
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:226
+#: lib/agentic_ai_agent_web/components/layouts.ex:229
 #: lib/agentic_ai_agent_web/live/home_live.ex:179
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:64
 #: lib/agentic_ai_agent_web/live/skill_live/index.ex:28
 #: lib/agentic_ai_agent_web/live/skill_live/index.ex:29
 #, elixir-autogen, elixir-format
@@ -387,7 +392,7 @@ msgstr "스킬 설정"
 msgid "Skills live as Markdown files under priv/skills/<slug>/SKILL.md with optional YAML frontmatter. Only the description is consulted for matching; the body is injected into a sub-agent's system prompt via the delegate tool."
 msgstr "스킬은 priv/skills/<slug>/SKILL.md 마크다운 파일이며 선택적 YAML frontmatter 를 가집니다. 매칭에는 description 만 사용되고, 본문은 delegate 도구를 통해 하위 에이전트 시스템 프롬프트에 주입됩니다."
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:287
+#: lib/agentic_ai_agent_web/components/layouts.ex:290
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr "문제가 발생했습니다!"
@@ -397,7 +402,7 @@ msgstr "문제가 발생했습니다!"
 msgid "Start a chat"
 msgstr "채팅 시작"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:222
+#: lib/agentic_ai_agent_web/live/chat_live.ex:246
 #, elixir-autogen, elixir-format
 msgid "Stopped after %{n} steps without a final answer."
 msgstr "최종 답변 없이 %{n} 단계 후 중단되었습니다."
@@ -417,7 +422,7 @@ msgstr "요약"
 msgid "Talk to the agent. ReAct loop, tools, HITL approvals."
 msgstr "에이전트와 대화합니다. ReAct 루프, 도구, HITL 승인."
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:97
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:105
 #, elixir-autogen, elixir-format
 msgid "Task Taxonomies"
 msgstr "작업 분류"
@@ -437,12 +442,12 @@ msgstr "채팅 화면은 다음을 반환합니다:"
 msgid "Timeline"
 msgstr "타임라인"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:77
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:85
 #, elixir-autogen, elixir-format
 msgid "Tool Policy"
 msgstr "도구 정책"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:330
+#: lib/agentic_ai_agent_web/live/chat_live.ex:373
 #, elixir-autogen, elixir-format
 msgid "Type a message..."
 msgstr "메시지를 입력하세요..."
@@ -457,12 +462,12 @@ msgstr "사용자 입력"
 msgid "View runs"
 msgstr "실행 보기"
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:275
+#: lib/agentic_ai_agent_web/components/layouts.ex:278
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr "인터넷에 연결할 수 없습니다"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:121
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:129
 #, elixir-autogen, elixir-format
 msgid "Workflow Graphs"
 msgstr "워크플로우 그래프"
@@ -482,27 +487,27 @@ msgstr "에이전트 카드"
 msgid "api"
 msgstr "api"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:382
+#: lib/agentic_ai_agent_web/live/chat_live.ex:425
 #, elixir-autogen, elixir-format
 msgid "assistant"
 msgstr "에이전트"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:368
+#: lib/agentic_ai_agent_web/live/chat_live.ex:411
 #, elixir-autogen, elixir-format
 msgid "assistant · calling tools"
 msgstr "에이전트 · 도구 호출 중"
 
-#: lib/agentic_ai_agent_web/live/skill_live/index.ex:72
+#: lib/agentic_ai_agent_web/live/skill_live/index.ex:78
 #, elixir-autogen, elixir-format
 msgid "body"
 msgstr "본문"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:412
+#: lib/agentic_ai_agent_web/live/chat_live.ex:455
 #, elixir-autogen, elixir-format
 msgid "calling tools…"
 msgstr "도구 호출 중…"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:112
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:120
 #, elixir-autogen, elixir-format
 msgid "capabilities:"
 msgstr "역량:"
@@ -512,7 +517,7 @@ msgstr "역량:"
 msgid "close"
 msgstr "닫기"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:102
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:110
 #, elixir-autogen, elixir-format
 msgid "complexity:"
 msgstr "난이도:"
@@ -522,7 +527,7 @@ msgstr "난이도:"
 msgid "configured:"
 msgstr "설정됨:"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:116
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:124
 #, elixir-autogen, elixir-format
 msgid "constraints:"
 msgstr "제약:"
@@ -577,7 +582,7 @@ msgstr "기대 도구:"
 msgid "final answer"
 msgstr "최종 답변"
 
-#: lib/agentic_ai_agent_web/live/skill_live/index.ex:79
+#: lib/agentic_ai_agent_web/live/skill_live/index.ex:85
 #, elixir-autogen, elixir-format
 msgid "frontmatter"
 msgstr "frontmatter"
@@ -587,12 +592,12 @@ msgstr "frontmatter"
 msgid "input"
 msgstr "입력"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:113
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:121
 #, elixir-autogen, elixir-format
 msgid "inputs:"
 msgstr "입력:"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:117
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:125
 #, elixir-autogen, elixir-format
 msgid "limitations:"
 msgstr "제한:"
@@ -637,7 +642,7 @@ msgstr "열기"
 msgid "output"
 msgstr "출력"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:114
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:122
 #, elixir-autogen, elixir-format
 msgid "outputs:"
 msgstr "출력:"
@@ -668,17 +673,18 @@ msgstr "priv/skills/<slug>/SKILL.md — 스킬"
 msgid "query:"
 msgstr "질의:"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:413
+#: lib/agentic_ai_agent_web/live/chat_live.ex:456
 #, elixir-autogen, elixir-format
 msgid "reading results…"
 msgstr "결과 읽는 중…"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:306
+#: lib/agentic_ai_agent_web/live/chat_live.ex:349
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:339
 #, elixir-autogen, elixir-format
 msgid "reason (optional)"
 msgstr "사유 (선택)"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:414
+#: lib/agentic_ai_agent_web/live/chat_live.ex:457
 #, elixir-autogen, elixir-format
 msgid "reflecting…"
 msgstr "반성 중…"
@@ -688,7 +694,7 @@ msgstr "반성 중…"
 msgid "requested tool calls:"
 msgstr "요청된 도구 호출:"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:115
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:123
 #, elixir-autogen, elixir-format
 msgid "required tools:"
 msgstr "필요 도구:"
@@ -698,8 +704,8 @@ msgstr "필요 도구:"
 msgid "results"
 msgstr "결과"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:102
-#: lib/agentic_ai_agent_web/live/chat_live.ex:300
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:110
+#: lib/agentic_ai_agent_web/live/chat_live.ex:343
 #: lib/agentic_ai_agent_web/live/mcp_live/index.ex:114
 #, elixir-autogen, elixir-format
 msgid "risk:"
@@ -710,7 +716,7 @@ msgstr "위험:"
 msgid "rows"
 msgstr "행"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:241
+#: lib/agentic_ai_agent_web/live/chat_live.ex:265
 #, elixir-autogen, elixir-format
 msgid "run"
 msgstr "실행"
@@ -754,7 +760,7 @@ msgstr "로드된 스킬"
 msgid "source"
 msgstr "출처"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:410
+#: lib/agentic_ai_agent_web/live/chat_live.ex:453
 #, elixir-autogen, elixir-format
 msgid "starting…"
 msgstr "시작 중…"
@@ -769,7 +775,7 @@ msgstr "단계"
 msgid "taxonomies"
 msgstr "분류"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:411
+#: lib/agentic_ai_agent_web/live/chat_live.ex:454
 #, elixir-autogen, elixir-format
 msgid "thinking…"
 msgstr "생각 중…"
@@ -785,12 +791,12 @@ msgstr "임계값"
 msgid "tool"
 msgstr "도구"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:391
+#: lib/agentic_ai_agent_web/live/chat_live.ex:434
 #, elixir-autogen, elixir-format
 msgid "tool result"
 msgstr "도구 결과"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:299
+#: lib/agentic_ai_agent_web/live/chat_live.ex:342
 #, elixir-autogen, elixir-format
 msgid "tool:"
 msgstr "도구:"
@@ -807,12 +813,12 @@ msgstr "도구"
 msgid "tools registered"
 msgstr "등록된 도구"
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:105
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:113
 #, elixir-autogen, elixir-format
 msgid "tools:"
 msgstr "도구:"
 
-#: lib/agentic_ai_agent_web/live/skill_live/index.ex:66
+#: lib/agentic_ai_agent_web/live/skill_live/index.ex:72
 #, elixir-autogen, elixir-format
 msgid "tools_used:"
 msgstr "사용 도구:"
@@ -833,12 +839,12 @@ msgstr "트레이스"
 msgid "until set."
 msgstr "설정될 때까지."
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:356
+#: lib/agentic_ai_agent_web/live/chat_live.ex:399
 #, elixir-autogen, elixir-format
 msgid "user"
 msgstr "사용자"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:415
+#: lib/agentic_ai_agent_web/live/chat_live.ex:458
 #, elixir-autogen, elixir-format
 msgid "waiting for approval…"
 msgstr "승인 대기 중…"
@@ -873,7 +879,7 @@ msgstr "알려진 실패 유형 카탈로그(priv/failures/ 아래 YAML로 작�
 msgid "Failure modes"
 msgstr "실패 유형"
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:219
+#: lib/agentic_ai_agent_web/components/layouts.ex:222
 #: lib/agentic_ai_agent_web/live/failure_live/index.ex:70
 #: lib/agentic_ai_agent_web/live/home_live.ex:206
 #, elixir-autogen, elixir-format
@@ -930,32 +936,32 @@ msgstr "조건:"
 msgid "unclassified:"
 msgstr "미분류:"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:278
+#: lib/agentic_ai_agent_web/live/chat_live.ex:321
 #, elixir-autogen, elixir-format
 msgid "Cancel run"
 msgstr "실행 취소"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:275
+#: lib/agentic_ai_agent_web/live/chat_live.ex:318
 #, elixir-autogen, elixir-format
 msgid "Cancel this run?"
 msgstr "이 실행을 취소하시겠습니까?"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:284
+#: lib/agentic_ai_agent_web/live/chat_live.ex:327
 #, elixir-autogen, elixir-format
 msgid "Redirect the agent... (e.g. 'use http_fetch instead')"
 msgstr "에이전트에게 새 방향 지시... (예: 'http_fetch 를 대신 사용해')"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:289
+#: lib/agentic_ai_agent_web/live/chat_live.ex:332
 #, elixir-autogen, elixir-format
 msgid "Steer"
 msgstr "지시"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:270
+#: lib/agentic_ai_agent_web/live/chat_live.ex:313
 #, elixir-autogen, elixir-format
 msgid "Steering"
 msgstr "방향 지시"
 
-#: lib/agentic_ai_agent_web/live/chat_live.ex:416
+#: lib/agentic_ai_agent_web/live/chat_live.ex:459
 #, elixir-autogen, elixir-format
 msgid "cancelled"
 msgstr "취소됨"
@@ -996,6 +1002,7 @@ msgstr "신뢰:"
 msgid "d"
 msgstr "일"
 
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:61
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:236
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:81
 #, elixir-autogen, elixir-format
@@ -1073,7 +1080,7 @@ msgstr "부수 효과"
 msgid "Tool Contract catalog — preconditions, side effects, failure modes, retry policy."
 msgstr "도구 계약 카탈로그 — 사전 조건, 부수 효과, 실패 유형, 재시도 정책."
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:229
+#: lib/agentic_ai_agent_web/components/layouts.ex:232
 #: lib/agentic_ai_agent_web/live/home_live.ex:215
 #: lib/agentic_ai_agent_web/live/tool_live/index.ex:59
 #: lib/agentic_ai_agent_web/live/tool_live/index.ex:60
@@ -1157,9 +1164,10 @@ msgid "Today's LLM cost"
 msgstr "오늘의 LLM 비용"
 
 #: lib/agentic_ai_agent_web/live/home_live.ex:318
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:71
 #, elixir-autogen, elixir-format
 msgid "Total runs"
-msgstr "전체 실행 수"
+msgstr "총 실행"
 
 #: lib/agentic_ai_agent_web/live/home_live.ex:359
 #, elixir-autogen, elixir-format
@@ -1238,7 +1246,7 @@ msgstr "비활성화"
 msgid "Disabled %{name}."
 msgstr "%{name}을(를) 비활성화했습니다."
 
-#: lib/agentic_ai_agent_web/live/card_live/show.ex:59
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:60
 #: lib/agentic_ai_agent_web/live/mcp_live/index.ex:141
 #: lib/agentic_ai_agent_web/live/skill_live/index.ex:59
 #: lib/agentic_ai_agent_web/live/tool_live/index.ex:137
@@ -1411,6 +1419,7 @@ msgid "A run is in progress — list refreshes automatically."
 msgstr "실행 진행 중 — 목록이 자동으로 새로고침됩니다."
 
 #: lib/agentic_ai_agent_web/live/eval_live/index.ex:123
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:191
 #, elixir-autogen, elixir-format
 msgid "Card"
 msgstr "카드"
@@ -1451,6 +1460,7 @@ msgid "No eval runs yet. Run one above or use mix agent.eval."
 msgstr "아직 실행된 평가가 없습니다. 위에서 실행하거나 mix agent.eval 을 사용하세요."
 
 #: lib/agentic_ai_agent_web/live/eval_live/index.ex:33
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:41
 #, elixir-autogen, elixir-format
 msgid "Pick a card first."
 msgstr "먼저 카드를 선택하세요."
@@ -1586,6 +1596,7 @@ msgid "Back to detail"
 msgstr "상세로 돌아가기"
 
 #: lib/agentic_ai_agent_web/live/skill_live/edit_source.ex:111
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:68
 #, elixir-autogen, elixir-format
 msgid "Back to skills"
 msgstr "스킬 목록으로"
@@ -1755,3 +1766,585 @@ msgstr "전체 실행 %{n}개를 삭제했습니다."
 #, elixir-autogen, elixir-format
 msgid "Total runs in DB:"
 msgstr "DB의 전체 실행 수:"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:83
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:170
+#, elixir-autogen, elixir-format
+msgid "Avg latency"
+msgstr "평균 지연"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:140
+#, elixir-autogen, elixir-format
+msgid "Avg ms"
+msgstr "평균 ms"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:199
+#, elixir-autogen, elixir-format
+msgid "Avg score"
+msgstr "평균 점수"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:137
+#, elixir-autogen, elixir-format
+msgid "Calls"
+msgstr "호출"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:169
+#, elixir-autogen, elixir-format
+msgid "Cost"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:105
+#, elixir-autogen, elixir-format
+msgid "Count"
+msgstr "건수"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:48
+#, elixir-autogen, elixir-format
+msgid "Cross-run insights"
+msgstr "실행 간 인사이트"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:160
+#, elixir-autogen, elixir-format
+msgid "Daily volume"
+msgstr "일별 볼륨"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:167
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:198
+#, elixir-autogen, elixir-format
+msgid "Date"
+msgstr "날짜"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:139
+#, elixir-autogen, elixir-format
+msgid "Error rate"
+msgstr "오류율"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:186
+#, elixir-autogen, elixir-format
+msgid "Eval score per card"
+msgstr "카드별 평가 점수"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:78
+#, elixir-autogen, elixir-format
+msgid "Failed"
+msgstr "실패"
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:218
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:47
+#, elixir-autogen, elixir-format
+msgid "Insights"
+msgstr "인사이트"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:106
+#, elixir-autogen, elixir-format
+msgid "Last seen"
+msgstr "마지막 발생"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:103
+#, elixir-autogen, elixir-format
+msgid "Mode"
+msgstr "모드"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:162
+#, elixir-autogen, elixir-format
+msgid "No data in this window."
+msgstr "이 기간에 데이터가 없습니다."
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:188
+#, elixir-autogen, elixir-format
+msgid "No eval runs yet. Trigger one from /evals."
+msgstr "평가 실행 이력이 없습니다. /evals 에서 한 번 실행해보세요."
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:224
+#, elixir-autogen, elixir-format
+msgid "No failed runs in this window. Nothing to look at — that's good."
+msgstr "이 기간에 실패한 실행이 없습니다. 볼 게 없는 게 좋은 상태입니다."
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:98
+#, elixir-autogen, elixir-format
+msgid "No failures recorded in this window."
+msgstr "이 기간에 기록된 실패가 없습니다."
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:131
+#, elixir-autogen, elixir-format
+msgid "No tool calls in this window."
+msgstr "이 기간에 도구 호출이 없습니다."
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:50
+#, elixir-autogen, elixir-format
+msgid "Observability layer for self-improvement. Aggregates traces, failures, tool stats, and eval scores so you can see what's getting better or worse over time."
+msgstr "자가 발전을 위한 관측 레이어. 트레이스·실패·도구 통계·평가 점수를 집계해 무엇이 좋아지거나 나빠지는지 시간에 따라 볼 수 있게 합니다."
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:201
+#, elixir-autogen, elixir-format
+msgid "Pass"
+msgstr "통과"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:222
+#, elixir-autogen, elixir-format
+msgid "Recent regressions"
+msgstr "최근 회귀"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:69
+#, elixir-autogen, elixir-format
+msgid "Run health"
+msgstr "실행 건강도"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:104
+#, elixir-autogen, elixir-format
+msgid "Severity"
+msgstr "심각도"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:73
+#, elixir-autogen, elixir-format
+msgid "Success rate"
+msgstr "성공률"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:200
+#, elixir-autogen, elixir-format
+msgid "Threshold"
+msgstr "임계값"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:136
+#, elixir-autogen, elixir-format
+msgid "Tool"
+msgstr "도구"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:129
+#, elixir-autogen, elixir-format
+msgid "Tool usage"
+msgstr "도구 사용"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:96
+#, elixir-autogen, elixir-format
+msgid "Top failure modes"
+msgstr "주요 실패 모드"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:87
+#, elixir-autogen, elixir-format
+msgid "Total cost"
+msgstr "총 비용"
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:54
+#, elixir-autogen, elixir-format
+msgid "Window"
+msgstr "기간"
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:74
+#, elixir-autogen, elixir-format
+msgid "Back to card"
+msgstr "카드로 돌아가기"
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:120
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:112
+#, elixir-autogen, elixir-format
+msgid "Diff: selected → current"
+msgstr "Diff: 선택 → 현재"
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:69
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:66
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:64
+#: lib/agentic_ai_agent_web/live/skill_live/index.ex:65
+#, elixir-autogen, elixir-format
+msgid "History"
+msgstr "히스토리"
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:83
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:77
+#, elixir-autogen, elixir-format
+msgid "No versions yet. Edits made through the editor will be recorded here."
+msgstr "아직 버전이 없습니다. 편집기에서 저장한 변경이 여기에 기록됩니다."
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:114
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:106
+#, elixir-autogen, elixir-format
+msgid "Pick a version on the left to compare with the current file."
+msgstr "왼쪽에서 버전을 선택하면 현재 파일과 비교합니다."
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:130
+#, elixir-autogen, elixir-format
+msgid "Restore card to this version? A new snapshot of the current state will be created first."
+msgstr "이 버전으로 카드를 되돌릴까요? 현재 상태의 새 스냅샷이 먼저 만들어집니다."
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:40
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:39
+#, elixir-autogen, elixir-format
+msgid "Restore failed: %{r}"
+msgstr "복원 실패: %{r}"
+
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:122
+#, elixir-autogen, elixir-format
+msgid "Restore skill to this version? A new snapshot of the current state will be created first."
+msgstr "이 버전으로 스킬을 되돌릴까요? 현재 상태의 새 스냅샷이 먼저 만들어집니다."
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:133
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:125
+#, elixir-autogen, elixir-format
+msgid "Restore this version"
+msgstr "이 버전으로 복원"
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:35
+#, elixir-autogen, elixir-format
+msgid "Restored card from version %{sha}."
+msgstr "카드를 버전 %{sha} 로 복원했습니다."
+
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:34
+#, elixir-autogen, elixir-format
+msgid "Restored skill from version %{sha}."
+msgstr "스킬을 버전 %{sha} 로 복원했습니다."
+
+#: lib/agentic_ai_agent_web/live/card_live/history.ex:89
+#: lib/agentic_ai_agent_web/live/skill_live/history.ex:82
+#, elixir-autogen, elixir-format
+msgid "Versions"
+msgstr "버전"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:74
+#, elixir-autogen, elixir-format
+msgid "Applied proposal — card %{target} updated. A new version row was created."
+msgstr "제안 적용 — 카드 %{target} 가 갱신되었고 새 버전 row가 생성되었습니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:83
+#, elixir-autogen, elixir-format
+msgid "Apply failed: %{e}"
+msgstr "적용 실패: %{e}"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:89
+#, elixir-autogen, elixir-format
+msgid "Apply refused: %{r}"
+msgstr "적용 거부됨: %{r}"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:189
+#, elixir-autogen, elixir-format
+msgid "Ask the improver"
+msgstr "개선 제안 요청"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:55
+#, elixir-autogen, elixir-format
+msgid "Asking the improver for a proposal on card %{slug}…"
+msgstr "카드 %{slug} 에 대한 제안을 요청 중입니다…"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:291
+#, elixir-autogen, elixir-format
+msgid "Diff: current → proposed"
+msgstr "Diff: 현재 → 제안"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:90
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:220
+#, elixir-autogen, elixir-format
+msgid "Filter"
+msgstr "필터"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:210
+#, elixir-autogen, elixir-format
+msgid "Generate proposal"
+msgstr "제안 생성"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:210
+#, elixir-autogen, elixir-format
+msgid "Generating…"
+msgstr "생성 중…"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:143
+#, elixir-autogen, elixir-format
+msgid "Generation failed: %{r}"
+msgstr "생성 실패: %{r}"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:180
+#, elixir-autogen, elixir-format
+msgid "Improvement proposals"
+msgstr "개선 제안 큐"
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:219
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:179
+#, elixir-autogen, elixir-format
+msgid "Improvements"
+msgstr "개선 제안"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:133
+#, elixir-autogen, elixir-format
+msgid "Improver finished."
+msgstr "개선기 실행 완료."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:131
+#, elixir-autogen, elixir-format
+msgid "Improver returned noop (no useful change found)."
+msgstr "개선기가 noop을 반환했습니다 (유의미한 변경 없음)."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:132
+#, elixir-autogen, elixir-format
+msgid "LLM response could not be parsed; row stored for inspection."
+msgstr "LLM 응답을 파싱하지 못해 row를 보존했습니다 (검토용)."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:130
+#, elixir-autogen, elixir-format
+msgid "New proposal awaiting review."
+msgstr "검토 대기 중인 새 제안이 도착했습니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:231
+#, elixir-autogen, elixir-format
+msgid "No proposals match this filter."
+msgstr "이 필터에 맞는 제안이 없습니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:418
+#, elixir-autogen, elixir-format
+msgid "Open target's history →"
+msgstr "대상 카드 히스토리 열기 →"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:60
+#, elixir-autogen, elixir-format
+msgid "Proposal approved."
+msgstr "제안을 승인했습니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:65
+#, elixir-autogen, elixir-format
+msgid "Proposal rejected."
+msgstr "제안을 거절했습니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:346
+#, elixir-autogen, elixir-format
+msgid "Reject"
+msgstr "거절"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:182
+#, elixir-autogen, elixir-format
+msgid "The meta-agent reads recent failures and eval trends, then proposes ONE focused YAML edit at a time. Nothing is auto-applied — you approve, then apply."
+msgstr "메타-에이전트가 최근 실패와 평가 추세를 읽고, 한 번에 한 가지 YAML 수정을 제안합니다. 자동 적용은 없습니다 — 승인한 뒤 직접 적용합니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:213
+#, elixir-autogen, elixir-format
+msgid "Uses one LLM call. Result lands in the queue below."
+msgstr "한 번의 LLM 호출을 사용합니다. 결과는 아래 큐에 들어옵니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:282
+#, elixir-autogen, elixir-format
+msgid "decision:"
+msgstr "결정:"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:269
+#, elixir-autogen, elixir-format
+msgid "expected Δscore:"
+msgstr "예상 Δ점수:"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:96
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:226
+#, elixir-autogen, elixir-format
+msgid "shown"
+msgstr "표시"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:273
+#, elixir-autogen, elixir-format
+msgid "supporting runs:"
+msgstr "근거 실행:"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:399
+#, elixir-autogen, elixir-format
+msgid "Apply anyway"
+msgstr "그래도 적용"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:366
+#, elixir-autogen, elixir-format
+msgid "Apply this proposal to %{target} WITHOUT staging? Phase 2 versioning will snapshot the current state first."
+msgstr "%{target} 에 스테이징 없이 이 제안을 적용할까요? Phase 2 버전 관리가 현재 상태를 먼저 스냅샷합니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:383
+#, elixir-autogen, elixir-format
+msgid "Apply this proposal? Delta = %{d}."
+msgstr "이 제안을 적용할까요? Delta = %{d}."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:369
+#, elixir-autogen, elixir-format
+msgid "Apply without staging"
+msgstr "스테이징 없이 적용"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:410
+#, elixir-autogen, elixir-format
+msgid "Discard staging"
+msgstr "스테이징 폐기"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:387
+#, elixir-autogen, elixir-format
+msgid "Promote (apply)"
+msgstr "승격 (적용)"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:358
+#, elixir-autogen, elixir-format
+msgid "Stage & Eval"
+msgstr "스테이징 + 평가"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:109
+#, elixir-autogen, elixir-format
+msgid "Stage failed: %{r}"
+msgstr "스테이징 실패: %{r}"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:120
+#, elixir-autogen, elixir-format
+msgid "Staging card discarded. Proposal returned to approved."
+msgstr "스테이징 카드를 폐기했습니다. 제안은 승인 상태로 돌아갑니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:396
+#, elixir-autogen, elixir-format
+msgid "Staging eval did WORSE (Δ %{d}). Apply anyway?"
+msgstr "스테이징 평가 결과가 더 나빴습니다 (Δ %{d}). 그래도 적용할까요?"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:374
+#, elixir-autogen, elixir-format
+msgid "Staging eval running…"
+msgstr "스테이징 평가 진행 중…"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:100
+#, elixir-autogen, elixir-format
+msgid "Staging started on %{slug}. Eval will run and the delta will appear here."
+msgstr "%{slug} 에 스테이징을 시작했습니다. 평가가 끝나면 delta가 여기에 표시됩니다."
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:302
+#, elixir-autogen, elixir-format
+msgid "baseline:"
+msgstr "베이스라인:"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:299
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:305
+#, elixir-autogen, elixir-format
+msgid "staging:"
+msgstr "스테이징:"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:312
+#, elixir-autogen, elixir-format
+msgid "→ staging eval"
+msgstr "→ 스테이징 평가"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:175
+#, elixir-autogen, elixir-format
+msgid "Adds one row to priv/eval/golden/regressions.jsonl"
+msgstr "priv/eval/golden/regressions.jsonl 에 한 줄 추가합니다"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:130
+#, elixir-autogen, elixir-format
+msgid "Agent answered"
+msgstr "에이전트 응답"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:41
+#, elixir-autogen, elixir-format
+msgid "Already promoted."
+msgstr "이미 추가됨."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:51
+#, elixir-autogen, elixir-format
+msgid "Candidate dismissed."
+msgstr "후보를 기각했습니다."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:147
+#, elixir-autogen, elixir-format
+msgid "Correct answer:"
+msgstr "정답:"
+
+#: lib/agentic_ai_agent_web/live/chat_live.ex:132
+#, elixir-autogen, elixir-format
+msgid "Could not flag: %{r}"
+msgstr "플래그 실패: %{r}"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:192
+#, elixir-autogen, elixir-format
+msgid "Dismiss"
+msgstr "기각"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:153
+#, elixir-autogen, elixir-format
+msgid "Dismissed:"
+msgstr "기각:"
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:220
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:81
+#, elixir-autogen, elixir-format
+msgid "Feedback"
+msgstr "피드백"
+
+#: lib/agentic_ai_agent_web/live/chat_live.ex:297
+#, elixir-autogen, elixir-format
+msgid "Flagged ✓ — see /feedback"
+msgstr "플래그됨 ✓ — /feedback 확인"
+
+#: lib/agentic_ai_agent_web/live/chat_live.ex:129
+#, elixir-autogen, elixir-format
+msgid "Flagged. Curate it at /feedback to add it to the regression set."
+msgstr "플래그됨. /feedback 에서 정답을 입력해 회귀 셋에 추가하세요."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:82
+#, elixir-autogen, elixir-format
+msgid "Golden candidates"
+msgstr "골든 후보"
+
+#: lib/agentic_ai_agent_web/live/chat_live.ex:303
+#, elixir-autogen, elixir-format
+msgid "Mark this answer as wrong — it'll go to the curation queue at /feedback."
+msgstr "이 답을 틀린 것으로 표시 — /feedback 큐로 보냅니다."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:100
+#, elixir-autogen, elixir-format
+msgid "No candidates match this filter. Click 👎 on a chat answer to add one."
+msgstr "이 필터에 맞는 후보가 없습니다. 챗에서 👎 를 눌러 추가하세요."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:44
+#, elixir-autogen, elixir-format
+msgid "Promote failed: %{r}"
+msgstr "추가 실패: %{r}"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:172
+#, elixir-autogen, elixir-format
+msgid "Promote to regressions"
+msgstr "회귀 셋에 추가"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:142
+#, elixir-autogen, elixir-format
+msgid "Promoted to"
+msgstr "추가 위치:"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:30
+#, elixir-autogen, elixir-format
+msgid "Promoted to %{path}. The next eval cycle will include it."
+msgstr "%{path} 에 추가했습니다. 다음 평가 사이클부터 포함됩니다."
+
+#: lib/agentic_ai_agent_web/live/chat_live.ex:306
+#, elixir-autogen, elixir-format
+msgid "This answer was wrong"
+msgstr "이 답이 틀렸어요"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:38
+#, elixir-autogen, elixir-format
+msgid "Type the corrected answer first."
+msgstr "정답을 먼저 입력하세요."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:124
+#, elixir-autogen, elixir-format
+msgid "User asked"
+msgstr "사용자 질문"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:84
+#, elixir-autogen, elixir-format
+msgid "User-flagged chat answers awaiting curation. Type the corrected answer and promote to grow the regression set at priv/eval/golden/regressions.jsonl."
+msgstr "사용자가 틀렸다고 표시한 챗 응답들. 정답을 입력하고 promote 하면 priv/eval/golden/regressions.jsonl 회귀 셋에 추가됩니다."
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:163
+#, elixir-autogen, elixir-format
+msgid "What should the answer have contained? (substring match for final_answer_contains)"
+msgstr "답에 들어 있어야 할 내용은? (final_answer_contains 부분 일치)"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:144
+#, elixir-autogen, elixir-format
+msgid "by"
+msgstr "by"
+
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:185
+#, elixir-autogen, elixir-format
+msgid "dismiss reason (optional)"
+msgstr "기각 사유 (선택)"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:251
+#, elixir-autogen, elixir-format
+msgid "auto"
+msgstr "자동"
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:254
+#, elixir-autogen, elixir-format
+msgid "rolled back"
+msgstr "롤백됨"

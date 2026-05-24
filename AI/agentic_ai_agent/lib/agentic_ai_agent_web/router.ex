@@ -26,16 +26,22 @@ defmodule AgenticAiAgentWeb.Router do
       live "/cards", CardLive.Index, :index
       live "/cards/:id", CardLive.Show, :show
       live "/cards/:id/edit-source", CardLive.EditSource, :edit
+      live "/cards/:id/history", CardLive.History, :index
 
       live "/chat", ChatLive
 
       live "/runs", RunLive.Index, :index
       live "/runs/:id", RunLive.Show, :show
 
+      live "/insights", InsightsLive.Index, :index
+      live "/improvements", ImprovementLive.Index, :index
+      live "/feedback", FeedbackLive.Index, :index
+
       live "/memories", MemoryLive.Index, :index
 
       live "/skills", SkillLive.Index, :index
       live "/skills/:slug/edit-source", SkillLive.EditSource, :edit
+      live "/skills/:slug/history", SkillLive.History, :index
 
       live "/mcp", MCPLive.Index, :index
       live "/mcp/new", MCPLive.Form, :new

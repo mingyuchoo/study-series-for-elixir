@@ -1,7 +1,7 @@
 defmodule AgenticAiAgentWeb.ChatLive do
   use AgenticAiAgentWeb, :live_view
 
-  alias AgenticAiAgent.{Conversation, Design}
+  alias AgenticAiAgent.{Conversation, Design, Feedback}
   alias AgenticAiAgent.Agent.{Charter, Runtime}
 
   @impl true
@@ -19,6 +19,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
       |> assign(:error, nil)
       |> assign(:conversation, nil)
       |> assign(:pending_approval, nil)
+      |> assign(:flagged_run_ids, MapSet.new())
       |> assign(:form, to_form(%{"text" => ""}))
 
     socket =
@@ -111,6 +112,29 @@ defmodule AgenticAiAgentWeb.ChatLive do
   end
 
   def handle_event("cancel_run", _params, socket), do: {:noreply, socket}
+
+  # 👎 — flag the current run's answer as wrong. One flag per run.
+  def handle_event("flag_bad_answer", _params, %{assigns: %{run_id: rid}} = socket)
+      when is_binary(rid) do
+    if MapSet.member?(socket.assigns.flagged_run_ids, rid) do
+      {:noreply, socket}
+    else
+      target_slug = socket.assigns.card && socket.assigns.card.slug
+
+      case Feedback.flag(rid, flagged_by: "chat-user", target_card_slug: target_slug) do
+        {:ok, _candidate} ->
+          {:noreply,
+           socket
+           |> assign(:flagged_run_ids, MapSet.put(socket.assigns.flagged_run_ids, rid))
+           |> put_flash(:info, gettext("Flagged. Curate it at /feedback to add it to the regression set."))}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not flag: %{r}", r: inspect(reason)))}
+      end
+    end
+  end
+
+  def handle_event("flag_bad_answer", _params, socket), do: {:noreply, socket}
 
   # ----- Runtime messages -----
 
@@ -262,6 +286,25 @@ defmodule AgenticAiAgentWeb.ChatLive do
               {status_label(@status)}
             </div>
           </div>
+        </div>
+
+        <!-- 👎 Feedback strip: flag the latest answer as wrong -->
+        <div
+          :if={@status == :done and not is_nil(@run_id)}
+          class="mt-2 flex items-center justify-end gap-2 text-xs"
+        >
+          <span :if={MapSet.member?(@flagged_run_ids, @run_id)} class="opacity-70">
+            {gettext("Flagged ✓ — see /feedback")}
+          </span>
+          <button
+            :if={not MapSet.member?(@flagged_run_ids, @run_id)}
+            type="button"
+            phx-click="flag_bad_answer"
+            title={gettext("Mark this answer as wrong — it'll go to the curation queue at /feedback.")}
+            class="rounded-full border border-base-300 px-3 py-1 hover:bg-base-300/40"
+          >
+            👎 {gettext("This answer was wrong")}
+          </button>
         </div>
 
         <div :if={@awaiting and not is_nil(@run_id)} class="mt-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3">

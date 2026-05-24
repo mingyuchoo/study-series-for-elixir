@@ -215,6 +215,9 @@ defmodule AgenticAiAgentWeb.Layouts do
     [
       %{label: fn -> gettext("Chat") end, path: ~p"/chat"},
       %{label: fn -> gettext("Runs") end, path: ~p"/runs"},
+      %{label: fn -> gettext("Insights") end, path: ~p"/insights"},
+      %{label: fn -> gettext("Improvements") end, path: ~p"/improvements"},
+      %{label: fn -> gettext("Feedback") end, path: ~p"/feedback"},
       %{label: fn -> gettext("Memories") end, path: ~p"/memories"},
       %{label: fn -> gettext("Failures") end, path: ~p"/failures"}
     ]

@@ -50,14 +50,22 @@ defmodule AgenticAiAgentWeb.CardLive.Show do
         </header>
 
         <details :if={@source_yaml} class="rounded border">
-          <summary class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide opacity-70">
+          <summary class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide opacity-70">
             <span>{gettext("Source YAML")}</span>
-            <.link
-              navigate={~p"/cards/#{@card.id}/edit-source"}
-              class="rounded border px-2 py-0.5 text-[10px] hover:bg-base-200"
-            >
-              {gettext("Edit")}
-            </.link>
+            <span class="flex gap-2">
+              <.link
+                navigate={~p"/cards/#{@card.id}/edit-source"}
+                class="rounded border px-2 py-0.5 text-[10px] hover:bg-base-200"
+              >
+                {gettext("Edit")}
+              </.link>
+              <.link
+                navigate={~p"/cards/#{@card.id}/history"}
+                class="rounded border px-2 py-0.5 text-[10px] hover:bg-base-200"
+              >
+                {gettext("History")}
+              </.link>
+            </span>
           </summary>
           <pre class="overflow-x-auto bg-base-200 p-3 text-xs"><code>{@source_yaml}</code></pre>
         </details>

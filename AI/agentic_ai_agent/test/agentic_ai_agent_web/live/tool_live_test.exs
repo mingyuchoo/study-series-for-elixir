@@ -8,9 +8,15 @@ defmodule AgenticAiAgentWeb.ToolLiveTest do
 
   setup do
     on_exit(fn ->
-      # Restore calculator to its built-in defaults so concurrent or later
-      # tests don't see leftover overrides.
-      _ = TR.update_spec("calculator", %{"risk_level" => "low", "enabled" => true})
+      # Best-effort: restore calculator defaults so concurrent / later tests
+      # don't see leftover overrides. The Registry GenServer holds its own
+      # checked-out connection; if the test's sandbox is already torn down
+      # the call may fail — that's tolerable for cleanup so we swallow it.
+      try do
+        TR.update_spec("calculator", %{"risk_level" => "low", "enabled" => true})
+      catch
+        :exit, _ -> :ok
+      end
     end)
 
     :ok

@@ -23,6 +23,8 @@ defmodule AgenticAiAgent.Application do
       AgenticAiAgent.MCP,
       AgenticAiAgent.Memory.Cleaner,
       AgenticAiAgent.Traces.Cleaner,
+      AgenticAiAgent.Improver.Staging,
+      AgenticAiAgent.Improver.Scheduler,
       # Start to serve requests, typically the last entry
       AgenticAiAgentWeb.Endpoint
     ]

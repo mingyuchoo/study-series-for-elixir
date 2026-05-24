@@ -8,7 +8,7 @@ defmodule AgenticAiAgent.Design do
   import Ecto.Query
 
   alias AgenticAiAgent.Repo
-  alias AgenticAiAgent.Design.{AgenticCard, CapabilityMatrix, TaskTaxonomy, WorkflowGraph}
+  alias AgenticAiAgent.Design.{AgenticCard, CapabilityMatrix, CardVersion, TaskTaxonomy, WorkflowGraph}
 
   # ----- Queries -----
 
@@ -146,9 +146,14 @@ defmodule AgenticAiAgent.Design do
 
   On any failure (write or upsert) the original file is restored from its
   prior contents (if it existed).
+
+  ## Options
+
+    * `:reason` — optional short human note recorded on the version row
+      (e.g. `"restore v3"`, `"manual edit"`).
   """
-  @spec save_card_source(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  def save_card_source(slug, body) when is_binary(slug) and is_binary(body) do
+  @spec save_card_source(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def save_card_source(slug, body, opts \\ []) when is_binary(slug) and is_binary(body) do
     dir = Application.app_dir(:agentic_ai_agent, "priv/cards")
     path = card_source_path(slug) || Path.join(dir, "#{slug}.yaml")
 
@@ -157,6 +162,8 @@ defmodule AgenticAiAgent.Design do
     with :ok <- File.mkdir_p(Path.dirname(path)),
          :ok <- File.write(path, body),
          {:ok, card} <- load_card_file(path) do
+      # Successful save → snapshot for History.
+      _ = snapshot_card_version(slug, body, Keyword.get(opts, :reason))
       {:ok, %{path: path, card: card}}
     else
       err ->
@@ -168,5 +175,70 @@ defmodule AgenticAiAgent.Design do
 
         {:error, err}
     end
+  end
+
+  # ----- Card versions -----
+
+  @doc """
+  All historical snapshots of a card, newest first. Returns an empty
+  list if the slug has no recorded history.
+  """
+  @spec list_card_versions(String.t()) :: [CardVersion.t()]
+  def list_card_versions(slug) when is_binary(slug) do
+    CardVersion
+    |> where(slug: ^slug)
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+  rescue
+    _ -> []
+  end
+
+  @spec get_card_version!(binary()) :: CardVersion.t()
+  def get_card_version!(id), do: Repo.get!(CardVersion, id)
+
+  @doc """
+  Roll the card back to a historical version. Internally calls
+  `save_card_source/3` with the historical body, which writes the file,
+  re-upserts the DB, and creates a fresh version row (so the rollback
+  itself is auditable).
+  """
+  @spec restore_card_version(CardVersion.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def restore_card_version(%CardVersion{} = v, opts \\ []) do
+    reason =
+      Keyword.get(opts, :reason, "restore version #{short_sha(v.sha)}")
+
+    save_card_source(v.slug, v.body, reason: reason)
+  end
+
+  @doc "Short 12-char SHA for UI display."
+  def short_sha(sha) when is_binary(sha), do: String.slice(sha, 0, 12)
+  def short_sha(_), do: ""
+
+  # SHA256 of the body; idempotency guard skips writing duplicate snapshots.
+  defp snapshot_card_version(slug, body, reason) do
+    sha = sha256(body)
+
+    last_sha =
+      CardVersion
+      |> where(slug: ^slug)
+      |> order_by(desc: :inserted_at)
+      |> limit(1)
+      |> select([v], v.sha)
+      |> Repo.one()
+
+    if last_sha == sha do
+      :ok
+    else
+      %CardVersion{}
+      |> CardVersion.changeset(%{slug: slug, body: body, sha: sha, reason: reason})
+      |> Repo.insert()
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp sha256(body) when is_binary(body) do
+    :crypto.hash(:sha256, body) |> Base.encode16(case: :lower)
   end
 end
