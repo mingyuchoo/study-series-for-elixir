@@ -4,6 +4,16 @@ defmodule AgenticAiAgentWeb.ChatLive do
   alias AgenticAiAgent.{Conversation, Design, Feedback}
   alias AgenticAiAgent.Agent.{Charter, Runtime}
 
+  @agent_avatar_paths [
+    "/images/avatars/avatar-01.png",
+    "/images/avatars/avatar-02.png",
+    "/images/avatars/avatar-03.png",
+    "/images/avatars/avatar-04.png",
+    "/images/avatars/avatar-05.png",
+    "/images/avatars/avatar-06.png",
+    "/images/avatars/avatar-07.png"
+  ]
+
   @impl true
   def mount(_params, _session, socket) do
     card = Design.get_card_by_slug("default")
@@ -21,6 +31,8 @@ defmodule AgenticAiAgentWeb.ChatLive do
       |> assign(:pending_approval, nil)
       |> assign(:flagged_run_ids, MapSet.new())
       |> assign(:praised_run_ids, MapSet.new())
+      |> assign(:agent_avatar_paths, @agent_avatar_paths)
+      |> assign(:agent_avatar_path, default_agent_avatar_path(card))
       |> assign(:form, to_form(%{"text" => ""}))
 
     socket =
@@ -78,6 +90,14 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:run_id, nil)
      |> assign(:awaiting, false)
      |> assign(:pending_approval, nil)}
+  end
+
+  def handle_event("select_agent_avatar", %{"path" => path}, socket) do
+    if valid_agent_avatar_path?(path) do
+      {:noreply, assign(socket, :agent_avatar_path, path)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("approve", _params, %{assigns: %{pending_approval: pa, run_id: rid}} = socket)
@@ -245,6 +265,21 @@ defmodule AgenticAiAgentWeb.ChatLive do
   defp refresh_turns(nil), do: []
   defp refresh_turns(conv), do: Conversation.turns(conv)
 
+  defp default_agent_avatar_path(%{metadata: %{"agent_avatar_path" => path}})
+       when is_binary(path) do
+    if valid_agent_avatar_path?(path), do: path, else: List.first(@agent_avatar_paths)
+  end
+
+  defp default_agent_avatar_path(_card), do: List.first(@agent_avatar_paths)
+
+  defp valid_agent_avatar_path?(path), do: path in @agent_avatar_paths
+
+  defp avatar_number(path) do
+    path
+    |> Path.basename(".png")
+    |> String.replace("avatar-", "")
+  end
+
   defp build_system_prompt(nil),
     do: Charter.prepend("You are a helpful assistant. Respond in the user's language.")
 
@@ -307,7 +342,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
     ~H"""
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="flex h-[calc(100vh-8rem)] flex-col">
-        <header class="mb-3 flex items-baseline justify-between">
+        <header class="mb-3 flex items-start justify-between gap-4">
           <div>
             <h1 class="text-2xl font-semibold">{gettext("Chat")}</h1>
             <p class="text-xs opacity-60">
@@ -318,13 +353,63 @@ defmodule AgenticAiAgentWeb.ChatLive do
               </span>
             </p>
           </div>
-          <button
-            phx-click="reset"
-            type="button"
-            class="rounded border px-3 py-1 text-xs hover:bg-base-200"
-          >
-            {gettext("Reset")}
-          </button>
+
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <div
+              id="agent-avatar-picker"
+              phx-hook=".AgentAvatarPicker"
+              data-current={@agent_avatar_path}
+              class="flex items-center gap-1"
+            >
+              <script :type={Phoenix.LiveView.ColocatedHook} name=".AgentAvatarPicker">
+                const key = "agentic_ai_agent.agent_avatar_path"
+
+                export default {
+                  mounted() {
+                    const stored = window.localStorage.getItem(key)
+                    const paths = this.paths()
+
+                    if (stored && paths.includes(stored) && stored !== this.el.dataset.current) {
+                      this.pushEvent("select_agent_avatar", { path: stored })
+                    }
+
+                    this.el.addEventListener("click", (event) => {
+                      const button = event.target.closest("[data-avatar-path]")
+                      if (!button) return
+                      window.localStorage.setItem(key, button.dataset.avatarPath)
+                    })
+                  },
+                  paths() {
+                    return [...this.el.querySelectorAll("[data-avatar-path]")]
+                      .map((button) => button.dataset.avatarPath)
+                  }
+                }
+              </script>
+              <button
+                :for={path <- @agent_avatar_paths}
+                type="button"
+                phx-click="select_agent_avatar"
+                phx-value-path={path}
+                data-avatar-path={path}
+                title={"Agent profile #{avatar_number(path)}"}
+                aria-label={"Agent profile #{avatar_number(path)}"}
+                class={[
+                  "h-8 w-8 overflow-hidden rounded-full border bg-base-200 p-0 transition hover:scale-105",
+                  @agent_avatar_path == path && "border-base-content ring-2 ring-base-content",
+                  @agent_avatar_path != path && "border-base-300 opacity-75 hover:opacity-100"
+                ]}
+              >
+                <img src={path} alt="" class="h-full w-full object-cover" />
+              </button>
+            </div>
+            <button
+              phx-click="reset"
+              type="button"
+              class="rounded border px-3 py-1 text-xs hover:bg-base-200"
+            >
+              {gettext("Reset")}
+            </button>
+          </div>
         </header>
 
         <div
@@ -359,11 +444,14 @@ defmodule AgenticAiAgentWeb.ChatLive do
             {gettext("Ask something to begin.")}
           </div>
           <div :for={msg <- @turns} class={["flex", role_align(msg["role"])]}>
-            <.message msg={msg} />
+            <.message msg={msg} agent_avatar_path={@agent_avatar_path} />
           </div>
           <div :if={@awaiting} class="flex justify-start">
-            <div class="rounded-lg bg-base-200 px-3 py-2 text-sm opacity-70">
-              {status_label(@status)}
+            <div class="flex items-start gap-2">
+              <.agent_avatar path={@agent_avatar_path} />
+              <div class="rounded-lg bg-base-200 px-2.5 py-1 text-sm leading-snug opacity-70">
+                {status_label(@status)}
+              </div>
             </div>
           </div>
         </div>
@@ -512,48 +600,66 @@ defmodule AgenticAiAgentWeb.ChatLive do
   # ----- Message components -----
 
   attr :msg, :map, required: true
+  attr :agent_avatar_path, :string, default: nil
 
   defp message(%{msg: %{"role" => "user"}} = assigns) do
+    assigns = assign(assigns, :content, clean_content(assigns.msg["content"]))
+
     ~H"""
-    <div class="max-w-[80%] whitespace-pre-wrap rounded-lg bg-blue-100 dark:bg-blue-900/40 px-3 py-2 text-sm">
-      <div class="mb-1 font-mono text-[10px] uppercase opacity-60">{gettext("user")}</div>
-      {@msg["content"]}
+    <div class="max-w-[75%] rounded-lg bg-blue-100 dark:bg-blue-900/40 px-2.5 py-1 text-sm leading-snug">
+      <div class="font-mono text-[10px] leading-none uppercase opacity-60">{gettext("user")}</div>
+      <div class="whitespace-pre-wrap">{@content}</div>
     </div>
     """
   end
 
   defp message(%{msg: %{"role" => "assistant", "tool_calls" => calls}} = assigns)
        when is_list(calls) and calls != [] do
-    assigns = assign(assigns, :calls, calls)
+    assigns =
+      assigns
+      |> assign(:calls, calls)
+      |> assign(:content, clean_content(assigns.msg["content"]))
 
     ~H"""
-    <div class="max-w-[80%] space-y-1 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm">
-      <div class="font-mono text-[10px] uppercase opacity-60">
-        {gettext("assistant · calling tools")}
+    <div class="flex max-w-[75%] items-start gap-2">
+      <.agent_avatar path={@agent_avatar_path} />
+      <div class="space-y-0.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-sm leading-snug">
+        <div class="font-mono text-[10px] leading-none uppercase opacity-60">
+          {gettext("assistant · calling tools")}
+        </div>
+        <div :if={@content != ""} class="whitespace-pre-wrap">{@content}</div>
+        <ul class="space-y-0.5">
+          <li :for={c <- @calls} class="font-mono text-xs">
+            → {c["function"]["name"]}({trunc_text(c["function"]["arguments"], 140)})
+          </li>
+        </ul>
       </div>
-      <div :if={@msg["content"]} class="whitespace-pre-wrap">{@msg["content"]}</div>
-      <ul class="space-y-1">
-        <li :for={c <- @calls} class="font-mono text-xs">
-          → {c["function"]["name"]}({trunc_text(c["function"]["arguments"], 140)})
-        </li>
-      </ul>
     </div>
     """
   end
 
   defp message(%{msg: %{"role" => "assistant"}} = assigns) do
+    assigns = assign(assigns, :content, clean_content(assigns.msg["content"]))
+
     ~H"""
-    <div class="max-w-[80%] whitespace-pre-wrap rounded-lg bg-base-200 px-3 py-2 text-sm">
-      <div class="mb-1 font-mono text-[10px] uppercase opacity-60">{gettext("assistant")}</div>
-      {@msg["content"]}
+    <div class="flex max-w-[75%] items-start gap-2">
+      <.agent_avatar path={@agent_avatar_path} />
+      <div class="rounded-lg bg-base-200 px-2.5 py-1 text-sm leading-snug">
+        <div class="font-mono text-[10px] leading-none uppercase opacity-60">
+          {gettext("assistant")}
+        </div>
+        <div class="whitespace-pre-wrap">{@content}</div>
+      </div>
     </div>
     """
   end
 
   defp message(%{msg: %{"role" => "tool"}} = assigns) do
     ~H"""
-    <div class="max-w-[80%] rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-sm">
-      <div class="mb-1 font-mono text-[10px] uppercase opacity-60">{gettext("tool result")}</div>
+    <div class="max-w-[75%] rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 text-sm leading-snug">
+      <div class="font-mono text-[10px] leading-none uppercase opacity-60">
+        {gettext("tool result")}
+      </div>
       <pre class="overflow-x-auto whitespace-pre-wrap text-xs">{trunc_text(@msg["content"], 600)}</pre>
     </div>
     """
@@ -563,9 +669,21 @@ defmodule AgenticAiAgentWeb.ChatLive do
     assigns = assign(assigns, :msg, msg)
 
     ~H"""
-    <div class="max-w-[80%] rounded-lg bg-base-300 px-3 py-2 text-xs opacity-70">
+    <div class="max-w-[75%] rounded-lg bg-base-300 px-2.5 py-1 text-xs leading-snug opacity-70">
       {inspect(@msg)}
     </div>
+    """
+  end
+
+  attr :path, :string, required: true
+
+  defp agent_avatar(assigns) do
+    ~H"""
+    <img
+      src={@path}
+      alt=""
+      class="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-base-300 bg-base-200 object-cover"
+    />
     """
   end
 
@@ -580,6 +698,10 @@ defmodule AgenticAiAgentWeb.ChatLive do
   defp status_label(:awaiting_approval), do: gettext("waiting for approval…")
   defp status_label(:cancelled), do: gettext("cancelled")
   defp status_label(_), do: "…"
+
+  defp clean_content(nil), do: ""
+  defp clean_content(text) when is_binary(text), do: String.trim(text)
+  defp clean_content(other), do: inspect(other)
 
   defp trunc_text(nil, _n), do: ""
 

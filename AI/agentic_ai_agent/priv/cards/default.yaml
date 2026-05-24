@@ -61,6 +61,15 @@ evaluation_mapping:
 metadata:
   version: "0.1.0"
   owner: mingyuchoo
+  agent_avatar_path: /images/avatars/avatar-01.png
+  agent_avatar_options:
+    - /images/avatars/avatar-01.png
+    - /images/avatars/avatar-02.png
+    - /images/avatars/avatar-03.png
+    - /images/avatars/avatar-04.png
+    - /images/avatars/avatar-05.png
+    - /images/avatars/avatar-06.png
+    - /images/avatars/avatar-07.png
 
 task_taxonomies:
   - task_type: factual_qa
