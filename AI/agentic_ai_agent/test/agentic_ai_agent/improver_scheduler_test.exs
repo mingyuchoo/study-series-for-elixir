@@ -173,4 +173,100 @@ defmodule AgenticAiAgent.ImproverSchedulerTest do
                AgenticAiAgent.Improver.Scheduler.tick_now()
     end
   end
+
+  # ----- Multi-signal perf gate -----
+
+  describe "Scheduler.check_perf_gate/2" do
+    alias AgenticAiAgent.Improver.Scheduler
+
+    defp gate_cfg(opts \\ []) do
+      %{
+        max_cost_ratio: Keyword.get(opts, :max_cost_ratio, 1.5),
+        max_latency_ratio: Keyword.get(opts, :max_latency_ratio, 1.3)
+      }
+    end
+
+    test ":ok when neither cost nor latency exceed their ceiling" do
+      p = %Proposal{
+        baseline_cost_micro_usd: 1_000,
+        staging_cost_micro_usd: 1_400,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 220
+      }
+
+      assert :ok = Scheduler.check_perf_gate(p, gate_cfg())
+    end
+
+    test "blocks on cost when staging/baseline ratio exceeds max_cost_ratio" do
+      p = %Proposal{
+        baseline_cost_micro_usd: 1_000,
+        staging_cost_micro_usd: 3_000,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 210
+      }
+
+      assert {:blocked, "cost", ratio, 1.5} = Scheduler.check_perf_gate(p, gate_cfg())
+      assert ratio == 3.0
+    end
+
+    test "blocks on latency when staging/baseline ratio exceeds max_latency_ratio" do
+      p = %Proposal{
+        baseline_cost_micro_usd: 1_000,
+        staging_cost_micro_usd: 1_100,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 600
+      }
+
+      assert {:blocked, "latency", ratio, 1.3} = Scheduler.check_perf_gate(p, gate_cfg())
+      assert ratio == 3.0
+    end
+
+    test "cost gate fires first when both signals would block" do
+      p = %Proposal{
+        baseline_cost_micro_usd: 1_000,
+        staging_cost_micro_usd: 5_000,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 5_000
+      }
+
+      assert {:blocked, "cost", _, _} = Scheduler.check_perf_gate(p, gate_cfg())
+    end
+
+    test "skips a signal when its baseline is missing (no signal → no block)" do
+      p = %Proposal{
+        baseline_cost_micro_usd: nil,
+        staging_cost_micro_usd: 50_000,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 220
+      }
+
+      assert :ok = Scheduler.check_perf_gate(p, gate_cfg())
+    end
+
+    test "skips a signal when its baseline is zero (avoids div-by-zero)" do
+      p = %Proposal{
+        baseline_cost_micro_usd: 0,
+        staging_cost_micro_usd: 1_000,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 210
+      }
+
+      assert :ok = Scheduler.check_perf_gate(p, gate_cfg())
+    end
+
+    test "respects custom ceilings from config" do
+      p = %Proposal{
+        baseline_cost_micro_usd: 1_000,
+        staging_cost_micro_usd: 1_200,
+        baseline_latency_ms: 200,
+        staging_latency_ms: 210
+      }
+
+      # 1.2x cost — passes the default 1.5 ceiling but fails a strict 1.1.
+      assert :ok = Scheduler.check_perf_gate(p, gate_cfg())
+
+      assert {:blocked, "cost", _, 1.1} =
+               Scheduler.check_perf_gate(p, gate_cfg(max_cost_ratio: 1.1))
+    end
+  end
 end

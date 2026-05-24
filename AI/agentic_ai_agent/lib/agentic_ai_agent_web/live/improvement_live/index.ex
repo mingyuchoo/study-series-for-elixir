@@ -1,7 +1,7 @@
 defmodule AgenticAiAgentWeb.ImprovementLive.Index do
   use AgenticAiAgentWeb, :live_view
 
-  alias AgenticAiAgent.{Design, Improver}
+  alias AgenticAiAgent.{Design, Improver, Skills}
   alias AgenticAiAgentWeb.Diff
 
   @impl true
@@ -167,6 +167,13 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
     _ -> ""
   end
 
+  defp current_skill(slug) do
+    path = Skills.source_path(slug)
+    if File.exists?(path), do: File.read!(path), else: ""
+  rescue
+    _ -> ""
+  end
+
   # ----- Render -----
 
   @impl true
@@ -263,6 +270,27 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
               <span :if={p.rolled_back_at} class="opacity-70"> · {format_time(p.rolled_back_at)}</span>
             </p>
 
+            <!-- Safety audit (Phase 5) — surface alignment-drift signals -->
+            <div :if={p.safety_verdict in ["fail", "warn"]} class={[
+              "mt-2 rounded border p-2 text-xs",
+              safety_panel_class(p.safety_verdict)
+            ]}>
+              <div class="mb-1 font-semibold uppercase tracking-wide">
+                ⚠ {gettext("Safety audit:")} {p.safety_verdict}
+                <span :if={p.safety_verdict == "fail"} class="ml-2 opacity-80">
+                  ({gettext("auto-promote blocked")})
+                </span>
+              </div>
+              <ul class="space-y-0.5 font-mono text-[11px]">
+                <li :for={v <- safety_items(p.safety_audit, "violations")}>
+                  <span class="font-semibold">[{v["rule"]}]</span> {v["detail"]}
+                </li>
+                <li :for={w <- safety_items(p.safety_audit, "warnings")} class="opacity-80">
+                  <span class="font-semibold">[{w["rule"]}]</span> {w["detail"]}
+                </li>
+              </ul>
+            </div>
+
             <p :if={p.justification} class="mt-2 text-sm">{p.justification}</p>
 
             <p :if={p.expected_score_delta} class="mt-1 font-mono text-xs opacity-70">
@@ -290,6 +318,11 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
             <div :if={@expanded_id == p.id and p.kind == "card_edit" and p.proposed_body} class="mt-3 space-y-2">
               <div class="eyebrow">{gettext("Diff: current → proposed")}</div>
               <.diff_view from={current_yaml(p.target)} to={p.proposed_body} />
+            </div>
+
+            <div :if={@expanded_id == p.id and p.kind == "skill_add" and p.proposed_body} class="mt-3 space-y-2">
+              <div class="eyebrow">{gettext("Diff: current → proposed (skill)")}</div>
+              <.diff_view from={current_skill(p.target)} to={p.proposed_body} />
             </div>
 
             <!-- Staging info (when present) -->
@@ -347,9 +380,9 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                 </button>
               </form>
 
-              <!-- Approved: can either Stage (eval-gated) or Apply directly -->
+              <!-- Approved: card_edit can stage; skill_add applies directly -->
               <button
-                :if={p.status == "approved"}
+                :if={p.status == "approved" and p.kind == "card_edit"}
                 type="button"
                 phx-click="stage"
                 phx-value-id={p.id}
@@ -359,7 +392,7 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
               </button>
 
               <button
-                :if={p.status == "approved"}
+                :if={p.status == "approved" and p.kind == "card_edit"}
                 type="button"
                 phx-click="apply"
                 phx-value-id={p.id}
@@ -367,6 +400,19 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
                 class="rounded-full border border-base-300 px-4 py-1 text-xs hover:bg-base-300/40"
               >
                 {gettext("Apply without staging")}
+              </button>
+
+              <!-- skill_add: no staging path yet, apply direct (Phase 2 versioning still fires) -->
+              <button
+                :if={p.status == "approved" and p.kind == "skill_add"}
+                type="button"
+                phx-click="apply"
+                phx-value-id={p.id}
+                data-confirm={gettext("Write %{target} SKILL.md? Phase 2 versioning will snapshot any prior version first.", target: p.target)}
+                class="px-5 py-1 text-xs font-medium"
+                style="background:#141413;color:#F3F0EE;border-radius:20px;"
+              >
+                {gettext("Apply skill")}
               </button>
 
               <!-- Staging in progress -->
@@ -475,6 +521,18 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
       c -> c.id
     end
   end
+
+  defp safety_panel_class("fail"),
+    do: "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200"
+
+  defp safety_panel_class("warn"),
+    do: "border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
+
+  defp safety_panel_class(_), do: "border-base-300"
+
+  defp safety_items(nil, _), do: []
+  defp safety_items(%{} = audit, key), do: Map.get(audit, key, [])
+  defp safety_items(_, _), do: []
 
   defp status_color("pending"), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
   defp status_color("approved"), do: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200"

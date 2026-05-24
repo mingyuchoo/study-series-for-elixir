@@ -12,7 +12,10 @@ defmodule AgenticAiAgent.Agent.Reflexion do
   production by swapping the adapter via the `:reflexion_adapter` opt.
   """
 
+  alias AgenticAiAgent.Agent.ReflexionInsights
   alias AgenticAiAgent.LLM.{Adapter, Response}
+  alias AgenticAiAgent.Memory
+  require Logger
 
   @max_messages 20
 
@@ -43,8 +46,7 @@ defmodule AgenticAiAgent.Agent.Reflexion do
 
     prompt = [
       %{"role" => "system", "content" => @critic_system_prompt},
-      %{"role" => "user",
-        "content" => "Trajectory so far:\n\n" <> format_trajectory(messages)}
+      %{"role" => "user", "content" => "Trajectory so far:\n\n" <> format_trajectory(messages)}
     ]
 
     case adapter.chat(prompt, max_completion_tokens: max_tokens) do
@@ -76,6 +78,78 @@ defmodule AgenticAiAgent.Agent.Reflexion do
     }
   end
 
+  @doc """
+  Persist a run's final critique as a long-term Memory entry so future
+  runs can semantically retrieve the lesson via the existing Auto-RAG
+  pipeline (`AgenticAiAgent.Agent.Context`).
+
+  No-op when `note` is nil/empty — short runs that never triggered a
+  reflexion don't pollute memory.
+
+  Idempotent per-run: uses `overwrite_by_source` keyed on the run id, so
+  rerunning persistence (e.g. on a runtime restart) updates the same row
+  rather than duplicating it.
+
+  Returns `:ok` on success or `{:error, reason}` if the embedding /
+  insert fails. Callers should treat the error as advisory — failure to
+  persist a reflexion must never break the parent run.
+  """
+  @spec persist_run_critique(map() | nil, map() | nil, String.t() | nil) ::
+          :ok | {:error, term()}
+  def persist_run_critique(_run, _card, note) when note in [nil, ""], do: :ok
+
+  def persist_run_critique(run, card, note) when is_binary(note) do
+    # Structured insight first — this is what the Improver consumes.
+    # Memory persistence is best-effort and depends on embeddings being
+    # configured, so we don't tie the two together.
+    _ = ReflexionInsights.record(run, card, note)
+
+    user_input = run && Map.get(run, :user_input)
+    run_id = run && Map.get(run, :id)
+    card_slug = card && Map.get(card, :slug)
+
+    content = format_memory_content(run_id, card_slug, user_input, note)
+
+    opts = [
+      kind: "reflexion",
+      source: "run:#{run_id}",
+      confidence: 0.7,
+      sensitivity: "internal",
+      retention_days: 30,
+      update_rule: "overwrite_by_source",
+      metadata: %{
+        "run_id" => run_id,
+        "card_slug" => card_slug,
+        "user_input" => user_input
+      }
+    ]
+
+    case Memory.remember(content, opts) do
+      {:ok, _memory} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "Reflexion: failed to persist critique for run #{inspect(run_id)}: #{inspect(reason)}"
+        )
+
+        {:error, reason}
+    end
+  rescue
+    e ->
+      Logger.warning("Reflexion: exception persisting critique: #{Exception.message(e)}")
+      {:error, Exception.message(e)}
+  end
+
+  defp format_memory_content(run_id, card_slug, user_input, note) do
+    user_input = user_input |> to_string() |> String.slice(0, 400)
+    note = String.trim(note)
+    short_run = run_id |> to_string() |> String.slice(0, 8)
+    card_part = if card_slug, do: " · card #{card_slug}", else: ""
+
+    "REFLEXION (run #{short_run}#{card_part}): User asked \"#{user_input}\".\nCritique: #{note}"
+  end
+
   # ----- Internal -----
 
   defp format_trajectory(messages) do
@@ -84,11 +158,17 @@ defmodule AgenticAiAgent.Agent.Reflexion do
     |> Enum.map_join("\n", fn m ->
       role = Map.get(m, "role", "?")
       content = Map.get(m, "content")
+
       summary =
         cond do
-          is_binary(content) and content != "" -> String.slice(content, 0, 220)
-          Map.has_key?(m, "tool_calls") -> "(requested " <> describe_tool_calls(m["tool_calls"]) <> ")"
-          true -> "(empty)"
+          is_binary(content) and content != "" ->
+            String.slice(content, 0, 220)
+
+          Map.has_key?(m, "tool_calls") ->
+            "(requested " <> describe_tool_calls(m["tool_calls"]) <> ")"
+
+          true ->
+            "(empty)"
         end
 
       "[#{role}] " <> summary

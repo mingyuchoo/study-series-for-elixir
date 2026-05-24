@@ -30,10 +30,14 @@ defmodule AgenticAiAgentWeb.InsightsLive.Index do
     |> assign(:health, Analytics.run_health(days))
     |> assign(:failures, Analytics.failures_by_mode(days))
     |> assign(:tools, Analytics.tool_stats(days))
+    |> assign(:skills, Analytics.skill_stats(days))
+    |> assign(:skill_failures, index_by(Analytics.failures_by_skill(days), :skill_slug))
     |> assign(:daily, Analytics.daily_cost_quality(days))
     |> assign(:cards, Analytics.score_trend_per_card())
     |> assign(:regressions, Analytics.recent_regressions(days))
   end
+
+  defp index_by(list, key), do: Map.new(list, fn item -> {Map.get(item, key), item} end)
 
   # ----- Render -----
 
@@ -154,6 +158,43 @@ defmodule AgenticAiAgentWeb.InsightsLive.Index do
             </table>
           </section>
         </div>
+
+        <!-- Skills (sub-agent stats) -->
+        <section :if={@skills != []} class="rounded-lg border border-base-300 bg-base-200 p-4">
+          <div class="mb-2 eyebrow">{gettext("Skills (sub-agents)")}</div>
+          <table class="w-full text-sm">
+            <thead class="text-xs opacity-60">
+              <tr class="text-left">
+                <th class="py-1">{gettext("Skill")}</th>
+                <th class="text-right">{gettext("Runs")}</th>
+                <th class="text-right">{gettext("Success rate")}</th>
+                <th class="text-right">{gettext("Failed")}</th>
+                <th class="text-right">{gettext("Avg latency")}</th>
+                <th>{gettext("Top failures")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={s <- @skills} class="border-t border-base-300">
+                <td class="py-1.5 font-mono text-xs">{s.skill_slug}</td>
+                <td class="text-right font-mono">{s.total}</td>
+                <td class={["text-right font-mono", success_accent(s.success_rate)]}>
+                  {format_pct(s.success_rate)}
+                </td>
+                <td class="text-right font-mono">{s.failed}</td>
+                <td class="text-right font-mono opacity-70">{format_latency(s.avg_latency_ms)}</td>
+                <td class="text-xs opacity-80">
+                  <%= case Map.get(@skill_failures, s.skill_slug) do %>
+                    <% nil -> %><span class="opacity-50">—</span>
+                    <% sf -> %>
+                      <span :for={m <- sf.by_mode} class="mr-2 font-mono text-[10px]">
+                        {m.slug}×{m.count}
+                      </span>
+                  <% end %>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
 
         <!-- Row 3: Daily cost + quality -->
         <section class="rounded-lg border border-base-300 bg-base-200 p-4">

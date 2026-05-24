@@ -169,6 +169,72 @@ defmodule AgenticAiAgent.AnalyticsTest do
     end
   end
 
+  # ----- skill_stats/1 -----
+
+  describe "skill_stats/1" do
+    test "ignores runs without skill_slug (parent runs) and groups by skill" do
+      _parent = run!(status: "done")
+      sub_a = run!(status: "done")
+      sub_b = run!(status: "failed")
+      sub_c = run!(status: "done")
+
+      # Stamp skill_slug post-insert (Run schema doesn't expose it via run!)
+      for {r, slug} <- [{sub_a, "web_research"}, {sub_b, "web_research"}, {sub_c, "code_review"}] do
+        Repo.update_all(from(x in Run, where: x.id == ^r.id), set: [skill_slug: slug])
+      end
+
+      stats = Analytics.skill_stats(30) |> Map.new(&{&1.skill_slug, &1})
+
+      assert stats["web_research"].total == 2
+      assert stats["web_research"].failed == 1
+      assert_in_delta stats["web_research"].success_rate, 0.5, 0.01
+
+      assert stats["code_review"].total == 1
+      assert stats["code_review"].success_rate == 1.0
+
+      # The parent run (skill_slug=nil) is excluded entirely.
+      refute Map.has_key?(stats, nil)
+    end
+
+    test "returns [] when no sub-agent runs exist" do
+      _ = run!(status: "done")
+      assert Analytics.skill_stats(30) == []
+    end
+  end
+
+  # ----- failures_by_skill/2 -----
+
+  describe "failures_by_skill/2" do
+    test "rolls up failure modes per skill, sorted desc by total" do
+      timeout = failure_mode!("tool_timeout")
+      denied = failure_mode!("tool_denied")
+
+      r1 = run!()
+      r2 = run!()
+      r3 = run!()
+
+      Repo.update_all(from(x in Run, where: x.id == ^r1.id), set: [skill_slug: "web_research"])
+      Repo.update_all(from(x in Run, where: x.id == ^r2.id), set: [skill_slug: "web_research"])
+      Repo.update_all(from(x in Run, where: x.id == ^r3.id), set: [skill_slug: "code_review"])
+
+      _ = failure!(timeout, r1)
+      _ = failure!(timeout, r2)
+      _ = failure!(denied, r1)
+      _ = failure!(denied, r3)
+
+      result = Analytics.failures_by_skill(30) |> Map.new(&{&1.skill_slug, &1})
+
+      # web_research has the most failures (3 total), code_review has 1.
+      assert result["web_research"].total == 3
+      assert result["code_review"].total == 1
+
+      # Mode breakdown is included and sorted by count.
+      [top_mode | _] = result["web_research"].by_mode
+      assert top_mode.slug == "tool_timeout"
+      assert top_mode.count == 2
+    end
+  end
+
   # ----- recent_regressions/2 -----
 
   describe "recent_regressions/2" do
@@ -179,6 +245,68 @@ defmodule AgenticAiAgent.AnalyticsTest do
 
       result = Analytics.recent_regressions(30, 5)
       assert Enum.map(result, & &1.id) == [new_fail.id, old_fail.id]
+    end
+  end
+
+  # ----- eval_run_perf/1 -----
+
+  describe "eval_run_perf/1" do
+    alias AgenticAiAgent.Eval.{EvalCase, EvalRun}
+
+    defp eval_run!(status \\ "done") do
+      %EvalRun{status: status, total_cases: 0, passed_cases: 0}
+      |> Repo.insert!()
+    end
+
+    defp eval_case!(eval_run, run) do
+      %EvalCase{
+        eval_run_id: eval_run.id,
+        run_id: run.id,
+        case_id: "c-#{System.unique_integer([:positive])}"
+      }
+      |> Repo.insert!()
+    end
+
+    test "returns nils + sample_size=0 for nil" do
+      assert %{avg_cost_micro_usd: nil, avg_latency_ms: nil, sample_size: 0} =
+               Analytics.eval_run_perf(nil)
+    end
+
+    test "returns nils + sample_size=0 for an eval with no cases" do
+      er = eval_run!()
+      assert %{sample_size: 0} = Analytics.eval_run_perf(er.id)
+    end
+
+    test "averages cost + latency across linked runs" do
+      er = eval_run!()
+      r1 = run!(cost_micro_usd: 1_000, latency_ms: 100)
+      r2 = run!(cost_micro_usd: 3_000, latency_ms: 300)
+      _ = eval_case!(er, r1)
+      _ = eval_case!(er, r2)
+
+      perf = Analytics.eval_run_perf(er.id)
+      assert perf.sample_size == 2
+      assert perf.avg_cost_micro_usd == 2_000.0
+      assert perf.avg_latency_ms == 200.0
+    end
+
+    test "ignores eval cases without a linked run_id" do
+      er = eval_run!()
+
+      # One linked case, one orphaned (run_id=nil).
+      r = run!(cost_micro_usd: 500, latency_ms: 50)
+      _ = eval_case!(er, r)
+
+      %EvalCase{
+        eval_run_id: er.id,
+        run_id: nil,
+        case_id: "orphan"
+      }
+      |> Repo.insert!()
+
+      perf = Analytics.eval_run_perf(er.id)
+      assert perf.sample_size == 1
+      assert perf.avg_cost_micro_usd == 500.0
     end
   end
 end

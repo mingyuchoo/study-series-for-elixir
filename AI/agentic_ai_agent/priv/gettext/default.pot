@@ -69,7 +69,7 @@ msgid "Approval required"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/chat_live.ex:357
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:327
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:360
 #, elixir-autogen, elixir-format
 msgid "Approve"
 msgstr ""
@@ -79,8 +79,8 @@ msgstr ""
 msgid "Ask something to begin."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:283
-#: lib/agentic_ai_agent_web/components/layouts.ex:295
+#: lib/agentic_ai_agent_web/components/layouts.ex:284
+#: lib/agentic_ai_agent_web/components/layouts.ex:296
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
@@ -115,7 +115,7 @@ msgstr ""
 msgid "Card:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:228
+#: lib/agentic_ai_agent_web/components/layouts.ex:229
 #: lib/agentic_ai_agent_web/live/card_live/history.ex:69
 #: lib/agentic_ai_agent_web/live/card_live/index.ex:52
 #: lib/agentic_ai_agent_web/live/card_live/show.ex:44
@@ -156,7 +156,7 @@ msgstr ""
 msgid "Embeddings adapter not configured (missing %{key}). Set AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:138
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:142
 #: lib/agentic_ai_agent_web/live/run_live/show.ex:115
 #, elixir-autogen, elixir-format
 msgid "Errors"
@@ -167,7 +167,7 @@ msgstr ""
 msgid "Eval runs"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:231
+#: lib/agentic_ai_agent_web/components/layouts.ex:232
 #: lib/agentic_ai_agent_web/live/eval_live/index.ex:105
 #: lib/agentic_ai_agent_web/live/eval_live/show.ex:40
 #: lib/agentic_ai_agent_web/live/home_live.ex:197
@@ -245,7 +245,7 @@ msgstr ""
 msgid "Long-term store with embedding-based semantic search."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:230
+#: lib/agentic_ai_agent_web/components/layouts.ex:231
 #: lib/agentic_ai_agent_web/live/home_live.ex:188
 #: lib/agentic_ai_agent_web/live/mcp_live/index.ex:83
 #, elixir-autogen, elixir-format
@@ -257,7 +257,7 @@ msgstr ""
 msgid "MCP servers"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:221
+#: lib/agentic_ai_agent_web/components/layouts.ex:222
 #: lib/agentic_ai_agent_web/live/home_live.ex:161
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:130
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:131
@@ -348,7 +348,8 @@ msgstr ""
 
 #: lib/agentic_ai_agent_web/components/layouts.ex:217
 #: lib/agentic_ai_agent_web/live/home_live.ex:152
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:168
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:169
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:209
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:65
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:66
 #: lib/agentic_ai_agent_web/live/run_live/show.ex:73
@@ -382,7 +383,7 @@ msgstr ""
 msgid "Send"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:229
+#: lib/agentic_ai_agent_web/components/layouts.ex:230
 #: lib/agentic_ai_agent_web/live/home_live.ex:179
 #: lib/agentic_ai_agent_web/live/skill_live/history.ex:64
 #: lib/agentic_ai_agent_web/live/skill_live/index.ex:28
@@ -396,7 +397,7 @@ msgstr ""
 msgid "Skills live as Markdown files under priv/skills/<slug>/SKILL.md with optional YAML frontmatter. Only the description is consulted for matching; the body is injected into a sub-agent's system prompt via the delegate tool."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:290
+#: lib/agentic_ai_agent_web/components/layouts.ex:291
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
@@ -466,7 +467,7 @@ msgstr ""
 msgid "View runs"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:278
+#: lib/agentic_ai_agent_web/components/layouts.ex:279
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""
@@ -683,7 +684,7 @@ msgid "reading results…"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/chat_live.ex:349
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:339
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:372
 #, elixir-autogen, elixir-format
 msgid "reason (optional)"
 msgstr ""
@@ -883,7 +884,7 @@ msgstr ""
 msgid "Failure modes"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:222
+#: lib/agentic_ai_agent_web/components/layouts.ex:223
 #: lib/agentic_ai_agent_web/live/failure_live/index.ex:70
 #: lib/agentic_ai_agent_web/live/home_live.ex:206
 #, elixir-autogen, elixir-format
@@ -1006,7 +1007,7 @@ msgstr ""
 msgid "d"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:61
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:65
 #: lib/agentic_ai_agent_web/live/memory_live/index.ex:236
 #: lib/agentic_ai_agent_web/live/run_live/index.ex:81
 #, elixir-autogen, elixir-format
@@ -1084,7 +1085,7 @@ msgstr ""
 msgid "Tool Contract catalog — preconditions, side effects, failure modes, retry policy."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/components/layouts.ex:232
+#: lib/agentic_ai_agent_web/components/layouts.ex:233
 #: lib/agentic_ai_agent_web/live/home_live.ex:215
 #: lib/agentic_ai_agent_web/live/tool_live/index.ex:59
 #: lib/agentic_ai_agent_web/live/tool_live/index.ex:60
@@ -1168,7 +1169,7 @@ msgid "Today's LLM cost"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/home_live.ex:318
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:71
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:75
 #, elixir-autogen, elixir-format
 msgid "Total runs"
 msgstr ""
@@ -1423,7 +1424,7 @@ msgid "A run is in progress — list refreshes automatically."
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/eval_live/index.ex:123
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:191
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:198
 #, elixir-autogen, elixir-format
 msgid "Card"
 msgstr ""
@@ -1771,165 +1772,168 @@ msgstr ""
 msgid "Total runs in DB:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:83
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:170
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:87
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:172
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:211
 #, elixir-autogen, elixir-format
 msgid "Avg latency"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:140
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:144
 #, elixir-autogen, elixir-format
 msgid "Avg ms"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:199
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:240
 #, elixir-autogen, elixir-format
 msgid "Avg score"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:137
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:141
 #, elixir-autogen, elixir-format
 msgid "Calls"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:169
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:210
 #, elixir-autogen, elixir-format
 msgid "Cost"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:105
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:109
 #, elixir-autogen, elixir-format
 msgid "Count"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:48
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:52
 #, elixir-autogen, elixir-format
 msgid "Cross-run insights"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:160
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:201
 #, elixir-autogen, elixir-format
 msgid "Daily volume"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:167
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:198
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:208
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:239
 #, elixir-autogen, elixir-format
 msgid "Date"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:139
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:143
 #, elixir-autogen, elixir-format
 msgid "Error rate"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:186
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:227
 #, elixir-autogen, elixir-format
 msgid "Eval score per card"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:78
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:82
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:171
 #, elixir-autogen, elixir-format
 msgid "Failed"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/components/layouts.ex:218
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:47
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:51
 #, elixir-autogen, elixir-format
 msgid "Insights"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:106
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:110
 #, elixir-autogen, elixir-format
 msgid "Last seen"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:103
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:107
 #, elixir-autogen, elixir-format
 msgid "Mode"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:162
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:203
 #, elixir-autogen, elixir-format
 msgid "No data in this window."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:188
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:229
 #, elixir-autogen, elixir-format
 msgid "No eval runs yet. Trigger one from /evals."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:224
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:265
 #, elixir-autogen, elixir-format
 msgid "No failed runs in this window. Nothing to look at — that's good."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:98
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:102
 #, elixir-autogen, elixir-format
 msgid "No failures recorded in this window."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:131
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:135
 #, elixir-autogen, elixir-format
 msgid "No tool calls in this window."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:50
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:54
 #, elixir-autogen, elixir-format
 msgid "Observability layer for self-improvement. Aggregates traces, failures, tool stats, and eval scores so you can see what's getting better or worse over time."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:201
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:242
 #, elixir-autogen, elixir-format
 msgid "Pass"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:222
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:263
 #, elixir-autogen, elixir-format
 msgid "Recent regressions"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:69
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:73
 #, elixir-autogen, elixir-format
 msgid "Run health"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:104
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:108
 #, elixir-autogen, elixir-format
 msgid "Severity"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:73
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:77
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:170
 #, elixir-autogen, elixir-format
 msgid "Success rate"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:200
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:241
 #, elixir-autogen, elixir-format
 msgid "Threshold"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:136
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:140
 #, elixir-autogen, elixir-format
 msgid "Tool"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:129
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:133
 #, elixir-autogen, elixir-format
 msgid "Tool usage"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:96
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:100
 #, elixir-autogen, elixir-format
 msgid "Top failure modes"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:87
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:91
 #, elixir-autogen, elixir-format
 msgid "Total cost"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/insights_live/index.ex:54
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:58
 #, elixir-autogen, elixir-format
 msgid "Window"
 msgstr ""
@@ -2018,7 +2022,7 @@ msgstr ""
 msgid "Apply refused: %{r}"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:189
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:196
 #, elixir-autogen, elixir-format
 msgid "Ask the improver"
 msgstr ""
@@ -2028,23 +2032,24 @@ msgstr ""
 msgid "Asking the improver for a proposal on card %{slug}…"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:291
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:319
 #, elixir-autogen, elixir-format
 msgid "Diff: current → proposed"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/feedback_live/index.ex:90
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:220
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:227
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:77
 #, elixir-autogen, elixir-format
 msgid "Filter"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:210
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:217
 #, elixir-autogen, elixir-format
 msgid "Generate proposal"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:210
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:217
 #, elixir-autogen, elixir-format
 msgid "Generating…"
 msgstr ""
@@ -2054,13 +2059,13 @@ msgstr ""
 msgid "Generation failed: %{r}"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:180
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:187
 #, elixir-autogen, elixir-format
 msgid "Improvement proposals"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/components/layouts.ex:219
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:179
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:186
 #, elixir-autogen, elixir-format
 msgid "Improvements"
 msgstr ""
@@ -2085,12 +2090,12 @@ msgstr ""
 msgid "New proposal awaiting review."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:231
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:238
 #, elixir-autogen, elixir-format
 msgid "No proposals match this filter."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:418
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:464
 #, elixir-autogen, elixir-format
 msgid "Open target's history →"
 msgstr ""
@@ -2105,73 +2110,73 @@ msgstr ""
 msgid "Proposal rejected."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:346
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:379
 #, elixir-autogen, elixir-format
 msgid "Reject"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:182
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:189
 #, elixir-autogen, elixir-format
 msgid "The meta-agent reads recent failures and eval trends, then proposes ONE focused YAML edit at a time. Nothing is auto-applied — you approve, then apply."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:213
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:220
 #, elixir-autogen, elixir-format
 msgid "Uses one LLM call. Result lands in the queue below."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:282
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:310
 #, elixir-autogen, elixir-format
 msgid "decision:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:269
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:297
 #, elixir-autogen, elixir-format
 msgid "expected Δscore:"
 msgstr ""
 
 #: lib/agentic_ai_agent_web/live/feedback_live/index.ex:96
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:226
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:233
 #, elixir-autogen, elixir-format
 msgid "shown"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:273
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:301
 #, elixir-autogen, elixir-format
 msgid "supporting runs:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:399
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:445
 #, elixir-autogen, elixir-format
 msgid "Apply anyway"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:366
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:399
 #, elixir-autogen, elixir-format
 msgid "Apply this proposal to %{target} WITHOUT staging? Phase 2 versioning will snapshot the current state first."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:383
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:429
 #, elixir-autogen, elixir-format
 msgid "Apply this proposal? Delta = %{d}."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:369
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:402
 #, elixir-autogen, elixir-format
 msgid "Apply without staging"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:410
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:456
 #, elixir-autogen, elixir-format
 msgid "Discard staging"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:387
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:433
 #, elixir-autogen, elixir-format
 msgid "Promote (apply)"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:358
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:391
 #, elixir-autogen, elixir-format
 msgid "Stage & Eval"
 msgstr ""
@@ -2186,12 +2191,12 @@ msgstr ""
 msgid "Staging card discarded. Proposal returned to approved."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:396
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:442
 #, elixir-autogen, elixir-format
 msgid "Staging eval did WORSE (Δ %{d}). Apply anyway?"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:374
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:420
 #, elixir-autogen, elixir-format
 msgid "Staging eval running…"
 msgstr ""
@@ -2201,28 +2206,28 @@ msgstr ""
 msgid "Staging started on %{slug}. Eval will run and the delta will appear here."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:302
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:335
 #, elixir-autogen, elixir-format
 msgid "baseline:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:299
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:305
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:332
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:338
 #, elixir-autogen, elixir-format
 msgid "staging:"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:312
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:345
 #, elixir-autogen, elixir-format
 msgid "→ staging eval"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:175
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:181
 #, elixir-autogen, elixir-format
 msgid "Adds one row to priv/eval/golden/regressions.jsonl"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:130
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:136
 #, elixir-autogen, elixir-format
 msgid "Agent answered"
 msgstr ""
@@ -2237,7 +2242,7 @@ msgstr ""
 msgid "Candidate dismissed."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:147
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:153
 #, elixir-autogen, elixir-format
 msgid "Correct answer:"
 msgstr ""
@@ -2247,12 +2252,12 @@ msgstr ""
 msgid "Could not flag: %{r}"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:192
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:198
 #, elixir-autogen, elixir-format
 msgid "Dismiss"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:153
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:159
 #, elixir-autogen, elixir-format
 msgid "Dismissed:"
 msgstr ""
@@ -2293,12 +2298,12 @@ msgstr ""
 msgid "Promote failed: %{r}"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:172
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:178
 #, elixir-autogen, elixir-format
 msgid "Promote to regressions"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:142
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:148
 #, elixir-autogen, elixir-format
 msgid "Promoted to"
 msgstr ""
@@ -2318,7 +2323,7 @@ msgstr ""
 msgid "Type the corrected answer first."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:124
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:130
 #, elixir-autogen, elixir-format
 msgid "User asked"
 msgstr ""
@@ -2328,27 +2333,104 @@ msgstr ""
 msgid "User-flagged chat answers awaiting curation. Type the corrected answer and promote to grow the regression set at priv/eval/golden/regressions.jsonl."
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:163
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:169
 #, elixir-autogen, elixir-format
 msgid "What should the answer have contained? (substring match for final_answer_contains)"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:144
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:150
 #, elixir-autogen, elixir-format
 msgid "by"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:185
+#: lib/agentic_ai_agent_web/live/feedback_live/index.ex:191
 #, elixir-autogen, elixir-format
 msgid "dismiss reason (optional)"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:251
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:258
 #, elixir-autogen, elixir-format
 msgid "auto"
 msgstr ""
 
-#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:254
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:261
 #, elixir-autogen, elixir-format
 msgid "rolled back"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:415
+#, elixir-autogen, elixir-format
+msgid "Apply skill"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:324
+#, elixir-autogen, elixir-format
+msgid "Diff: current → proposed (skill)"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:411
+#, elixir-autogen, elixir-format
+msgid "Write %{target} SKILL.md? Phase 2 versioning will snapshot any prior version first."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:279
+#, elixir-autogen, elixir-format
+msgid "Safety audit:"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/improvement_live/index.ex:281
+#, elixir-autogen, elixir-format
+msgid "auto-promote blocked"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:168
+#, elixir-autogen, elixir-format
+msgid "Skill"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:164
+#, elixir-autogen, elixir-format
+msgid "Skills (sub-agents)"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/insights_live/index.ex:173
+#, elixir-autogen, elixir-format
+msgid "Top failures"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:63
+#, elixir-autogen, elixir-format
+msgid "Autonomous actions taken by the system. Auto-promotes, auto-rollbacks, safety blocks, and dry-run previews land here."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:72
+#, elixir-autogen, elixir-format
+msgid "Mark all as read"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:121
+#, elixir-autogen, elixir-format
+msgid "Mark read"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:32
+#, elixir-autogen, elixir-format
+msgid "Marked %{n} notifications as read."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:84
+#, elixir-autogen, elixir-format
+msgid "No notifications."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:221
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:55
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:57
+#, elixir-autogen, elixir-format
+msgid "Notifications"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/notification_live/index.ex:59
+#, elixir-autogen, elixir-format
+msgid "unread"
 msgstr ""

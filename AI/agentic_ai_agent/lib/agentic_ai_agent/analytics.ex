@@ -15,7 +15,7 @@ defmodule AgenticAiAgent.Analytics do
 
   alias AgenticAiAgent.Repo
   alias AgenticAiAgent.Design.AgenticCard
-  alias AgenticAiAgent.Eval.EvalRun
+  alias AgenticAiAgent.Eval.{EvalCase, EvalRun}
   alias AgenticAiAgent.Failures.{FailureMode, FailureOccurrence}
   alias AgenticAiAgent.Traces.{Run, ToolCall}
 
@@ -227,6 +227,161 @@ defmodule AgenticAiAgent.Analytics do
     _ -> []
   end
 
+  # ----- 5b. Skill (sub-agent) stats -----
+
+  @doc """
+  Aggregate stats per skill across sub-agent runs (where `skill_slug` is
+  populated). Distinguishes failure of a SKILL invocation from generic
+  failures elsewhere in the system.
+
+  Shape:
+      [
+        %{
+          skill_slug,
+          total, by_status, success_rate,
+          avg_latency_ms, avg_cost_micro_usd,
+          failed
+        }
+      ]
+  sorted by `total` desc.
+  """
+  def skill_stats(days \\ @default_days) do
+    cutoff = cutoff(days)
+
+    Run
+    |> where([r], r.inserted_at >= ^cutoff and not is_nil(r.skill_slug))
+    |> group_by([r], [r.skill_slug, r.status])
+    |> select([r], %{
+      skill_slug: r.skill_slug,
+      status: r.status,
+      count: count(r.id),
+      avg_latency_ms: avg(r.latency_ms),
+      avg_cost_micro_usd: avg(r.cost_micro_usd)
+    })
+    |> Repo.all()
+    |> Enum.group_by(& &1.skill_slug)
+    |> Enum.map(fn {slug, rows} ->
+      by_status = Map.new(rows, fn r -> {r.status, r.count} end)
+      total = by_status |> Map.values() |> Enum.sum()
+      done = Map.get(by_status, "done", 0)
+      failed = Map.get(by_status, "failed", 0)
+
+      %{
+        skill_slug: slug,
+        total: total,
+        by_status: by_status,
+        success_rate: if(total > 0, do: done / total, else: 0.0),
+        failed: failed,
+        avg_latency_ms: rows |> Enum.map(& &1.avg_latency_ms) |> avg_of_nullables(),
+        avg_cost_micro_usd: rows |> Enum.map(& &1.avg_cost_micro_usd) |> avg_of_nullables()
+      }
+    end)
+    |> Enum.sort_by(& &1.total, :desc)
+  rescue
+    _ -> []
+  end
+
+  @doc """
+  Top failure modes attributed to each skill (joining
+  `failure_occurrences.run_id` → `runs.skill_slug`).
+
+  Shape:
+      [%{skill_slug, total, by_mode: [%{slug, count}]}, ...]
+  sorted by total desc.
+  """
+  def failures_by_skill(days \\ @default_days, per_skill \\ 5) do
+    cutoff = cutoff(days)
+
+    rows =
+      from(o in FailureOccurrence,
+        join: r in Run,
+        on: r.id == o.run_id,
+        left_join: m in FailureMode,
+        on: m.id == o.failure_mode_id,
+        where: o.inserted_at >= ^cutoff and not is_nil(r.skill_slug),
+        group_by: [r.skill_slug, m.slug],
+        select: %{
+          skill_slug: r.skill_slug,
+          mode_slug: m.slug,
+          count: count(o.id)
+        }
+      )
+      |> Repo.all()
+
+    rows
+    |> Enum.group_by(& &1.skill_slug)
+    |> Enum.map(fn {slug, modes} ->
+      modes_sorted =
+        modes
+        |> Enum.sort_by(& &1.count, :desc)
+        |> Enum.take(per_skill)
+        |> Enum.map(fn r -> %{slug: r.mode_slug, count: r.count} end)
+
+      %{
+        skill_slug: slug,
+        total: modes |> Enum.map(& &1.count) |> Enum.sum(),
+        by_mode: modes_sorted
+      }
+    end)
+    |> Enum.sort_by(& &1.total, :desc)
+  rescue
+    _ -> []
+  end
+
+  # ----- 5c. Eval-run cost / latency aggregation -----
+
+  @doc """
+  Average cost (micro-USD) and latency (ms) of the trace `runs` rows
+  that an eval run's cases executed. Used by the multi-signal
+  auto-promote gate to compare baseline vs staging perf.
+
+  Returns `%{avg_cost_micro_usd: float | nil, avg_latency_ms: float | nil,
+  sample_size: int}`. `sample_size` is the number of cases whose
+  underlying run row was found and aggregated — useful for callers
+  who want to skip the gate when the sample is too thin to be
+  meaningful (e.g. < 3 cases).
+
+  Empty / missing eval ⇒ all keys nil, sample_size 0.
+  """
+  @spec eval_run_perf(binary() | nil) :: %{
+          avg_cost_micro_usd: float() | nil,
+          avg_latency_ms: float() | nil,
+          sample_size: non_neg_integer()
+        }
+  def eval_run_perf(nil), do: empty_eval_perf()
+
+  def eval_run_perf(eval_run_id) when is_binary(eval_run_id) do
+    row =
+      from(c in EvalCase,
+        join: r in Run,
+        on: r.id == c.run_id,
+        where: c.eval_run_id == ^eval_run_id and not is_nil(c.run_id),
+        select: %{
+          avg_cost: avg(r.cost_micro_usd),
+          avg_latency: avg(r.latency_ms),
+          n: count(r.id)
+        }
+      )
+      |> Repo.one()
+
+    case row do
+      %{n: n} when is_integer(n) and n > 0 ->
+        %{
+          avg_cost_micro_usd: to_float(row.avg_cost),
+          avg_latency_ms: to_float(row.avg_latency),
+          sample_size: n
+        }
+
+      _ ->
+        empty_eval_perf()
+    end
+  rescue
+    _ -> empty_eval_perf()
+  end
+
+  defp empty_eval_perf,
+    do: %{avg_cost_micro_usd: nil, avg_latency_ms: nil, sample_size: 0}
+
   # ----- 6. Recent regressions -----
 
   @doc """
@@ -266,4 +421,13 @@ defmodule AgenticAiAgent.Analytics do
   defp to_float(n) when is_number(n), do: n * 1.0
   defp to_float(%Decimal{} = d), do: Decimal.to_float(d)
   defp to_float(_), do: nil
+
+  defp avg_of_nullables(list) do
+    nums = list |> Enum.map(&to_float/1) |> Enum.reject(&is_nil/1)
+
+    case nums do
+      [] -> nil
+      _ -> Enum.sum(nums) / length(nums)
+    end
+  end
 end

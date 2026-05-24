@@ -36,6 +36,7 @@ defmodule AgenticAiAgentWeb.Router do
       live "/insights", InsightsLive.Index, :index
       live "/improvements", ImprovementLive.Index, :index
       live "/feedback", FeedbackLive.Index, :index
+      live "/notifications", NotificationLive.Index, :index
 
       live "/memories", MemoryLive.Index, :index
 

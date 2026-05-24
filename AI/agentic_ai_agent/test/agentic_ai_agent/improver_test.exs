@@ -40,7 +40,9 @@ defmodule AgenticAiAgent.ImproverTest do
 
   describe "build_context/1" do
     test "returns a map with the required keys for an existing card" do
-      ctx = Improver.build_context(@card_slug)
+      # diagnose: false keeps the test deterministic — Diagnostics is
+      # exercised in its own test module with a stub adapter.
+      ctx = Improver.build_context(@card_slug, diagnose: false)
 
       assert ctx.slug == @card_slug
       assert ctx.window_days > 0
@@ -50,11 +52,46 @@ defmodule AgenticAiAgent.ImproverTest do
       assert is_list(ctx.regressions)
       assert is_binary(ctx.current_yaml)
       assert ctx.current_yaml =~ "Improver Test Card"
+      # Diagnose disabled → no root-cause key populated.
+      assert ctx.root_cause == nil
     end
 
     test "current_yaml is nil for a missing card" do
-      ctx = Improver.build_context("ghost-card-xyz")
+      ctx = Improver.build_context("ghost-card-xyz", diagnose: false)
       assert ctx.current_yaml == nil
+    end
+
+    test "root_cause is nil when no failed runs exist in window" do
+      # No runs inserted → Diagnostics returns {:skipped, :no_failed_runs}
+      # and build_context coerces that to nil. This guards against a
+      # regression where a skip would crash build_context.
+      ctx = Improver.build_context(@card_slug)
+      assert ctx.root_cause == nil
+    end
+
+    test "recurring_critiques is empty when no insights exist" do
+      ctx = Improver.build_context(@card_slug, diagnose: false)
+      assert ctx.recurring_critiques == []
+    end
+
+    test "recurring_critiques surfaces saturated themes" do
+      alias AgenticAiAgent.Agent.ReflexionInsights
+
+      # 3 insights with the same theme on this card crosses the
+      # default saturation threshold.
+      for _ <- 1..3 do
+        run =
+          Repo.insert!(%AgenticAiAgent.Traces.Run{
+            user_input: "q",
+            status: "done",
+            started_at: DateTime.utc_now()
+          })
+
+        ReflexionInsights.record(run, %{slug: @card_slug}, "skipped retrieve before search")
+      end
+
+      ctx = Improver.build_context(@card_slug, diagnose: false)
+      assert [%{theme: "missing_retrieve", count: 3}] = ctx.recurring_critiques
     end
   end
 
@@ -280,6 +317,66 @@ defmodule AgenticAiAgent.ImproverTest do
 
       assert updated.status == "staged_failed"
       assert_in_delta updated.score_delta, -0.180, 0.001
+    end
+
+    test "record_staging_finish! captures staging cost + latency from the eval run",
+         %{proposal: p} do
+      alias AgenticAiAgent.Eval.{EvalCase, EvalRun}
+      alias AgenticAiAgent.Traces.Run, as: TraceRun
+
+      # Real persisted eval_run with two cases pointing at trace runs that
+      # carry cost + latency values. This exercises the join path that
+      # Analytics.eval_run_perf relies on.
+      er = Repo.insert!(%EvalRun{status: "done", total_cases: 2, passed_cases: 2})
+
+      r1 =
+        Repo.insert!(%TraceRun{
+          status: "done",
+          cost_micro_usd: 2_000,
+          latency_ms: 400,
+          started_at: DateTime.utc_now()
+        })
+
+      r2 =
+        Repo.insert!(%TraceRun{
+          status: "done",
+          cost_micro_usd: 4_000,
+          latency_ms: 800,
+          started_at: DateTime.utc_now()
+        })
+
+      _ =
+        Repo.insert!(%EvalCase{
+          eval_run_id: er.id,
+          run_id: r1.id,
+          case_id: "c1"
+        })
+
+      _ =
+        Repo.insert!(%EvalCase{
+          eval_run_id: er.id,
+          run_id: r2.id,
+          case_id: "c2"
+        })
+
+      staged =
+        p
+        |> Proposal.changeset(%{
+          status: "staging",
+          staging_slug: "#{@card_slug}-staging",
+          baseline_score: 0.700,
+          baseline_cost_micro_usd: 2_000,
+          baseline_latency_ms: 400
+        })
+        |> Repo.update!()
+
+      eval_run = %EvalRun{id: er.id, average_score: 0.800, status: "done"}
+
+      updated = Improver.record_staging_finish!(staged, eval_run)
+
+      # Average of 2_000 + 4_000 → 3_000; average of 400 + 800 → 600.
+      assert updated.staging_cost_micro_usd == 3_000
+      assert updated.staging_latency_ms == 600
     end
   end
 end

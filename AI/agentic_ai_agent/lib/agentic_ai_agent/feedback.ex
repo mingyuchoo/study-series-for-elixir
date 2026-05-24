@@ -88,6 +88,56 @@ defmodule AgenticAiAgent.Feedback do
     end
   end
 
+  @doc """
+  Variant of `flag/2` used by the LLM-as-judge auto-flagger. Idempotent
+  per run + flagged_by="judge": if a judge-created candidate already exists
+  for the run, returns `{:already_flagged, existing}` instead of inserting
+  a duplicate.
+
+  The judge's score and reason are stored alongside the snapshot so an
+  operator on `/feedback` can sort/filter by judge_score and read why.
+  """
+  @spec flag_from_judge(map(), map() | nil, map()) ::
+          {:ok, GoldenCandidate.t()}
+          | {:already_flagged, GoldenCandidate.t()}
+          | {:error, term()}
+  def flag_from_judge(run, card, %{score: score, reason: reason} = _judgment)
+      when is_map(run) do
+    run_id = Map.get(run, :id)
+
+    case existing_judge_candidate(run_id) do
+      %GoldenCandidate{} = existing ->
+        {:already_flagged, existing}
+
+      nil ->
+        attrs = %{
+          run_id: run_id,
+          user_input: Map.get(run, :user_input) || "",
+          assistant_answer: Map.get(run, :final_answer),
+          target_card_slug: card && Map.get(card, :slug),
+          user_note: "judge: #{reason}",
+          flagged_by: "judge",
+          judge_score: score,
+          status: "pending"
+        }
+
+        %GoldenCandidate{}
+        |> GoldenCandidate.changeset(attrs)
+        |> Repo.insert()
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp existing_judge_candidate(nil), do: nil
+
+  defp existing_judge_candidate(run_id) do
+    GoldenCandidate
+    |> where([c], c.run_id == ^run_id and c.flagged_by == "judge")
+    |> limit(1)
+    |> Repo.one()
+  end
+
   # ----- Promote -----
 
   @doc """

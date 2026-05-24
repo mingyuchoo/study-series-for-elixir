@@ -36,12 +36,16 @@ defmodule AgenticAiAgent.Feedback.GoldenCandidate do
     field :dismissed_reason, :string
     field :flagged_by, :string
 
+    # Quality estimate (0.0–1.0) from the LLM-as-judge auto-flagger. Nil
+    # when the candidate was created by a human 👎.
+    field :judge_score, :float
+
     timestamps(type: :utc_datetime)
   end
 
   @castable ~w(run_id user_input assistant_answer corrected_answer user_note
                target_card_slug status promoted_to_path promoted_at
-               promoted_by dismissed_reason flagged_by)a
+               promoted_by dismissed_reason flagged_by judge_score)a
 
   def changeset(candidate, attrs) do
     candidate

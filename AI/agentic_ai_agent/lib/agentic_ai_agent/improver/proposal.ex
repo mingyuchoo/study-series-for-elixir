@@ -45,10 +45,31 @@ defmodule AgenticAiAgent.Improver.Proposal do
     field :staging_score, :float
     field :score_delta, :float
 
+    # Phase 7 — Multi-signal gate: cost + latency captured alongside score
+    # so a quality-positive but cost/latency-regressive change is blocked
+    # from auto-promotion. Values come from
+    # `AgenticAiAgent.Analytics.eval_run_perf/1`.
+    field :baseline_cost_micro_usd, :integer
+    field :baseline_latency_ms, :integer
+    field :staging_cost_micro_usd, :integer
+    field :staging_latency_ms, :integer
+
     # Phase 6 — Autonomous cycle
     field :auto_promoted, :boolean, default: false
     field :rolled_back_at, :utc_datetime
     field :rolled_back_reason, :string
+
+    # Static safety audit (alignment-drift detection) — see AgenticAiAgent.Safety
+    field :safety_audit, :map
+    field :safety_verdict, :string
+
+    # Root-cause analysis (Phase 7) — narrative produced by
+    # `AgenticAiAgent.Agent.Diagnostics` from failed run trajectories.
+    # The Improver injects this into its prompt so proposals address
+    # the *cause* of failures, not just their statistics.
+    field :root_cause, :string
+    field :root_cause_summary, :string
+    field :root_cause_run_ids, {:array, :string}, default: []
 
     timestamps(type: :utc_datetime)
   end
@@ -58,7 +79,11 @@ defmodule AgenticAiAgent.Improver.Proposal do
                decided_at decision_reason applied_at apply_error
                raw_response staging_slug staging_eval_run_id
                baseline_eval_run_id baseline_score staging_score
-               score_delta auto_promoted rolled_back_at rolled_back_reason)a
+               score_delta auto_promoted rolled_back_at rolled_back_reason
+               safety_audit safety_verdict root_cause root_cause_summary
+               root_cause_run_ids baseline_cost_micro_usd
+               baseline_latency_ms staging_cost_micro_usd
+               staging_latency_ms)a
 
   def changeset(proposal, attrs) do
     proposal

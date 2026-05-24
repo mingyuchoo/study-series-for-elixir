@@ -84,7 +84,10 @@ defmodule AgenticAiAgent.Agent.Context do
       retrieved
       |> Enum.with_index(1)
       |> Enum.map_join("\n", fn {{score, m}, i} ->
-        "#{i}. (score=#{Float.round(score, 3)}) [#{m.kind}/#{m.source || "—"}] #{m.content}"
+        prefix = if m.kind == "reflexion", do: "[LESSON] ", else: ""
+
+        "#{i}. (score=#{Float.round(score, 3)}) [#{m.kind}/#{m.source || "—"}] " <>
+          "#{prefix}#{m.content}"
       end)
 
     %{
@@ -92,7 +95,9 @@ defmodule AgenticAiAgent.Agent.Context do
       "content" =>
         "[RETRIEVED CONTEXT]\n" <>
           "The following long-term memories may be relevant to the user's latest message. " <>
-          "Use them only if directly applicable; they may be outdated or off-topic.\n\n" <>
+          "Entries marked [LESSON] are self-critiques from past runs — use them as advice, " <>
+          "not as ground truth. Use any entry only if directly applicable; they may be " <>
+          "outdated or off-topic.\n\n" <>
           body
     }
   end

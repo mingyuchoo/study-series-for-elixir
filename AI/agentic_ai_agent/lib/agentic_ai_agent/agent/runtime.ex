@@ -23,7 +23,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
   use GenServer
 
   alias AgenticAiAgent.{Conversation, Failures, Skills, Traces}
-  alias AgenticAiAgent.Agent.{Context, Reflexion, ToT, Workflow}
+  alias AgenticAiAgent.Agent.{Context, Judge, Reflexion, ToT, Workflow}
   alias AgenticAiAgent.LLM.{Adapter, Pricing, Response}
   alias AgenticAiAgent.Tools.Registry, as: ToolRegistry
 
@@ -824,6 +824,8 @@ defmodule AgenticAiAgent.Agent.Runtime do
     })
 
     Traces.add_step!(state.run, :final, %{"content" => content}, nil)
+    persist_reflexion_async(state)
+    judge_async(state, content)
 
     :telemetry.execute(
       [:agent, :run, :stop],
@@ -852,6 +854,8 @@ defmodule AgenticAiAgent.Agent.Runtime do
       context: %{"iteration" => state.iteration}
     })
 
+    persist_reflexion_async(state)
+
     :telemetry.execute(
       [:agent, :run, :stop],
       %{duration_ms: latency},
@@ -879,6 +883,8 @@ defmodule AgenticAiAgent.Agent.Runtime do
       context: %{"iteration" => state.iteration, "max_steps" => state.max_steps}
     })
 
+    persist_reflexion_async(state)
+
     :telemetry.execute(
       [:agent, :run, :stop],
       %{duration_ms: latency},
@@ -888,6 +894,44 @@ defmodule AgenticAiAgent.Agent.Runtime do
     notify(state, {:agent, :failed, reason, state.run.id})
     Phoenix.PubSub.broadcast(@pubsub, @runs_topic, {:runs, :updated, state.run.id})
     {:stop, :normal, state}
+  end
+
+  # Spawn a Task to run the LLM-as-judge pass on the final answer. If the
+  # judge's score is below the card's flag_threshold, a `golden_candidate`
+  # is auto-created so /feedback surfaces it for HITL curation. Non-
+  # blocking: the user sees the answer immediately; the judge runs in the
+  # background and is silent on failure.
+  defp judge_async(state, content) do
+    run = state.run |> Map.put(:final_answer, content)
+    card = state.card
+
+    _ =
+      Task.Supervisor.start_child(
+        AgenticAiAgent.Tools.TaskSupervisor,
+        fn -> Judge.judge_run(run, card) end
+      )
+
+    :ok
+  end
+
+  # Spawn a Task to write the in-run critique to long-term Memory so future
+  # runs can semantically retrieve the lesson. Non-blocking: the run
+  # terminates immediately, the embedding call happens out-of-band.
+  defp persist_reflexion_async(state) do
+    note = state.reflexion_note
+
+    if is_binary(note) and note != "" do
+      run = state.run
+      card = state.card
+
+      _ =
+        Task.Supervisor.start_child(
+          AgenticAiAgent.Tools.TaskSupervisor,
+          fn -> Reflexion.persist_run_critique(run, card, note) end
+        )
+    end
+
+    :ok
   end
 
   # ----- Helpers -----

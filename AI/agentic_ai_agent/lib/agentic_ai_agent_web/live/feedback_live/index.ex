@@ -107,6 +107,12 @@ defmodule AgenticAiAgentWeb.FeedbackLive.Index do
                 <span class={["rounded px-2 py-0.5 text-[10px] font-mono uppercase", status_color(c.status)]}>
                   {c.status}
                 </span>
+                <span :if={c.flagged_by == "judge"} class={["rounded px-2 py-0.5 text-[10px] font-mono uppercase", judge_badge_class(c.judge_score)]}>
+                  🤖 judge{if c.judge_score, do: " " <> format_score(c.judge_score)}
+                </span>
+                <span :if={c.flagged_by not in ["judge", nil]} class="rounded bg-base-300 px-2 py-0.5 text-[10px] font-mono uppercase">
+                  👎 {c.flagged_by}
+                </span>
                 <code :if={c.target_card_slug} class="font-mono text-xs opacity-70">→ {c.target_card_slug}</code>
                 <.link
                   :if={c.run_id}
@@ -202,6 +208,18 @@ defmodule AgenticAiAgentWeb.FeedbackLive.Index do
 
   defp format_time(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M:%S")
   defp format_time(_), do: "—"
+
+  defp format_score(n) when is_number(n), do: :io_lib.format("~5.3f", [n]) |> List.to_string()
+  defp format_score(_), do: "—"
+
+  defp judge_badge_class(s) when is_number(s) and s < 0.3,
+    do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
+
+  defp judge_badge_class(s) when is_number(s) and s < 0.6,
+    do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
+  defp judge_badge_class(_),
+    do: "bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200"
 
   defp status_color("pending"), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
   defp status_color("promoted"), do: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200"
