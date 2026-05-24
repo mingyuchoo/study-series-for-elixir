@@ -41,58 +41,111 @@ defmodule AgenticAiAgentWeb.Layouts do
       assigns
       |> assign_new(:current_path, fn -> "/" end)
       |> assign_new(:locale, fn -> Gettext.get_locale(AgenticAiAgentWeb.Gettext) end)
+      |> assign(:use_items, nav_use_items())
+      |> assign(:setup_items, nav_setup_items())
 
     ~H"""
-    <header class="border-b bg-base-100">
-      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <.link navigate={~p"/"} class="flex items-center gap-2">
-          <span class="text-lg font-semibold tracking-tight">{gettext("Agentic AI Agent")}</span>
-        </.link>
+    <div class="flex min-h-screen flex-col md:flex-row">
+      <!-- Sidebar (md+) -->
+      <aside class="hidden md:flex md:w-56 md:flex-col md:border-r md:bg-base-100" aria-label={gettext("Primary")}>
+        <div class="border-b p-4">
+          <.link navigate={~p"/"} class="block">
+            <span class="text-base font-semibold tracking-tight">
+              {gettext("Agentic AI Agent")}
+            </span>
+          </.link>
+        </div>
 
-        <nav class="hidden flex-1 md:block" aria-label={gettext("Primary")}>
-          <ul class="flex items-center justify-center gap-0.5 text-sm">
-            <li class="mr-1 text-[10px] font-semibold uppercase tracking-wider opacity-40">
-              {gettext("Use")}
-            </li>
-            <li :for={item <- nav_use_items()}>
-              <.link
-                navigate={item.path}
-                class="block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
-              >
-                {item.label.()}
-              </.link>
-            </li>
-
-            <li class="mx-2 h-5 w-px bg-base-300" aria-hidden="true"></li>
-
-            <li class="mr-1 text-[10px] font-semibold uppercase tracking-wider opacity-40">
-              {gettext("Setup")}
-            </li>
-            <li :for={item <- nav_setup_items()}>
-              <.link
-                navigate={item.path}
-                class="block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
-              >
-                {item.label.()}
-              </.link>
-            </li>
-          </ul>
+        <nav class="flex-1 overflow-y-auto px-2 py-3">
+          <.nav_section
+            label={gettext("Use")}
+            items={@use_items}
+            current_path={@current_path}
+          />
+          <.nav_section
+            label={gettext("Setup")}
+            items={@setup_items}
+            current_path={@current_path}
+          />
         </nav>
 
+        <div class="flex items-center justify-between gap-2 border-t p-3">
+          <.locale_toggle locale={@locale} current_path={@current_path} />
+          <.theme_toggle />
+        </div>
+      </aside>
+
+      <!-- Mobile top bar -->
+      <header class="flex items-center justify-between border-b bg-base-100 p-3 md:hidden">
+        <.link navigate={~p"/"} class="text-base font-semibold tracking-tight">
+          {gettext("Agentic AI Agent")}
+        </.link>
         <div class="flex items-center gap-2">
           <.locale_toggle locale={@locale} current_path={@current_path} />
           <.theme_toggle />
         </div>
-      </div>
-    </header>
+      </header>
 
-    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      {render_slot(@inner_block)}
-    </main>
+      <main class="min-w-0 flex-1">
+        <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          {render_slot(@inner_block)}
+        </div>
+      </main>
+    </div>
 
     <.flash_group flash={@flash} />
     """
   end
+
+  # ----- Sidebar nav section (collapsible) -----
+
+  attr :label, :string, required: true
+  attr :items, :list, required: true
+  attr :current_path, :string, required: true
+
+  defp nav_section(assigns) do
+    assigns = assign(assigns, :open?, any_active?(assigns.items, assigns.current_path))
+
+    ~H"""
+    <details open={@open?} class="group mb-1">
+      <summary class="flex cursor-pointer select-none items-center justify-between rounded px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider opacity-60 hover:bg-base-200 hover:opacity-100 [&::-webkit-details-marker]:hidden">
+        <span>{@label}</span>
+        <.icon
+          name="hero-chevron-right-micro"
+          class="size-3 transition-transform group-open:rotate-90"
+        />
+      </summary>
+      <ul class="mt-1 space-y-0.5">
+        <li :for={item <- @items}>
+          <.link
+            navigate={item.path}
+            class={nav_item_class(active?(item.path, @current_path))}
+          >
+            {item.label.()}
+          </.link>
+        </li>
+      </ul>
+    </details>
+    """
+  end
+
+  defp nav_item_class(true),
+    do:
+      "block rounded px-3 py-1.5 text-sm font-semibold bg-base-200 text-base-content"
+
+  defp nav_item_class(false),
+    do:
+      "block rounded px-3 py-1.5 text-sm font-medium opacity-75 hover:bg-base-200 hover:opacity-100"
+
+  defp any_active?(items, current_path),
+    do: Enum.any?(items, &active?(&1.path, current_path))
+
+  defp active?(item_path, current_path) when is_binary(item_path) and is_binary(current_path) do
+    item_path == current_path or
+      (item_path != "/" and String.starts_with?(current_path, item_path <> "/"))
+  end
+
+  defp active?(_, _), do: false
 
   # Labels are wrapped in a fn/0 so the active locale is consulted on every
   # render rather than at module-compile time.

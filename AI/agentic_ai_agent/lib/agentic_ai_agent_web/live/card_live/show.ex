@@ -5,7 +5,34 @@ defmodule AgenticAiAgentWeb.CardLive.Show do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    {:ok, assign(socket, :card, Design.get_card!(id))}
+    card = Design.get_card!(id)
+    {source_path, source_yaml} = load_source(card.slug)
+
+    {:ok,
+     socket
+     |> assign(:card, card)
+     |> assign(:source_path, source_path)
+     |> assign(:source_yaml, source_yaml)}
+  end
+
+  defp load_source(slug) do
+    dir = Application.app_dir(:agentic_ai_agent, "priv/cards")
+
+    Enum.find_value([".yaml", ".yml"], {nil, nil}, fn ext ->
+      path = Path.join(dir, "#{slug}#{ext}")
+
+      case File.read(path) do
+        {:ok, body} -> {relative_path(path), body}
+        {:error, _} -> nil
+      end
+    end)
+  end
+
+  defp relative_path(absolute) do
+    case String.split(absolute, "/priv/", parts: 2) do
+      [_, rest] -> "priv/" <> rest
+      _ -> absolute
+    end
   end
 
   @impl true
@@ -17,7 +44,23 @@ defmodule AgenticAiAgentWeb.CardLive.Show do
           <.link navigate={~p"/cards"} class="text-sm opacity-70 hover:underline">&larr; {gettext("Cards")}</.link>
           <h1 class="text-2xl font-semibold">{@card.name}</h1>
           <p class="font-mono text-xs opacity-60">{@card.slug}</p>
+          <p :if={@source_path} class="font-mono text-[11px] opacity-50">
+            {gettext("source:")} {@source_path}
+          </p>
         </header>
+
+        <details :if={@source_yaml} class="rounded border">
+          <summary class="flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide opacity-70">
+            <span>{gettext("Source YAML")}</span>
+            <.link
+              navigate={~p"/cards/#{@card.id}/edit-source"}
+              class="rounded border px-2 py-0.5 text-[10px] hover:bg-base-200"
+            >
+              {gettext("Edit")}
+            </.link>
+          </summary>
+          <pre class="overflow-x-auto bg-base-200 p-3 text-xs"><code>{@source_yaml}</code></pre>
+        </details>
 
         <.section title={gettext("Role")}>
           <pre class="whitespace-pre-wrap text-sm">{@card.role}</pre>

@@ -102,10 +102,15 @@ defmodule AgenticAiAgentWeb.MCPLive.Index do
             <div>
               <h2 class="text-lg font-semibold">{row.record.name}</h2>
               <p class="font-mono text-xs opacity-60">
-                {row.record.command} {Enum.join(Server.args_list(row.record), " ")}
+                <%= case row.record.transport do %>
+                  <% "http_sse" -> %>
+                    {row.record.url}
+                  <% _ -> %>
+                    {row.record.command} {Enum.join(Server.args_list(row.record), " ")}
+                <% end %>
               </p>
               <p class="font-mono text-[10px] opacity-50">
-                {gettext("risk:")} {row.record.risk_level}
+                {row.record.transport} · {gettext("risk:")} {row.record.risk_level}
                 <span :if={!row.record.enabled}> · {gettext("disabled")}</span>
               </p>
             </div>
@@ -178,6 +183,8 @@ defmodule AgenticAiAgentWeb.MCPLive.Index do
   defp status_color(:starting), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
   defp status_color(:initializing), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
   defp status_color(:requesting_tools), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
+  defp status_color(:connecting), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
+  defp status_color(:reconnecting), do: "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200"
   defp status_color(:stopped), do: "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
   defp status_color(:disabled), do: "bg-gray-100 dark:bg-gray-800 text-gray-500"
   defp status_color(:exited), do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"

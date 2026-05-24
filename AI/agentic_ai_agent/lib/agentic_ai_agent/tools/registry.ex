@@ -17,7 +17,12 @@ defmodule AgenticAiAgent.Tools.Registry do
   require Logger
 
   alias AgenticAiAgent.Repo
-  alias AgenticAiAgent.Tools.ToolSpec
+  alias AgenticAiAgent.Tools.{Specs, ToolSpec}
+
+  @pubsub_topic "tools"
+
+  @doc "PubSub topic used for broadcasting tool lifecycle events."
+  def pubsub_topic, do: @pubsub_topic
 
   defmodule DynamicEntry do
     @moduledoc """
@@ -62,14 +67,25 @@ defmodule AgenticAiAgent.Tools.Registry do
   @doc "List `[{name, entry}, ...]` of all registered tools."
   def list, do: GenServer.call(__MODULE__, :list)
 
-  @doc "List tool descriptors suitable for an LLM tool-use payload."
+  @doc "Returns true if the tool exists and is not disabled by its ToolSpec row."
+  def enabled?(name), do: GenServer.call(__MODULE__, {:enabled?, name})
+
+  @doc """
+  Apply a user-supplied edit to the tool's ToolSpec row (risk_level, enabled,
+  retry_policy) and refresh the cached override. Broadcasts `{:tool, :updated,
+  name}` on the `\"tools\"` PubSub topic.
+  """
+  def update_spec(name, attrs) when is_binary(name),
+    do: GenServer.call(__MODULE__, {:update_spec, name, attrs})
+
+  @doc "List tool descriptors suitable for an LLM tool-use payload. Disabled tools are filtered out."
   def descriptors do
-    for {name, entry} <- list() do
+    for {name, entry} <- list(), enabled?(name) do
       %{
         "name" => name,
         "description" => description_of(entry),
         "input_schema" => input_schema_of(entry),
-        "risk_level" => risk_level_string(entry)
+        "risk_level" => Atom.to_string(risk_level(name))
       }
     end
   end
@@ -86,42 +102,28 @@ defmodule AgenticAiAgent.Tools.Registry do
   """
   def call(name, input) do
     case lookup(name) do
-      {:ok, entry} -> validate_and_dispatch(entry, input)
-      :error -> {:error, {:unknown_tool, name}}
-    end
-  end
+      :error ->
+        {:error, {:unknown_tool, name}}
 
-  @doc "Read the risk level (atom) of a tool by name. Returns `:unknown` if not found."
-  def risk_level(name) do
-    case lookup(name) do
-      {:ok, entry} -> risk_level_atom(entry)
-      :error -> :unknown
+      {:ok, entry} ->
+        if enabled?(name),
+          do: validate_and_dispatch(entry, input),
+          else: {:error, {:tool_disabled, name}}
     end
   end
 
   @doc """
-  Full metadata map for a tool — used by the catalog UI and DB sync.
-  Returns `nil` for unknown tools.
+  Effective risk level (atom) of a tool by name — DB override if present,
+  otherwise the code-defined default. Returns `:unknown` if not registered.
   """
-  def metadata(name) do
-    case lookup(name) do
-      {:ok, entry} ->
-        %{
-          name: name_of(entry),
-          description: description_of(entry),
-          input_schema: input_schema_of(entry),
-          output_schema: output_schema_of(entry),
-          risk_level: risk_level_atom(entry),
-          side_effects: side_effects_of(entry),
-          failure_modes: failure_modes_of(entry),
-          retry_policy: retry_policy_of(entry),
-          source: source_of(entry)
-        }
+  def risk_level(name), do: GenServer.call(__MODULE__, {:risk_level, name})
 
-      :error ->
-        nil
-    end
-  end
+  @doc """
+  Full metadata map for a tool — used by the catalog UI. Reflects any
+  DB-stored overrides (risk_level, enabled, retry_policy). Returns `nil`
+  for unknown tools.
+  """
+  def metadata(name), do: GenServer.call(__MODULE__, {:metadata, name})
 
   # ----- Server -----
 
@@ -133,7 +135,7 @@ defmodule AgenticAiAgent.Tools.Registry do
         {m.name(), m}
       end
 
-    {:ok, %{tools: tools}}
+    {:ok, %{tools: tools, specs: load_specs_map()}}
   end
 
   @impl true
@@ -143,14 +145,113 @@ defmodule AgenticAiAgent.Tools.Registry do
   def handle_call({:lookup, name}, _from, state),
     do: {:reply, Map.fetch(state.tools, name), state}
 
+  def handle_call({:enabled?, name}, _from, state) do
+    {:reply, effective_enabled?(state, name), state}
+  end
+
+  def handle_call({:risk_level, name}, _from, state) do
+    {:reply, effective_risk_level(state, name), state}
+  end
+
+  def handle_call({:metadata, name}, _from, state) do
+    reply =
+      case Map.fetch(state.tools, name) do
+        {:ok, entry} ->
+          spec = Map.get(state.specs, name)
+
+          %{
+            name: name_of(entry),
+            description: description_of(entry),
+            input_schema: input_schema_of(entry),
+            output_schema: output_schema_of(entry),
+            risk_level: effective_risk_level(state, name),
+            enabled: effective_enabled?(state, name),
+            side_effects: side_effects_of(entry),
+            failure_modes: failure_modes_of(entry),
+            retry_policy: (spec && spec.retry_policy) || retry_policy_of(entry),
+            source: source_of(entry),
+            spec_id: spec && spec.id
+          }
+
+        :error ->
+          nil
+      end
+
+    {:reply, reply, state}
+  end
+
+  def handle_call({:update_spec, name, attrs}, _from, state) do
+    spec = Specs.get_spec_by_name(name) || Map.get(state.specs, name)
+
+    case spec do
+      nil ->
+        {:reply, {:error, :unknown_tool}, state}
+
+      %ToolSpec{} = spec ->
+        case Specs.update(spec, attrs) do
+          {:ok, updated} ->
+            Phoenix.PubSub.broadcast(
+              AgenticAiAgent.PubSub,
+              @pubsub_topic,
+              {:tool, :updated, updated.name}
+            )
+
+            {:reply, {:ok, updated}, %{state | specs: Map.put(state.specs, updated.name, updated)}}
+
+          {:error, _} = err ->
+            {:reply, err, state}
+        end
+    end
+  end
+
   def handle_call({:register, module_or_entry}, _from, state) do
     name = name_of(module_or_entry)
     sync_spec_for(module_or_entry)
-    {:reply, :ok, %{state | tools: Map.put(state.tools, name, module_or_entry)}}
+
+    spec = Specs.get_spec_by_name(name)
+    specs = if spec, do: Map.put(state.specs, name, spec), else: state.specs
+
+    {:reply, :ok, %{state | tools: Map.put(state.tools, name, module_or_entry), specs: specs}}
   end
 
   def handle_call({:unregister, name}, _from, state) do
-    {:reply, :ok, %{state | tools: Map.delete(state.tools, name)}}
+    {:reply, :ok,
+     %{state | tools: Map.delete(state.tools, name), specs: Map.delete(state.specs, name)}}
+  end
+
+  defp load_specs_map do
+    for spec <- Specs.list_specs(), into: %{}, do: {spec.name, spec}
+  rescue
+    _ -> %{}
+  end
+
+  defp effective_enabled?(state, name) do
+    case Map.fetch(state.tools, name) do
+      :error ->
+        false
+
+      {:ok, _} ->
+        case Map.get(state.specs, name) do
+          %ToolSpec{enabled: enabled} -> enabled
+          nil -> true
+        end
+    end
+  end
+
+  defp effective_risk_level(state, name) do
+    case Map.fetch(state.tools, name) do
+      :error ->
+        :unknown
+
+      {:ok, entry} ->
+        case Map.get(state.specs, name) do
+          %ToolSpec{risk_level: r} when is_binary(r) and r != "" ->
+            String.to_existing_atom(r)
+
+          _ ->
+            risk_level_atom(entry)
+        end
+    end
   end
 
   # ----- Dispatch helpers -----

@@ -10,8 +10,12 @@ defmodule AgenticAiAgentWeb.SkillLive.Index do
 
   @impl true
   def handle_event("reload", _params, socket) do
-    Skills.reload()
-    {:noreply, assign(socket, :skills, Skills.list())}
+    count = Skills.reload()
+
+    {:noreply,
+     socket
+     |> put_flash(:info, gettext("Reloaded %{n} skill(s) from priv/skills/.", n: count))
+     |> assign(:skills, Skills.list())}
   end
 
   @impl true
@@ -45,6 +49,16 @@ defmodule AgenticAiAgentWeb.SkillLive.Index do
             <code class="font-mono text-xs opacity-60">{s.slug}</code>
           </header>
 
+          <p :if={s[:path]} class="font-mono text-[11px] opacity-50">
+            {gettext("source:")} {relativize(s.path)}
+            <.link
+              navigate={~p"/skills/#{s.slug}/edit-source"}
+              class="ml-2 rounded border px-1.5 py-0 text-[10px] opacity-80 hover:bg-base-200"
+            >
+              {gettext("Edit")}
+            </.link>
+          </p>
+
           <p class="text-sm opacity-80">{s.description}</p>
 
           <div :if={s.frontmatter["tools_used"]} class="text-xs opacity-70">
@@ -69,5 +83,14 @@ defmodule AgenticAiAgentWeb.SkillLive.Index do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp relativize(nil), do: ""
+
+  defp relativize(absolute) when is_binary(absolute) do
+    case String.split(absolute, "/priv/", parts: 2) do
+      [_, rest] -> "priv/" <> rest
+      _ -> absolute
+    end
   end
 end

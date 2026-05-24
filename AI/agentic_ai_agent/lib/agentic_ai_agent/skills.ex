@@ -31,6 +31,44 @@ defmodule AgenticAiAgent.Skills do
   @doc "Re-read skill files from disk (development helper)."
   def reload, do: GenServer.call(__MODULE__, :reload)
 
+  @doc """
+  Absolute path to a skill's source markdown under `priv/skills/<slug>/SKILL.md`.
+  Returns the path even if the file doesn't exist yet (callers should check
+  existence via `File.exists?/1`).
+  """
+  @spec source_path(String.t()) :: String.t()
+  def source_path(slug) when is_binary(slug) do
+    Application.app_dir(:agentic_ai_agent, ["priv/skills", slug, "SKILL.md"])
+  end
+
+  @doc """
+  Atomically write a skill's markdown source and reload the in-memory index.
+  Validates by re-loading the file through `Loader.load_one/1`; on validation
+  failure the previous file contents are restored.
+
+  Returns `{:ok, skill}` or `{:error, reason}`.
+  """
+  @spec save_source(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def save_source(slug, body) when is_binary(slug) and is_binary(body) do
+    path = source_path(slug)
+    backup = if File.exists?(path), do: File.read!(path), else: nil
+
+    with :ok <- File.mkdir_p(Path.dirname(path)),
+         :ok <- File.write(path, body),
+         skill when not is_nil(skill) <- Loader.load_one(path) do
+      reload()
+      {:ok, skill}
+    else
+      err ->
+        case backup do
+          nil -> _ = File.rm(path)
+          body -> _ = File.write(path, body)
+        end
+
+        {:error, err}
+    end
+  end
+
   # ----- Server -----
 
   @impl true

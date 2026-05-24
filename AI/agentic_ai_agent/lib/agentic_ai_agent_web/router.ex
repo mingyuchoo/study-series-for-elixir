@@ -25,6 +25,7 @@ defmodule AgenticAiAgentWeb.Router do
 
       live "/cards", CardLive.Index, :index
       live "/cards/:id", CardLive.Show, :show
+      live "/cards/:id/edit-source", CardLive.EditSource, :edit
 
       live "/chat", ChatLive
 
@@ -34,6 +35,7 @@ defmodule AgenticAiAgentWeb.Router do
       live "/memories", MemoryLive.Index, :index
 
       live "/skills", SkillLive.Index, :index
+      live "/skills/:slug/edit-source", SkillLive.EditSource, :edit
 
       live "/mcp", MCPLive.Index, :index
       live "/mcp/new", MCPLive.Form, :new
@@ -45,6 +47,7 @@ defmodule AgenticAiAgentWeb.Router do
       live "/failures", FailureLive.Index, :index
 
       live "/tools", ToolLive.Index, :index
+      live "/tools/:id/edit", ToolLive.Form, :edit
     end
   end
 

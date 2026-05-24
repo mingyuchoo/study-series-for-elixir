@@ -669,22 +669,13 @@ defmodule AgenticAiAgent.Agent.Runtime do
 
   defp requires_approval?(%{name: name}, card) do
     policy = get_in(card.safety_policy, ["human_approval_required_for"]) || []
-
-    risk =
-      case ToolRegistry.lookup(name) do
-        {:ok, module} -> Atom.to_string(module.risk_level())
-        :error -> "unknown"
-      end
+    risk = ToolRegistry.risk_level(name) |> Atom.to_string()
 
     risk in policy or name in policy
   end
 
   defp start_approval(state, tc) do
-    risk =
-      case ToolRegistry.lookup(tc.name) do
-        {:ok, module} -> Atom.to_string(module.risk_level())
-        :error -> "unknown"
-      end
+    risk = ToolRegistry.risk_level(tc.name) |> Atom.to_string()
 
     approval =
       Traces.create_approval!(%{

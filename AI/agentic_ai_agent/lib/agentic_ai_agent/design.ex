@@ -111,10 +111,62 @@ defmodule AgenticAiAgent.Design do
     end
   end
 
-  defp load_card_file(path) do
+  @doc """
+  Load a single YAML card file and upsert it. Returns `{:ok, card}` or
+  `{:error, reason}` (`{:yaml, ...}` for parse errors, `{:db, changeset}`
+  for upsert errors).
+  """
+  @spec load_card_file(String.t()) :: {:ok, AgenticCard.t()} | {:error, term()}
+  def load_card_file(path) do
     with {:ok, data} <- YamlElixir.read_from_file(path),
          {:ok, card} <- upsert_card_from_map(data) do
       {:ok, card}
+    end
+  end
+
+  @doc """
+  Absolute path to a card's source file under `priv/cards/`. Returns the
+  `.yaml` path if it exists, then `.yml`, then nil.
+  """
+  @spec card_source_path(String.t()) :: String.t() | nil
+  def card_source_path(slug) when is_binary(slug) do
+    dir = Application.app_dir(:agentic_ai_agent, "priv/cards")
+
+    Enum.find_value([".yaml", ".yml"], fn ext ->
+      path = Path.join(dir, "#{slug}#{ext}")
+      if File.exists?(path), do: path, else: nil
+    end)
+  end
+
+  @doc """
+  Atomically write a card's YAML source to `priv/cards/<slug>.yaml` and
+  re-upsert into the DB. The caller is responsible for any mtime conflict
+  check before invoking this. Returns `{:ok, %{path: path, card: card}}`
+  or `{:error, reason}`.
+
+  On any failure (write or upsert) the original file is restored from its
+  prior contents (if it existed).
+  """
+  @spec save_card_source(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def save_card_source(slug, body) when is_binary(slug) and is_binary(body) do
+    dir = Application.app_dir(:agentic_ai_agent, "priv/cards")
+    path = card_source_path(slug) || Path.join(dir, "#{slug}.yaml")
+
+    backup = if File.exists?(path), do: File.read!(path), else: nil
+
+    with :ok <- File.mkdir_p(Path.dirname(path)),
+         :ok <- File.write(path, body),
+         {:ok, card} <- load_card_file(path) do
+      {:ok, %{path: path, card: card}}
+    else
+      err ->
+        # Roll back the file on validation/upsert failure.
+        cond do
+          backup == nil -> _ = File.rm(path)
+          true -> _ = File.write(path, backup)
+        end
+
+        {:error, err}
     end
   end
 end

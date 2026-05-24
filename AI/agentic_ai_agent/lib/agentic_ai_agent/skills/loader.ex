@@ -46,7 +46,7 @@ defmodule AgenticAiAgent.Skills.Loader do
     end
   end
 
-  defp load_one(path) do
+  def load_one(path) do
     slug = path |> Path.dirname() |> Path.basename()
 
     with {:ok, raw} <- File.read(path),

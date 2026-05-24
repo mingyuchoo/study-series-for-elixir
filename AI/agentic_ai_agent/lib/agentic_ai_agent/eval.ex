@@ -17,6 +17,10 @@ defmodule AgenticAiAgent.Eval do
   alias AgenticAiAgent.Eval.{EvalCase, EvalRun, Rubric}
 
   @case_timeout_ms 60_000
+  @pubsub_topic "evals"
+
+  @doc "PubSub topic used for broadcasting eval lifecycle events."
+  def pubsub_topic, do: @pubsub_topic
 
   # ----- Queries -----
 
@@ -110,6 +114,49 @@ defmodule AgenticAiAgent.Eval do
           do_run(card, golden, rubric, threshold, cases)
         end
     end
+  end
+
+  @doc """
+  Fire-and-forget variant of `run_card/2`. Validates the card exists
+  synchronously (so the UI gets an immediate error for a bad slug), then
+  spawns the actual eval under `AgenticAiAgent.Tools.TaskSupervisor`.
+
+  When the run finishes (success or failure), broadcasts on PubSub topic
+  `"evals"`:
+
+      {:eval, :started, %{card_slug: slug}}
+      {:eval, :finished, {:ok, eval_run}}
+      {:eval, :finished, {:error, reason}}
+  """
+  @spec run_card_async(String.t() | Design.AgenticCard.t(), keyword()) ::
+          :ok | {:error, term()}
+  def run_card_async(slug, opts \\ [])
+
+  def run_card_async(slug, opts) when is_binary(slug) do
+    case Design.get_card_by_slug(slug) do
+      nil -> {:error, :card_not_found}
+      card -> run_card_async(card, opts)
+    end
+  end
+
+  def run_card_async(%Design.AgenticCard{} = card, opts) do
+    Phoenix.PubSub.broadcast(
+      AgenticAiAgent.PubSub,
+      @pubsub_topic,
+      {:eval, :started, %{card_slug: card.slug}}
+    )
+
+    Task.Supervisor.start_child(AgenticAiAgent.Tools.TaskSupervisor, fn ->
+      result = run_card(card, opts)
+
+      Phoenix.PubSub.broadcast(
+        AgenticAiAgent.PubSub,
+        @pubsub_topic,
+        {:eval, :finished, result}
+      )
+    end)
+
+    :ok
   end
 
   defp do_run(card, golden, rubric, threshold, cases) do

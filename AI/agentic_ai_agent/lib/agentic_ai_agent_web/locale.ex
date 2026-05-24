@@ -13,7 +13,7 @@ defmodule AgenticAiAgentWeb.Locale do
   def labels do
     %{
       "en" => "EN",
-      "ko" => "한국어"
+      "ko" => "KO"
     }
   end
 

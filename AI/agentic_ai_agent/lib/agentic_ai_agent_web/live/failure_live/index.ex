@@ -17,6 +17,36 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
   def handle_info({:runs, _, _}, socket), do: {:noreply, refresh(socket)}
   def handle_info(_other, socket), do: {:noreply, socket}
 
+  @impl true
+  def handle_event("reload_modes", _params, socket) do
+    results = Failures.load_catalog_from_priv()
+
+    {ok_results, err_results} =
+      Enum.split_with(results, fn {_path, outcome} -> match?({:ok, _}, outcome) end)
+
+    {kind, msg} =
+      cond do
+        results == [] ->
+          {:error, gettext("No failure-mode YAML files found under priv/failures/.")}
+
+        err_results == [] ->
+          {:info, gettext("Reloaded %{n} failure mode(s) from priv/failures/.", n: length(ok_results))}
+
+        true ->
+          first_err = err_results |> List.first() |> elem(1) |> elem(1) |> inspect()
+
+          {:error,
+           gettext(
+             "Reloaded %{ok}, %{fail} failed. First error: %{err}",
+             ok: length(ok_results),
+             fail: length(err_results),
+             err: String.slice(first_err, 0, 160)
+           )}
+      end
+
+    {:noreply, socket |> put_flash(kind, msg) |> refresh()}
+  end
+
   defp refresh(socket) do
     modes = Failures.list_modes()
     counts = Failures.occurrence_counts()
@@ -35,16 +65,25 @@ defmodule AgenticAiAgentWeb.FailureLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="space-y-6">
-        <header>
-          <h1 class="text-2xl font-semibold">{gettext("Failure modes")}</h1>
-          <p class="text-sm opacity-70">
-            {gettext("Catalog of known failure shapes (authored as YAML under priv/failures/) and every occurrence the runtime has detected.")}
-          </p>
-          <p class="text-xs opacity-60">
-            {length(@modes)} {gettext("modes in catalog")} ·
-            <span class="font-mono">{@total}</span> {gettext("occurrences total")}
-            <span :if={@unclassified > 0}>· {gettext("unclassified:")} <b>{@unclassified}</b></span>
-          </p>
+        <header class="flex items-baseline justify-between gap-3">
+          <div>
+            <h1 class="text-2xl font-semibold">{gettext("Failure modes")}</h1>
+            <p class="text-sm opacity-70">
+              {gettext("Catalog of known failure shapes (authored as YAML under priv/failures/) and every occurrence the runtime has detected.")}
+            </p>
+            <p class="text-xs opacity-60">
+              {length(@modes)} {gettext("modes in catalog")} ·
+              <span class="font-mono">{@total}</span> {gettext("occurrences total")}
+              <span :if={@unclassified > 0}>· {gettext("unclassified:")} <b>{@unclassified}</b></span>
+            </p>
+          </div>
+          <button
+            phx-click="reload_modes"
+            type="button"
+            class="rounded border px-3 py-1 text-xs hover:bg-base-200"
+          >
+            {gettext("Reload from files")}
+          </button>
         </header>
 
         <section class="space-y-2">

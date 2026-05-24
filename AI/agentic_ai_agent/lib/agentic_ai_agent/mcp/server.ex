@@ -27,12 +27,19 @@ defmodule AgenticAiAgent.MCP.Server do
   @foreign_key_type :binary_id
 
   @risk_levels ~w(low medium high critical)
+  @transports ~w(stdio http_sse)
 
   schema "mcp_servers" do
     field :name, :string
+    field :transport, :string, default: "stdio"
+    # stdio-only
     field :command, :string
     field :args, :map, default: %{"list" => []}
     field :env, :map, default: %{}
+    # http_sse-only
+    field :url, :string
+    field :headers, :map, default: %{}
+
     field :risk_level, :string, default: "medium"
     field :enabled, :boolean, default: true
 
@@ -41,17 +48,40 @@ defmodule AgenticAiAgent.MCP.Server do
 
   @doc false
   def changeset(server, attrs) do
-    attrs = attrs |> normalize_args_attr() |> normalize_env_attr()
+    attrs =
+      attrs
+      |> normalize_args_attr()
+      |> normalize_env_attr()
+      |> normalize_headers_attr()
 
     server
-    |> cast(attrs, [:name, :command, :args, :env, :risk_level, :enabled])
-    |> validate_required([:name, :command])
+    |> cast(attrs, [:name, :transport, :command, :args, :env, :url, :headers, :risk_level, :enabled])
+    |> validate_required([:name])
+    |> validate_inclusion(:transport, @transports)
     |> validate_format(:name, ~r/\A[a-z0-9][a-z0-9_-]*\z/,
       message: "lowercase letters, digits, _ or -, must start with letter/digit"
     )
     |> validate_length(:name, max: 64)
     |> validate_inclusion(:risk_level, @risk_levels)
+    |> validate_transport_fields()
     |> unique_constraint(:name)
+  end
+
+  defp validate_transport_fields(changeset) do
+    case get_field(changeset, :transport) do
+      "stdio" ->
+        validate_required(changeset, [:command],
+          message: "is required for stdio transport"
+        )
+
+      "http_sse" ->
+        changeset
+        |> validate_required([:url], message: "is required for http_sse transport")
+        |> validate_format(:url, ~r/\Ahttps?:\/\//, message: "must start with http:// or https://")
+
+      _ ->
+        changeset
+    end
   end
 
   @doc "Return args as a plain list of strings (the form stores `%{\"list\" => [...]}`)."
@@ -63,6 +93,11 @@ defmodule AgenticAiAgent.MCP.Server do
   @spec env_map(t()) :: %{String.t() => String.t()}
   def env_map(%__MODULE__{env: env}) when is_map(env), do: env
   def env_map(_), do: %{}
+
+  @doc "Return HTTP headers as a map of binary→binary (http_sse transport only)."
+  @spec headers_map(t()) :: %{String.t() => String.t()}
+  def headers_map(%__MODULE__{headers: headers}) when is_map(headers), do: headers
+  def headers_map(_), do: %{}
 
   @type t :: %__MODULE__{}
 
@@ -115,6 +150,29 @@ defmodule AgenticAiAgent.MCP.Server do
   end
 
   defp normalize_env_attr(attrs), do: attrs
+
+  # Same shape as env normalization, but for HTTP headers.
+  defp normalize_headers_attr(attrs) when is_map(attrs) do
+    {key, raw} = take_either(attrs, ["headers", :headers])
+
+    case raw do
+      :missing ->
+        attrs
+
+      headers when is_map(headers) ->
+        headers =
+          headers
+          |> Enum.reject(fn {k, _} -> to_string(k) == "" end)
+          |> Map.new(fn {k, v} -> {to_string(k), to_string(v)} end)
+
+        Map.put(attrs, key, headers)
+
+      _ ->
+        attrs
+    end
+  end
+
+  defp normalize_headers_attr(attrs), do: attrs
 
   defp take_either(attrs, [first | rest]) do
     if Map.has_key?(attrs, first) do

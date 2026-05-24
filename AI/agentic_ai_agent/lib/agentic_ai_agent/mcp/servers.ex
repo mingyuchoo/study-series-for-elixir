@@ -94,10 +94,15 @@ defmodule AgenticAiAgent.MCP.Servers do
   def start_one(%Server{} = server) do
     cfg = %{
       name: server.name,
+      transport: server.transport,
+      risk_level: String.to_existing_atom(server.risk_level),
+      # stdio
       command: server.command,
       args: Server.args_list(server),
       env: Server.env_map(server),
-      risk_level: String.to_existing_atom(server.risk_level)
+      # http_sse
+      url: server.url,
+      headers: Server.headers_map(server)
     }
 
     case MCP.launch(cfg) do

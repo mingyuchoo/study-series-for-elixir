@@ -1,10 +1,15 @@
 defmodule AgenticAiAgent.MCP.Client do
   @moduledoc """
-  Minimal MCP (Model Context Protocol) client over stdio.
+  Minimal MCP (Model Context Protocol) client supporting two transports.
 
-  An MCP server is launched as a child OS process; the client sends
-  newline-delimited JSON-RPC messages on its stdin and reads its stdout
-  the same way. Once connected we run the standard handshake:
+  * **stdio** — launches the server as a child OS process and exchanges
+    newline-delimited JSON-RPC messages on stdin/stdout.
+  * **http_sse** — opens a long-lived `GET` to the server's SSE endpoint;
+    the first SSE event (`event: endpoint`) carries the POST URL where
+    client→server JSON-RPC messages are sent. Server→client responses and
+    notifications arrive as further SSE events (`event: message`).
+
+  Either transport runs the same handshake:
 
       → initialize
       ← initialize result
@@ -12,21 +17,12 @@ defmodule AgenticAiAgent.MCP.Client do
       → tools/list
       ← tools
 
-  and register every discovered tool under the name `mcp__<server>__<tool>`
-  with `AgenticAiAgent.Tools.Registry`. The registry's dispatch closure
-  calls back into this GenServer with `tools/call`.
+  and registers every discovered tool as `mcp__<server>__<tool>` with
+  `AgenticAiAgent.Tools.Registry`. The registry's dispatch closure calls
+  back into this GenServer with `tools/call`.
 
-  Configuration:
-
-      config :agentic_ai_agent, :mcp_servers, [
-        %{name: "filesystem",
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-          env: %{},
-          risk_level: :medium}
-      ]
-
-  Only stdio transport is supported in this phase; HTTP+SSE is future work.
+  The transport is chosen per-row in the `mcp_servers` table; see
+  `AgenticAiAgent.MCP.Server` for the schema.
   """
 
   use GenServer
@@ -38,6 +34,11 @@ defmodule AgenticAiAgent.MCP.Client do
   @protocol_version "2024-11-05"
   @default_timeout_ms 15_000
   @prefix "mcp"
+
+  # Exponential backoff schedule for auto-reconnect after a transport drop.
+  # The Nth retry waits at the Nth (capped) entry; further retries reuse the
+  # last value indefinitely.
+  @reconnect_backoff_ms [1_000, 2_000, 4_000, 8_000, 16_000, 30_000]
 
   # ----- Client -----
 
@@ -66,28 +67,42 @@ defmodule AgenticAiAgent.MCP.Client do
     @moduledoc false
     defstruct [
       :server_name,
+      :transport,
+      :risk_level,
+      # stdio
       :command,
       :args,
       :env,
-      :risk_level,
       :port,
+      # http_sse
+      :url,
+      :headers,
+      :post_url,
+      :sse_task,
+      # shared
       :buffer,
       :next_id,
       :pending,
       :tools,
       :status,
-      :error
+      :error,
+      reconnect_attempts: 0
     ]
   end
 
   @impl true
   def init(cfg) do
+    transport = to_string(Map.get(cfg, :transport, "stdio"))
+
     state = %State{
       server_name: cfg.name,
-      command: cfg.command,
+      transport: transport,
+      risk_level: Map.get(cfg, :risk_level, :medium),
+      command: Map.get(cfg, :command),
       args: Map.get(cfg, :args, []),
       env: Map.get(cfg, :env, %{}),
-      risk_level: Map.get(cfg, :risk_level, :medium),
+      url: Map.get(cfg, :url),
+      headers: Map.get(cfg, :headers, %{}),
       buffer: "",
       next_id: 1,
       pending: %{},
@@ -95,16 +110,37 @@ defmodule AgenticAiAgent.MCP.Client do
       status: :starting
     }
 
-    case open_port(state) do
-      {:ok, port} ->
-        Process.send_after(self(), :handshake, 50)
-        {:ok, %{state | port: port}}
-
+    case start_transport(state) do
+      {:ok, state} -> {:ok, state}
       {:error, reason} ->
         Logger.warning("MCP[#{state.server_name}] failed to start: #{inspect(reason)}")
         {:ok, %{state | status: :failed, error: inspect(reason)}}
     end
   end
+
+  defp start_transport(%{transport: "stdio"} = state) do
+    case open_port(state) do
+      {:ok, port} ->
+        # stdio transport is ready to handshake as soon as the port is open.
+        Process.send_after(self(), :handshake, 50)
+        {:ok, %{state | port: port}}
+
+      err ->
+        err
+    end
+  end
+
+  defp start_transport(%{transport: "http_sse"} = state) do
+    # HTTP+SSE: spawn a linked Task that streams the SSE endpoint. Handshake
+    # waits for the first {:sse_event, "endpoint", post_url} message before
+    # any JSON-RPC is sent. Task.start_link only ever returns {:ok, pid} —
+    # transport failures surface later as {:sse_done, reason}.
+    {:ok, pid} = start_sse_task(state)
+    {:ok, %{state | sse_task: pid, status: :connecting}}
+  end
+
+  defp start_transport(%{transport: other}),
+    do: {:error, {:unknown_transport, other}}
 
   @impl true
   def handle_info(:handshake, state) do
@@ -117,20 +153,76 @@ defmodule AgenticAiAgent.MCP.Client do
     {:noreply, %{state | status: :initializing}}
   end
 
-  def handle_info({port, {:data, chunk}}, %{port: port} = state) do
+  def handle_info({port, {:data, chunk}}, %{port: port} = state) when not is_nil(port) do
     {state, lines} = buffer_lines(state, chunk)
     state = Enum.reduce(lines, state, &handle_line/2)
     {:noreply, state}
   end
 
-  def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
+  def handle_info({port, {:exit_status, status}}, %{port: port} = state) when not is_nil(port) do
     Logger.warning("MCP[#{state.server_name}] exited with status #{status}")
-    # Unregister all tools we owned.
-    for t <- state.tools, do: ToolRegistry.unregister(qualified_name(state.server_name, t["name"]))
-    {:noreply, %{state | port: nil, status: :exited}}
+    state = drop_tools(state)
+    state = %{state | port: nil, status: :exited, error: "exit_status #{status}"}
+    {:noreply, schedule_reconnect(state)}
+  end
+
+  # ----- HTTP+SSE messages from the streaming task -----
+
+  # The very first SSE event is "endpoint" carrying the POST URL for
+  # client→server JSON-RPC messages.
+  def handle_info({:sse_event, "endpoint", post_url}, %{transport: "http_sse"} = state) do
+    post_url = String.trim(post_url) |> absolutize(state.url)
+    Process.send_after(self(), :handshake, 0)
+    {:noreply, %{state | post_url: post_url, status: :initializing}}
+  end
+
+  # Every other JSON-RPC frame arrives as a "message" event.
+  def handle_info({:sse_event, "message", data}, %{transport: "http_sse"} = state) do
+    {:noreply, handle_line(data, state)}
+  end
+
+  # Servers may include keepalive comments or unknown events — ignore.
+  def handle_info({:sse_event, _other, _data}, state), do: {:noreply, state}
+
+  def handle_info({:sse_done, reason}, %{transport: "http_sse"} = state) do
+    Logger.warning("MCP[#{state.server_name}] SSE stream ended: #{inspect(reason)}")
+    state = drop_tools(state)
+    state = %{state | sse_task: nil, post_url: nil, status: :exited, error: inspect(reason)}
+    {:noreply, schedule_reconnect(state)}
+  end
+
+  # Auto-reconnect tick — try start_transport again with a fresh buffer/pending.
+  def handle_info(:reconnect, state) do
+    state = %{state | buffer: "", pending: %{}, status: :reconnecting}
+
+    case start_transport(state) do
+      {:ok, state} ->
+        {:noreply, state}
+
+      {:error, reason} ->
+        Logger.warning("MCP[#{state.server_name}] reconnect failed: #{inspect(reason)}")
+        {:noreply, schedule_reconnect(%{state | status: :exited, error: inspect(reason)})}
+    end
   end
 
   def handle_info(_other, state), do: {:noreply, state}
+
+  defp drop_tools(state) do
+    for t <- state.tools, do: ToolRegistry.unregister(qualified_name(state.server_name, t["name"]))
+    %{state | tools: []}
+  end
+
+  defp schedule_reconnect(state) do
+    n = state.reconnect_attempts
+    delay = Enum.at(@reconnect_backoff_ms, n, List.last(@reconnect_backoff_ms))
+    Process.send_after(self(), :reconnect, delay)
+
+    Logger.info(
+      "MCP[#{state.server_name}] will reconnect in #{delay}ms (attempt #{n + 1})"
+    )
+
+    %{state | reconnect_attempts: n + 1}
+  end
 
   @impl true
   def handle_call(:info, _from, state) do
@@ -155,13 +247,20 @@ defmodule AgenticAiAgent.MCP.Client do
   end
 
   @impl true
-  def terminate(_reason, %{port: port} = _state) when not is_nil(port) do
+  def terminate(_reason, %{transport: "stdio", port: port}) when not is_nil(port) do
     try do
       Port.close(port)
     catch
       :error, _ -> :ok
     end
 
+    :ok
+  end
+
+  def terminate(_reason, %{transport: "http_sse", sse_task: pid}) when is_pid(pid) do
+    # The SSE Task is linked to us; it will be torn down by the link, but
+    # we also send an explicit shutdown to short-circuit the receive loop.
+    Process.exit(pid, :shutdown)
     :ok
   end
 
@@ -224,7 +323,9 @@ defmodule AgenticAiAgent.MCP.Client do
     tools = tools || []
     register_tools(state.server_name, tools, state.risk_level)
     Logger.info("MCP[#{state.server_name}] ready with #{length(tools)} tool(s)")
-    %{state | status: :ready, tools: tools}
+    # Successful handshake — reset the reconnect counter so a future drop
+    # starts the backoff schedule from the top again.
+    %{state | status: :ready, tools: tools, reconnect_attempts: 0, error: nil}
   end
 
   defp handle_response("tools/call", result, nil, from, state) do
@@ -254,7 +355,7 @@ defmodule AgenticAiAgent.MCP.Client do
       %{"jsonrpc" => "2.0", "id" => id, "method" => method, "params" => params}
       |> Jason.encode!()
 
-    Port.command(state.port, payload <> "\n")
+    do_send(state, payload)
 
     %{
       state
@@ -268,9 +369,135 @@ defmodule AgenticAiAgent.MCP.Client do
       %{"jsonrpc" => "2.0", "method" => method, "params" => params}
       |> Jason.encode!()
 
-    Port.command(state.port, payload <> "\n")
+    do_send(state, payload)
     state
   end
+
+  defp do_send(%{transport: "stdio", port: port}, payload) when not is_nil(port) do
+    Port.command(port, payload <> "\n")
+  end
+
+  defp do_send(%{transport: "http_sse", post_url: url, headers: headers}, payload)
+       when is_binary(url) do
+    headers_list = headers_to_list(headers)
+    body = payload
+
+    # POST in a Task so the GenServer keeps draining SSE messages while the
+    # HTTP roundtrip happens. The response is irrelevant — actual JSON-RPC
+    # responses come via SSE.
+    _ =
+      Task.start(fn ->
+        case Req.post(url,
+               headers: headers_list,
+               body: body,
+               headers_extra: [{"content-type", "application/json"}],
+               receive_timeout: 10_000
+             ) do
+          {:ok, %{status: status}} when status >= 200 and status < 300 -> :ok
+          other -> Logger.warning("MCP HTTP POST failed: #{inspect(other)}")
+        end
+      end)
+
+    :ok
+  end
+
+  defp do_send(_state, _payload), do: :ok
+
+  # ----- HTTP+SSE streaming task -----
+
+  defp start_sse_task(state) do
+    parent = self()
+    url = state.url
+    headers = headers_to_list(state.headers)
+
+    {:ok, _pid} =
+      Task.start_link(fn -> sse_loop(parent, url, headers) end)
+  end
+
+  defp sse_loop(parent, url, headers) do
+    headers = [{"accept", "text/event-stream"} | headers]
+
+    result =
+      Req.get(url,
+        headers: headers,
+        receive_timeout: :infinity,
+        retry: false,
+        into: fn {:data, chunk}, {req, resp} ->
+          buf = (resp.private[:sse_buf] || "") <> chunk
+          {events, rest} = parse_sse_frames(buf)
+          for {event, data} <- events, do: send(parent, {:sse_event, event, data})
+          resp = update_in(resp.private[:sse_buf], fn _ -> rest end)
+          {:cont, {req, resp}}
+        end
+      )
+
+    reason =
+      case result do
+        {:ok, %{status: status}} when status >= 200 and status < 300 -> :closed
+        {:ok, %{status: status}} -> {:http_error, status}
+        {:error, err} -> {:transport, err}
+      end
+
+    send(parent, {:sse_done, reason})
+  end
+
+  # SSE frames are blocks of lines separated by a blank line. Each block may
+  # contain "event:" (defaults to "message") and one or more "data:" lines
+  # which are concatenated with newlines.
+  defp parse_sse_frames(buffer) do
+    parts = String.split(buffer, ~r/\r?\n\r?\n/)
+    {complete, [partial]} = Enum.split(parts, length(parts) - 1)
+    {Enum.map(complete, &parse_sse_frame/1), partial}
+  end
+
+  defp parse_sse_frame(block) do
+    {event, data_lines} =
+      block
+      |> String.split(~r/\r?\n/)
+      |> Enum.reduce({"message", []}, fn line, {ev, data} ->
+        cond do
+          String.starts_with?(line, ":") ->
+            {ev, data}
+
+          String.starts_with?(line, "event:") ->
+            {String.trim(String.replace_prefix(line, "event:", "")), data}
+
+          String.starts_with?(line, "data:") ->
+            {ev, [String.trim(String.replace_prefix(line, "data:", "")) | data]}
+
+          true ->
+            {ev, data}
+        end
+      end)
+
+    {event, data_lines |> Enum.reverse() |> Enum.join("\n")}
+  end
+
+  defp headers_to_list(headers) when is_map(headers),
+    do: for({k, v} <- headers, do: {to_string(k), to_string(v)})
+
+  defp headers_to_list(_), do: []
+
+  # If the endpoint URL is relative, resolve it against the original SSE URL.
+  defp absolutize(post, sse) do
+    cond do
+      String.starts_with?(post, "http://") or String.starts_with?(post, "https://") ->
+        post
+
+      String.starts_with?(post, "/") ->
+        uri = URI.parse(sse)
+        "#{uri.scheme}://#{uri.host}#{port_segment(uri)}#{post}"
+
+      true ->
+        # Same-directory relative — concatenate.
+        Path.dirname(sse) <> "/" <> post
+    end
+  end
+
+  defp port_segment(%URI{port: nil}), do: ""
+  defp port_segment(%URI{scheme: "http", port: 80}), do: ""
+  defp port_segment(%URI{scheme: "https", port: 443}), do: ""
+  defp port_segment(%URI{port: p}), do: ":#{p}"
 
   # ----- Port -----
 

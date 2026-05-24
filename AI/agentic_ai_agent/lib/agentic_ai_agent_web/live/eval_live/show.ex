@@ -3,10 +3,33 @@ defmodule AgenticAiAgentWeb.EvalLive.Show do
 
   alias AgenticAiAgent.Eval
 
+  @refresh_ms 3_000
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(AgenticAiAgent.PubSub, Eval.pubsub_topic())
+      :timer.send_interval(@refresh_ms, self(), :tick)
+    end
+
     {:ok, assign(socket, :eval_run, Eval.get_eval_run_with_cases!(id))}
   end
+
+  @impl true
+  def handle_info(:tick, %{assigns: %{eval_run: %{status: "running", id: id}}} = socket) do
+    {:noreply, assign(socket, :eval_run, Eval.get_eval_run_with_cases!(id))}
+  end
+
+  def handle_info(:tick, socket), do: {:noreply, socket}
+
+  def handle_info({:eval, :finished, {:ok, %{id: id}}}, %{assigns: %{eval_run: %{id: id}}} = socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, gettext("Run finished."))
+     |> assign(:eval_run, Eval.get_eval_run_with_cases!(id))}
+  end
+
+  def handle_info(_other, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
