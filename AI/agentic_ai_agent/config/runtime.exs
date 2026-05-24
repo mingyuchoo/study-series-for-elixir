@@ -50,10 +50,10 @@ config :agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings,
 
 config :agentic_ai_agent, :embeddings_adapter, AgenticAiAgent.LLM.AzureOpenAIEmbeddings
 
-# ----- Web Search (Brave Search API) -----
-#   BRAVE_SEARCH_API_KEY   Brave Search API subscription token
+# ----- Web Search (Firecrawl Search API) -----
+#   FIRECRAWL_API_KEY   Firecrawl API token
 config :agentic_ai_agent, AgenticAiAgent.Tools.WebSearch,
-  api_key: System.get_env("BRAVE_SEARCH_API_KEY")
+  api_key: System.get_env("FIRECRAWL_API_KEY")
 
 if config_env() == :prod do
   database_path =
