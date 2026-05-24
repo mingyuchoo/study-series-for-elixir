@@ -122,14 +122,19 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
     emb_cfg = Application.get_env(:agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings, [])
 
+    embeddings_missing =
+      [:endpoint, :api_key, :deployment]
+      |> Enum.filter(fn k -> Keyword.get(emb_cfg, k) in [nil, ""] end)
+
     %{
       ok?: missing == [],
       missing: missing,
       deployment: Keyword.get(cfg, :deployment),
       api_version: Keyword.get(cfg, :api_version),
       endpoint: Keyword.get(cfg, :endpoint),
-      embeddings_ok?: Keyword.get(emb_cfg, :deployment) not in [nil, ""],
-      embeddings_deployment: Keyword.get(emb_cfg, :deployment)
+      embeddings_ok?: embeddings_missing == [],
+      embeddings_deployment: Keyword.get(emb_cfg, :deployment),
+      embeddings_api_version: Keyword.get(emb_cfg, :api_version)
     }
   end
 
@@ -204,7 +209,8 @@ defmodule AgenticAiAgentWeb.HomeLive do
       %{
         path: "/failures",
         title: gettext("Failures"),
-        subtitle: gettext("Catalog of known failure modes and the runtime occurrences that match them."),
+        subtitle:
+          gettext("Catalog of known failure modes and the runtime occurrences that match them."),
         stat: stats.failures,
         stat_label: gettext("occurrences"),
         icon: "hero-exclamation-triangle",
@@ -213,7 +219,10 @@ defmodule AgenticAiAgentWeb.HomeLive do
       %{
         path: "/tools",
         title: gettext("Tools"),
-        subtitle: gettext("Tool Contract catalog — preconditions, side effects, failure modes, retry policy."),
+        subtitle:
+          gettext(
+            "Tool Contract catalog — preconditions, side effects, failure modes, retry policy."
+          ),
         stat: stats.tools,
         stat_label: gettext("tools"),
         icon: "hero-wrench-screwdriver",
@@ -229,12 +238,9 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
     [
       {gettext("Talk"), [by_path["/chat"]]},
-      {gettext("Observability"),
-       [by_path["/runs"], by_path["/failures"]]},
-      {gettext("Behavior"),
-       [by_path["/cards"], by_path["/skills"], by_path["/memories"]]},
-      {gettext("Integration"),
-       [by_path["/tools"], by_path["/mcp"]]},
+      {gettext("Observability"), [by_path["/runs"], by_path["/failures"]]},
+      {gettext("Behavior"), [by_path["/cards"], by_path["/skills"], by_path["/memories"]]},
+      {gettext("Integration"), [by_path["/tools"], by_path["/mcp"]]},
       {gettext("Evaluation"), [by_path["/evals"]]}
     ]
     |> Enum.map(fn {name, list} -> {name, Enum.reject(list, &is_nil/1)} end)
@@ -266,7 +272,11 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
         <.recent_runs :if={@recent_runs != []} runs={@recent_runs} />
 
-        <section :for={{group_name, group_tiles} <- @tile_groups} :if={group_tiles != []} class="space-y-3">
+        <section
+          :for={{group_name, group_tiles} <- @tile_groups}
+          :if={group_tiles != []}
+          class="space-y-3"
+        >
           <h2 class="text-sm font-semibold uppercase tracking-wide opacity-60">
             {group_name}
           </h2>
@@ -283,16 +293,22 @@ defmodule AgenticAiAgentWeb.HomeLive do
             {gettext("Quick reference")}
           </h2>
           <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-            <.quick_card title={gettext("CLI")} lines={[
-              gettext("./run.sh — start with Azure OpenAI env"),
-              gettext("mix agent.eval — run the golden dataset"),
-              gettext("mix run priv/repo/seeds.exs — reload cards from YAML")
-            ]} />
-            <.quick_card title={gettext("Authoring")} lines={[
-              gettext("priv/cards/<slug>.yaml — agentic card"),
-              gettext("priv/skills/<slug>/SKILL.md — skill"),
-              gettext("priv/eval/golden/*.jsonl — golden cases")
-            ]} />
+            <.quick_card
+              title={gettext("CLI")}
+              lines={[
+                gettext("./run.sh — start with Azure OpenAI env"),
+                gettext("mix agent.eval — run the golden dataset"),
+                gettext("mix run priv/repo/seeds.exs — reload cards from YAML")
+              ]}
+            />
+            <.quick_card
+              title={gettext("Authoring")}
+              lines={[
+                gettext("priv/cards/<slug>.yaml — agentic card"),
+                gettext("priv/skills/<slug>/SKILL.md — skill"),
+                gettext("priv/eval/golden/*.jsonl — golden cases")
+              ]}
+            />
           </div>
         </section>
       </div>
@@ -309,13 +325,27 @@ defmodule AgenticAiAgentWeb.HomeLive do
   defp summary_strip(assigns) do
     ~H"""
     <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <.stat_card label={gettext("Today's LLM cost")} icon="hero-banknotes" accent="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
+      <.stat_card
+        label={gettext("Today's LLM cost")}
+        icon="hero-banknotes"
+        accent="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200"
+      >
         <span class="font-mono text-xl">{Pricing.format(@cost_today || 0)}</span>
       </.stat_card>
-      <.stat_card label={gettext("Failures in last 24h")} icon="hero-exclamation-triangle" accent={fail_accent(@failures_24h)}>
-        <.link navigate={~p"/failures"} class="font-mono text-xl hover:underline">{@failures_24h || 0}</.link>
+      <.stat_card
+        label={gettext("Failures in last 24h")}
+        icon="hero-exclamation-triangle"
+        accent={fail_accent(@failures_24h)}
+      >
+        <.link navigate={~p"/failures"} class="font-mono text-xl hover:underline">
+          {@failures_24h || 0}
+        </.link>
       </.stat_card>
-      <.stat_card label={gettext("Total runs")} icon="hero-clock" accent="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+      <.stat_card
+        label={gettext("Total runs")}
+        icon="hero-clock"
+        accent="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+      >
         <.link navigate={~p"/runs"} class="font-mono text-xl hover:underline">{@runs_total}</.link>
       </.stat_card>
     </section>
@@ -342,8 +372,10 @@ defmodule AgenticAiAgentWeb.HomeLive do
   end
 
   defp fail_accent(0), do: "bg-base-200 opacity-70"
+
   defp fail_accent(n) when is_integer(n) and n > 0,
     do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
+
   defp fail_accent(_), do: "bg-base-200 opacity-70"
 
   attr :runs, :list, required: true
@@ -362,7 +394,10 @@ defmodule AgenticAiAgentWeb.HomeLive do
 
       <ul class="divide-y rounded-xl border bg-base-100">
         <li :for={r <- @runs} class="flex items-center gap-3 p-3 text-sm">
-          <span class={["rounded px-2 py-0.5 text-[10px] font-mono uppercase", run_status_color(r.status)]}>
+          <span class={[
+            "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
+            run_status_color(r.status)
+          ]}>
             {r.status}
           </span>
           <.link navigate={~p"/runs/#{r.id}"} class="flex-1 truncate hover:underline">
@@ -380,14 +415,23 @@ defmodule AgenticAiAgentWeb.HomeLive do
     """
   end
 
-  defp run_status_color("done"), do: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
-  defp run_status_color("failed"), do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
-  defp run_status_color("running"), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
-  defp run_status_color("awaiting_approval"), do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+  defp run_status_color("done"),
+    do: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
+
+  defp run_status_color("failed"),
+    do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
+
+  defp run_status_color("running"),
+    do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
+
+  defp run_status_color("awaiting_approval"),
+    do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
   defp run_status_color("cancelled"), do: "bg-base-300 text-base-content"
   defp run_status_color(_), do: "bg-base-200"
 
   defp truncate(nil, _), do: ""
+
   defp truncate(text, n) when is_binary(text) do
     if String.length(text) > n, do: String.slice(text, 0, n) <> "…", else: text
   end
@@ -410,7 +454,9 @@ defmodule AgenticAiAgentWeb.HomeLive do
         <div class="space-y-2">
           <h1 class="text-3xl font-semibold tracking-tight">{gettext("Agentic AI Agent")}</h1>
           <p class="max-w-2xl text-sm opacity-70">
-            {gettext("An Elixir/Phoenix implementation of the agent architecture documented in docs/: core LLM, short- and long-term memory, tool registry, ReAct loop with HITL, sub-agents, MCP, sandbox, and a rubric-based eval harness.")}
+            {gettext(
+              "An Elixir/Phoenix implementation of the agent architecture documented in docs/: core LLM, short- and long-term memory, tool registry, ReAct loop with HITL, sub-agents, MCP, sandbox, and a rubric-based eval harness."
+            )}
           </p>
         </div>
 
@@ -448,10 +494,14 @@ defmodule AgenticAiAgentWeb.HomeLive do
         {gettext("LLM configured")}
       </div>
       <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-2 font-mono text-[10px] text-emerald-900/80 dark:text-emerald-200/80">
-        <dt>{gettext("deploy")}</dt><dd>{@llm.deployment}</dd>
-        <dt>{gettext("api")}</dt><dd>{@llm.api_version}</dd>
+        <dt>{gettext("deploy")}</dt>
+        <dd>{@llm.deployment}</dd>
+        <dt>{gettext("api")}</dt>
+        <dd>{@llm.api_version}</dd>
         <dt :if={@llm.embeddings_ok?}>{gettext("embed")}</dt>
         <dd :if={@llm.embeddings_ok?}>{@llm.embeddings_deployment}</dd>
+        <dt :if={@llm.embeddings_ok?}>{gettext("embed api")}</dt>
+        <dd :if={@llm.embeddings_ok?}>{@llm.embeddings_api_version}</dd>
       </dl>
     </div>
     """
@@ -483,8 +533,9 @@ defmodule AgenticAiAgentWeb.HomeLive do
             {gettext("Azure OpenAI is not fully configured.")}
           </p>
           <p>
-            {gettext("Missing env:")} <code>{Enum.map_join(@llm.missing, ", ", &("AZURE_OPENAI_" <> String.upcase(Atom.to_string(&1))))}</code>.
-            {gettext("The chat surface will return") <> " "}<code>{"{:missing_config, …}"}</code> {gettext("until set.")}
+            {gettext("Missing env:")} <code>{Enum.map_join(@llm.missing, ", ", &("AZURE_OPENAI_" <> String.upcase(Atom.to_string(&1))))}</code>. {gettext(
+              "The chat surface will return"
+            ) <> " "}<code>{"{:missing_config, …}"}</code> {gettext("until set.")}
           </p>
           <p class="font-mono text-xs">
             {gettext("Quick fix:")} <code>./run.sh</code> {gettext("(see also config/runtime.exs).")}

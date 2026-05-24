@@ -1,0 +1,35 @@
+<div class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">{gettext("Create account")}</h1>
+    <p class="mt-1 text-sm opacity-70">
+      {gettext("Sign up to use the agent workspace.")}
+    </p>
+  </div>
+
+  <.form :let={f} for={@changeset} as={:user} action={~p"/register"} class="space-y-4">
+    <div>
+      <label class="text-xs font-semibold opacity-70">{gettext("Email")}</label>
+      <.input field={f[:email]} type="email" required />
+    </div>
+    <div>
+      <label class="text-xs font-semibold opacity-70">{gettext("Display name")}</label>
+      <.input field={f[:display_name]} type="text" />
+    </div>
+    <div>
+      <label class="text-xs font-semibold opacity-70">{gettext("Password")}</label>
+      <.input field={f[:password]} type="password" required />
+    </div>
+
+    <button
+      type="submit"
+      class="w-full rounded bg-primary px-4 py-2 text-sm font-medium text-primary-content hover:opacity-90"
+    >
+      {gettext("Create account")}
+    </button>
+  </.form>
+
+  <p class="mt-5 text-center text-sm opacity-70">
+    {gettext("Already have an account?")}
+    <.link href={~p"/login"} class="font-medium underline">{gettext("Log in")}</.link>
+  </p>
+</div>

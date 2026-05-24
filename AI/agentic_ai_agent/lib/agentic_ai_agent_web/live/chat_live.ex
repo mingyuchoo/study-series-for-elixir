@@ -20,9 +20,11 @@ defmodule AgenticAiAgentWeb.ChatLive do
       |> assign(:error, nil)
       |> assign(:conversation, nil)
       |> assign(:pending_approval, nil)
+      |> assign(:show_steering?, false)
       |> assign(:flagged_run_ids, MapSet.new())
       |> assign(:praised_run_ids, MapSet.new())
       |> assign(:agent_avatar_path, AgentProfiles.default_path(card))
+      |> assign(:user_avatar_path, user_avatar_path(socket.assigns[:current_user]))
       |> assign(:form, to_form(%{"text" => ""}))
 
     socket =
@@ -64,6 +66,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
          |> assign(:awaiting, true)
          |> assign(:status, :starting)
          |> assign(:error, nil)
+         |> assign(:show_steering?, false)
          |> assign(:turns, refresh_turns(socket.assigns.conversation))
          |> assign(:form, to_form(%{"text" => ""}))}
     end
@@ -79,7 +82,8 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:status, nil)
      |> assign(:run_id, nil)
      |> assign(:awaiting, false)
-     |> assign(:pending_approval, nil)}
+     |> assign(:pending_approval, nil)
+     |> assign(:show_steering?, false)}
   end
 
   def handle_event("approve", _params, %{assigns: %{pending_approval: pa, run_id: rid}} = socket)
@@ -111,15 +115,19 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
       g ->
         :ok = Runtime.steer(rid, g)
-        {:noreply, socket}
+        {:noreply, assign(socket, :show_steering?, false)}
     end
   end
 
   def handle_event("steer", _params, socket), do: {:noreply, socket}
 
+  def handle_event("toggle_steering", _params, socket) do
+    {:noreply, update(socket, :show_steering?, &(!&1))}
+  end
+
   def handle_event("cancel_run", _params, %{assigns: %{run_id: rid}} = socket) when rid != nil do
     :ok = Runtime.cancel(rid)
-    {:noreply, socket}
+    {:noreply, assign(socket, :show_steering?, false)}
   end
 
   def handle_event("cancel_run", _params, socket), do: {:noreply, socket}
@@ -211,6 +219,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:awaiting, false)
      |> assign(:status, :done)
      |> assign(:pending_approval, nil)
+     |> assign(:show_steering?, false)
      |> assign(:turns, refresh_turns(socket.assigns.conversation))}
   end
 
@@ -219,6 +228,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
      socket
      |> assign(:awaiting, false)
      |> assign(:status, :failed)
+     |> assign(:show_steering?, false)
      |> assign(:turns, refresh_turns(socket.assigns.conversation))
      |> assign(:error, format_error(reason))}
   end
@@ -229,6 +239,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:awaiting, false)
      |> assign(:status, :cancelled)
      |> assign(:pending_approval, nil)
+     |> assign(:show_steering?, false)
      |> assign(:turns, refresh_turns(socket.assigns.conversation))}
   end
 
@@ -236,10 +247,14 @@ defmodule AgenticAiAgentWeb.ChatLive do
     {:noreply,
      socket
      |> assign(:turns, refresh_turns(socket.assigns.conversation))
+     |> assign(:show_steering?, false)
      |> assign(:pending_approval, nil)}
   end
 
   def handle_info({:agent, :workflow_warning, _info}, socket),
+    do: {:noreply, socket}
+
+  def handle_info({:agent, event, _info}, socket) when event in [:reflexion, :tot],
     do: {:noreply, socket}
 
   # ----- Helpers -----
@@ -307,7 +322,12 @@ defmodule AgenticAiAgentWeb.ChatLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
+    <Layouts.app
+      flash={@flash}
+      current_path={@current_path}
+      locale={@locale}
+      current_user={@current_user}
+    >
       <div class="flex h-[calc(100vh-8rem)] flex-col">
         <header class="mb-3 flex items-baseline justify-between">
           <div>
@@ -361,7 +381,11 @@ defmodule AgenticAiAgentWeb.ChatLive do
             {gettext("Ask something to begin.")}
           </div>
           <div :for={msg <- @turns} class={["flex", role_align(msg["role"])]}>
-            <.message msg={msg} agent_avatar_path={@agent_avatar_path} />
+            <.message
+              msg={msg}
+              agent_avatar_path={@agent_avatar_path}
+              user_avatar_path={@user_avatar_path}
+            />
           </div>
           <div :if={@awaiting} class="flex justify-start">
             <div class="flex items-start gap-2">
@@ -415,37 +439,44 @@ defmodule AgenticAiAgentWeb.ChatLive do
           </button>
         </div>
 
-        <div
-          :if={@awaiting and not is_nil(@run_id)}
-          class="mt-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3"
-        >
-          <div class="mb-1 flex items-center justify-between">
-            <span class="text-xs font-semibold text-amber-800 dark:text-amber-200">
+        <div :if={@awaiting and not is_nil(@run_id)} class="mt-2 space-y-2">
+          <div class="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              phx-click="toggle_steering"
+              class="rounded-full border border-base-300 px-3 py-1 text-xs hover:bg-base-300/40"
+            >
               {gettext("Steering")}
-            </span>
+            </button>
             <button
               type="button"
               phx-click="cancel_run"
               data-confirm={gettext("Cancel this run?")}
-              class="rounded border border-red-400 dark:border-red-600 px-2 py-0.5 text-[10px] text-red-700 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/40"
+              class="rounded-full border border-red-400 dark:border-red-600 px-3 py-1 text-xs text-red-700 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-950/40"
             >
               {gettext("Cancel run")}
             </button>
           </div>
-          <form phx-submit="steer" class="flex gap-2">
-            <input
-              name="guidance"
-              placeholder={gettext("Redirect the agent... (e.g. 'use http_fetch instead')")}
-              autocomplete="off"
-              class="flex-1 rounded border px-2 py-1 text-xs"
-            />
-            <button
-              type="submit"
-              class="rounded bg-amber-700 dark:bg-amber-600 px-3 py-1 text-xs text-white hover:bg-amber-800"
-            >
-              {gettext("Steer")}
-            </button>
-          </form>
+
+          <div
+            :if={@show_steering?}
+            class="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3"
+          >
+            <form phx-submit="steer" class="flex gap-2">
+              <input
+                name="guidance"
+                placeholder={gettext("Redirect the agent... (e.g. 'use http_fetch instead')")}
+                autocomplete="off"
+                class="flex-1 rounded border px-2 py-1 text-xs"
+              />
+              <button
+                type="submit"
+                class="rounded bg-amber-700 dark:bg-amber-600 px-3 py-1 text-xs text-white hover:bg-amber-800"
+              >
+                {gettext("Steer")}
+              </button>
+            </form>
+          </div>
         </div>
 
         <div
@@ -491,12 +522,32 @@ defmodule AgenticAiAgentWeb.ChatLive do
           {@error}
         </div>
 
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".FocusOnReady">
+          export default {
+            mounted() {
+              this.focusIfReady()
+              this.wasDisabled = this.el.disabled
+            },
+            beforeUpdate() {
+              this.wasDisabled = this.el.disabled
+            },
+            updated() {
+              if (this.wasDisabled && !this.el.disabled) this.focusIfReady()
+            },
+            focusIfReady() {
+              if (this.el.disabled) return
+              requestAnimationFrame(() => this.el.focus())
+            }
+          }
+        </script>
         <.form for={@form} phx-submit="send" class="mt-3 flex gap-2">
           <input
+            id="chat-message-input"
             name="text"
             value={@form[:text].value}
             placeholder={gettext("Type a message...")}
             autocomplete="off"
+            phx-hook=".FocusOnReady"
             class="flex-1 rounded border px-3 py-2 text-sm"
             disabled={@awaiting}
           />
@@ -518,14 +569,18 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
   attr :msg, :map, required: true
   attr :agent_avatar_path, :string, default: nil
+  attr :user_avatar_path, :string, default: nil
 
   defp message(%{msg: %{"role" => "user"}} = assigns) do
     assigns = assign(assigns, :content, clean_content(assigns.msg["content"]))
 
     ~H"""
-    <div class="max-w-[75%] rounded-lg bg-blue-100 dark:bg-blue-900/40 px-2.5 py-1 text-sm leading-snug">
-      <div class="font-mono text-[10px] leading-none uppercase opacity-60">{gettext("user")}</div>
-      <div class="whitespace-pre-wrap">{@content}</div>
+    <div class="flex max-w-[75%] items-start gap-2">
+      <div class="rounded-lg bg-blue-100 dark:bg-blue-900/40 px-2.5 py-1 text-sm leading-snug">
+        <div class="font-mono text-[10px] leading-none uppercase opacity-60">{gettext("user")}</div>
+        <div class="whitespace-pre-wrap">{@content}</div>
+      </div>
+      <.profile_avatar path={@user_avatar_path} />
     </div>
     """
   end
@@ -604,6 +659,18 @@ defmodule AgenticAiAgentWeb.ChatLive do
     """
   end
 
+  attr :path, :string, required: true
+
+  defp profile_avatar(assigns) do
+    ~H"""
+    <img
+      src={@path}
+      alt=""
+      class="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-base-300 bg-base-200 object-cover"
+    />
+    """
+  end
+
   defp role_align("user"), do: "justify-end"
   defp role_align(_), do: "justify-start"
 
@@ -619,6 +686,9 @@ defmodule AgenticAiAgentWeb.ChatLive do
   defp clean_content(nil), do: ""
   defp clean_content(text) when is_binary(text), do: String.trim(text)
   defp clean_content(other), do: inspect(other)
+
+  defp user_avatar_path(%{avatar_path: path}) when is_binary(path) and path != "", do: path
+  defp user_avatar_path(_), do: AgentProfiles.default_path(%{})
 
   defp trunc_text(nil, _n), do: ""
 

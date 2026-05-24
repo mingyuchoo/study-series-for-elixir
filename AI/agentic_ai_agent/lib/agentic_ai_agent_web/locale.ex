@@ -26,10 +26,14 @@ defmodule AgenticAiAgentWeb.Locale do
   """
   def on_mount(:default, _params, session, socket) do
     locale =
-      case session["locale"] do
-        l when l in @supported -> l
-        _ -> @default
-      end
+      case socket.assigns[:current_user] do
+        %{preferred_locale: l} when l in @supported -> l
+        _ -> nil
+      end ||
+        case session["locale"] do
+          l when l in @supported -> l
+          _ -> @default
+        end
 
     Gettext.put_locale(AgenticAiAgentWeb.Gettext, locale)
 

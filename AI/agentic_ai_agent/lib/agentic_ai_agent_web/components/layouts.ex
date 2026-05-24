@@ -31,7 +31,12 @@ defmodule AgenticAiAgentWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
-  attr :current_path, :string, default: "/", doc: "path of the current page, used by the locale toggle"
+  attr :current_user, :map, default: nil, doc: "the signed-in user"
+
+  attr :current_path, :string,
+    default: "/",
+    doc: "path of the current page, used by the locale toggle"
+
   attr :locale, :string, default: nil, doc: "currently active locale (`en` | `ko`)"
 
   slot :inner_block, required: true
@@ -87,13 +92,22 @@ defmodule AgenticAiAgentWeb.Layouts do
           />
         </nav>
 
-        <div class="flex items-center justify-between gap-2 border-t border-base-300 p-3">
-          <.locale_toggle locale={@locale} current_path={@current_path} />
-          <.theme_toggle />
+        <div class="space-y-2 border-t border-base-300 p-3">
+          <div class="flex items-center justify-between gap-2">
+            <.locale_toggle locale={@locale} current_path={@current_path} />
+            <.theme_toggle />
+          </div>
+          <.link
+            href={~p"/logout"}
+            method="delete"
+            class="block w-full rounded border border-base-300 px-3 py-1.5 text-center text-xs font-medium opacity-70 hover:bg-base-300/40 hover:opacity-100"
+          >
+            {gettext("Log out")}
+          </.link>
         </div>
       </aside>
 
-      <!-- Mobile backdrop (only visible when drawer is open) -->
+    <!-- Mobile backdrop (only visible when drawer is open) -->
       <div
         id="drawer-backdrop"
         class="fixed inset-0 z-40 hidden bg-black/30 md:hidden"
@@ -101,7 +115,7 @@ defmodule AgenticAiAgentWeb.Layouts do
         aria-hidden="true"
       />
 
-      <!-- Mobile top bar with hamburger -->
+    <!-- Mobile top bar with hamburger -->
       <header class="flex items-center justify-between border-b border-base-300 bg-base-200 p-3 md:hidden">
         <div class="flex items-center gap-3">
           <button
@@ -185,12 +199,10 @@ defmodule AgenticAiAgentWeb.Layouts do
 
   # Active item is the Ink Pill: cream text on warm-ink, 20px radius.
   defp nav_item_class(true),
-    do:
-      "block px-3 py-1.5 text-sm font-medium"
+    do: "block px-3 py-1.5 text-sm font-medium"
 
   defp nav_item_class(false),
-    do:
-      "block px-3 py-1.5 text-sm font-medium opacity-70 hover:opacity-100 hover:bg-base-300/40"
+    do: "block px-3 py-1.5 text-sm font-medium opacity-70 hover:opacity-100 hover:bg-base-300/40"
 
   defp nav_item_style(true),
     do: "background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
@@ -230,7 +242,8 @@ defmodule AgenticAiAgentWeb.Layouts do
       %{label: fn -> gettext("Skills") end, path: ~p"/skills"},
       %{label: fn -> gettext("MCP") end, path: ~p"/mcp"},
       %{label: fn -> gettext("Evals") end, path: ~p"/evals"},
-      %{label: fn -> gettext("Tools") end, path: ~p"/tools"}
+      %{label: fn -> gettext("Tools") end, path: ~p"/tools"},
+      %{label: fn -> gettext("Profile") end, path: ~p"/profile"}
     ]
   end
 

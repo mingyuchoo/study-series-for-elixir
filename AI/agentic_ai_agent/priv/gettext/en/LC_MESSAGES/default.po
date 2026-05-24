@@ -2570,3 +2570,76 @@ msgstr ""
 #, elixir-autogen, elixir-format, fuzzy
 msgid "exemplar:"
 msgstr ""
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:246
+#: lib/agentic_ai_agent_web/live/profile_live.ex:63
+#: lib/agentic_ai_agent_web/live/profile_live.ex:114
+#: lib/agentic_ai_agent_web/live/card_live/profile_settings.ex:131
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:80
+msgid "Profile"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:105
+msgid "Log out"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:124
+#: lib/agentic_ai_agent_web/live/card_live/profile_settings.ex:147
+msgid "Save profile"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:39
+msgid "Profile saved."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:65
+msgid "Manage the profile shown for your signed-in account."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:115
+msgid "Preferred language"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:141
+msgid "Preferred theme"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:148
+msgid "System"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:149
+msgid "Light"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:150
+msgid "Dark"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:177
+msgid "Profile photo"
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:203
+msgid "JPG, PNG, GIF, or WebP up to 5 MB."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:232
+msgid "The selected image is too large."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:233
+msgid "Select one image."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:234
+msgid "Select a supported image file."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:235
+msgid "The image could not be uploaded."
+msgstr ""
+
+#: lib/agentic_ai_agent_web/live/home_live.ex:459
+msgid "embed api"
+msgstr ""

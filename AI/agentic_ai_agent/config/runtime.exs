@@ -39,15 +39,21 @@ config :agentic_ai_agent, :llm_adapter, AgenticAiAgent.LLM.AzureOpenAI
 
 # ----- Embeddings (Azure OpenAI) -----
 # Share endpoint/api_key with chat by default; deployment is separate
-# (typically an embedding model such as text-embedding-3-small).
-#   AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT  embedding deployment name
+# (defaults to text-embedding-3-large for the memory system).
+#   AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT   optional embedding deployment name
+#   AZURE_OPENAI_EMBEDDINGS_API_VERSION  optional, default 2024-02-01
 config :agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings,
   endpoint: System.get_env("AZURE_OPENAI_ENDPOINT"),
   api_key: System.get_env("AZURE_OPENAI_API_KEY"),
-  deployment: System.get_env("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT"),
-  api_version: System.get_env("AZURE_OPENAI_API_VERSION", "2024-10-21")
+  deployment: System.get_env("AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT", "text-embedding-3-large"),
+  api_version: System.get_env("AZURE_OPENAI_EMBEDDINGS_API_VERSION", "2024-02-01")
 
 config :agentic_ai_agent, :embeddings_adapter, AgenticAiAgent.LLM.AzureOpenAIEmbeddings
+
+# ----- Web Search (Brave Search API) -----
+#   BRAVE_SEARCH_API_KEY   Brave Search API subscription token
+config :agentic_ai_agent, AgenticAiAgent.Tools.WebSearch,
+  api_key: System.get_env("BRAVE_SEARCH_API_KEY")
 
 if config_env() == :prod do
   database_path =

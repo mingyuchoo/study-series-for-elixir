@@ -9,6 +9,15 @@ defmodule AgenticAiAgentWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug AgenticAiAgentWeb.Plugs.Locale
+    plug AgenticAiAgentWeb.UserAuth, :fetch_current_user
+  end
+
+  pipeline :redirect_if_user_authenticated do
+    plug AgenticAiAgentWeb.UserAuth, :redirect_if_user_authenticated
+  end
+
+  pipeline :require_authenticated_user do
+    plug AgenticAiAgentWeb.UserAuth, :require_authenticated_user
   end
 
   pipeline :api do
@@ -19,9 +28,30 @@ defmodule AgenticAiAgentWeb.Router do
     pipe_through :browser
 
     get "/locale/:locale", LocaleController, :set
+    delete "/logout", UserSessionController, :delete
+  end
 
-    live_session :default, on_mount: {AgenticAiAgentWeb.Locale, :default} do
+  scope "/", AgenticAiAgentWeb do
+    pipe_through [:browser, :redirect_if_user_authenticated]
+
+    get "/register", UserRegistrationController, :new
+    post "/register", UserRegistrationController, :create
+    get "/login", UserSessionController, :new
+    post "/login", UserSessionController, :create
+  end
+
+  scope "/", AgenticAiAgentWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    put "/preferences/theme", PreferenceController, :theme
+
+    live_session :authenticated,
+      on_mount: [
+        {AgenticAiAgentWeb.UserAuth, :ensure_authenticated},
+        {AgenticAiAgentWeb.Locale, :default}
+      ] do
       live "/", HomeLive, :index
+      live "/profile", ProfileLive, :edit
 
       live "/cards", CardLive.Index, :index
       live "/cards/:id", CardLive.Show, :show

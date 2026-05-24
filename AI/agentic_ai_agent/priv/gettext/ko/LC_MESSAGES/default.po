@@ -2566,3 +2566,76 @@ msgstr ""
 #, elixir-autogen, elixir-format, fuzzy
 msgid "exemplar:"
 msgstr "예시:"
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:246
+#: lib/agentic_ai_agent_web/live/profile_live.ex:63
+#: lib/agentic_ai_agent_web/live/profile_live.ex:114
+#: lib/agentic_ai_agent_web/live/card_live/profile_settings.ex:131
+#: lib/agentic_ai_agent_web/live/card_live/show.ex:80
+msgid "Profile"
+msgstr "프로필"
+
+#: lib/agentic_ai_agent_web/components/layouts.ex:105
+msgid "Log out"
+msgstr "로그아웃"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:124
+#: lib/agentic_ai_agent_web/live/card_live/profile_settings.ex:147
+msgid "Save profile"
+msgstr "프로필 저장"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:39
+msgid "Profile saved."
+msgstr "프로필을 저장했습니다."
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:65
+msgid "Manage the profile shown for your signed-in account."
+msgstr "로그인 계정에 표시될 프로필을 관리합니다."
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:115
+msgid "Preferred language"
+msgstr "선호 언어"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:141
+msgid "Preferred theme"
+msgstr "선호 테마"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:148
+msgid "System"
+msgstr "시스템"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:149
+msgid "Light"
+msgstr "라이트"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:150
+msgid "Dark"
+msgstr "다크"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:177
+msgid "Profile photo"
+msgstr "프로필 사진"
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:203
+msgid "JPG, PNG, GIF, or WebP up to 5 MB."
+msgstr "5MB 이하의 JPG, PNG, GIF, WebP 파일을 사용할 수 있습니다."
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:232
+msgid "The selected image is too large."
+msgstr "선택한 이미지가 너무 큽니다."
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:233
+msgid "Select one image."
+msgstr "이미지는 하나만 선택하세요."
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:234
+msgid "Select a supported image file."
+msgstr "지원되는 이미지 파일을 선택하세요."
+
+#: lib/agentic_ai_agent_web/live/profile_live.ex:235
+msgid "The image could not be uploaded."
+msgstr "이미지를 업로드할 수 없습니다."
+
+#: lib/agentic_ai_agent_web/live/home_live.ex:459
+msgid "embed api"
+msgstr "임베딩 API"

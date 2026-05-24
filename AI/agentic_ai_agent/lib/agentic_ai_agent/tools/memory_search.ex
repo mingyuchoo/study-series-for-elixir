@@ -72,9 +72,18 @@ defmodule AgenticAiAgent.Tools.MemorySearch do
   def precheck(_input) do
     cfg = Application.get_env(:agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings, [])
 
-    case Keyword.get(cfg, :deployment) do
-      v when v in [nil, ""] -> {:error, "embeddings deployment not configured"}
-      _ -> :ok
+    cond do
+      Keyword.get(cfg, :endpoint) in [nil, ""] ->
+        {:error, "embeddings endpoint not configured"}
+
+      Keyword.get(cfg, :api_key) in [nil, ""] ->
+        {:error, "embeddings api key not configured"}
+
+      Keyword.get(cfg, :deployment) in [nil, ""] ->
+        {:error, "embeddings deployment not configured"}
+
+      true ->
+        :ok
     end
   end
 

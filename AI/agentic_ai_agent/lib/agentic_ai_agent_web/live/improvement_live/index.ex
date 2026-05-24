@@ -352,7 +352,7 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
             >
               ⤺ {p.rolled_back_reason}
               <span :if={p.rolled_back_at} class="opacity-70">
-                 ·  {format_time(p.rolled_back_at)}
+                · {format_time(p.rolled_back_at)}
               </span>
             </p>
             
@@ -438,7 +438,7 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
             
     <!-- Staging info (when present) -->
             <div
-              :if={p.staging_slug}
+              :if={has_staging_slug?(p)}
               class="mt-2 rounded border border-base-300 bg-base-100 p-2 text-xs"
             >
               <div class="flex flex-wrap items-baseline gap-3">
@@ -583,7 +583,9 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
               
     <!-- Discard staging — always available while staging slug exists -->
               <button
-                :if={p.staging_slug and p.status in ["staging", "staged_passed", "staged_failed"]}
+                :if={
+                  has_staging_slug?(p) and p.status in ["staging", "staged_passed", "staged_failed"]
+                }
                 type="button"
                 phx-click="discard_staging"
                 phx-value-id={p.id}
@@ -675,6 +677,11 @@ defmodule AgenticAiAgentWeb.ImprovementLive.Index do
   defp delta_color(n) when is_number(n) and n > 0, do: "text-emerald-700 dark:text-emerald-300"
   defp delta_color(n) when is_number(n) and n < 0, do: "text-red-700 dark:text-red-300"
   defp delta_color(_), do: ""
+
+  defp has_staging_slug?(%{staging_slug: slug}) when is_binary(slug),
+    do: String.trim(slug) != ""
+
+  defp has_staging_slug?(_), do: false
 
   defp find_card_id(slug, cards) do
     case Enum.find(cards, &(&1.slug == slug)) do

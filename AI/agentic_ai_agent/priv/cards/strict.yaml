@@ -91,3 +91,14 @@ workflow_graphs:
     # rejected at dispatch. Use the wildcard "*" to mean "any tool".
     allowed_actions:
       acting: [web_search, http_fetch, memory_search]
+
+metadata:
+  agent_avatar_path: "/images/avatars/avatar-02.png"
+  agent_avatar_options:
+    - "/images/avatars/avatar-01.png"
+    - "/images/avatars/avatar-02.png"
+    - "/images/avatars/avatar-03.png"
+    - "/images/avatars/avatar-04.png"
+    - "/images/avatars/avatar-05.png"
+    - "/images/avatars/avatar-06.png"
+    - "/images/avatars/avatar-07.png"

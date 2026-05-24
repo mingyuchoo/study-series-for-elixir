@@ -33,6 +33,20 @@ defmodule AgenticAiAgentWeb.ConnCase do
 
   setup tags do
     AgenticAiAgent.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+
+    conn = Phoenix.ConnTest.build_conn()
+
+    if tags[:unauthenticated] do
+      {:ok, conn: conn}
+    else
+      {:ok, user} =
+        AgenticAiAgent.Accounts.create_user(%{
+          email: "user#{System.unique_integer([:positive])}@example.com",
+          display_name: "Test User",
+          password: "password123"
+        })
+
+      {:ok, conn: Plug.Test.init_test_session(conn, user_id: user.id), current_user: user}
+    end
   end
 end

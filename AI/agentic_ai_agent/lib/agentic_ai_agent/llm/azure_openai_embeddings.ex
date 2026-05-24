@@ -7,8 +7,8 @@ defmodule AgenticAiAgent.LLM.AzureOpenAIEmbeddings do
       config :agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings,
         endpoint: "https://my-resource.openai.azure.com",
         api_key: "...",
-        deployment: "text-embedding-3-small",
-        api_version: "2024-10-21",
+        deployment: "text-embedding-3-large",
+        api_version: "2024-02-01",
         receive_timeout: 30_000
 
   URL: `{endpoint}/openai/deployments/{deployment}/embeddings?api-version=...`
@@ -16,7 +16,7 @@ defmodule AgenticAiAgent.LLM.AzureOpenAIEmbeddings do
 
   @behaviour AgenticAiAgent.LLM.Embeddings
 
-  @default_api_version "2024-10-21"
+  @default_api_version "2024-02-01"
   @default_timeout_ms 30_000
 
   @impl true

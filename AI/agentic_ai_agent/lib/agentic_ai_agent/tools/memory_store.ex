@@ -27,14 +27,14 @@ defmodule AgenticAiAgent.Tools.MemoryStore do
         "content" => %{"type" => "string", "minLength" => 1, "maxLength" => 4000},
         "kind" => %{"type" => "string", "enum" => Memory.Memory.kinds()},
         "source" => %{"type" => "string", "maxLength" => 200},
-        "sensitivity" =>
-          %{"type" => "string", "enum" => Memory.Memory.sensitivities()},
+        "sensitivity" => %{"type" => "string", "enum" => Memory.Memory.sensitivities()},
         "confidence" => %{"type" => "number", "minimum" => 0, "maximum" => 1},
         "retention_days" => %{
           "type" => "integer",
           "minimum" => 1,
           "maximum" => 36500,
-          "description" => "If set together with deletion_rule=ttl, the row is auto-deleted after this many days."
+          "description" =>
+            "If set together with deletion_rule=ttl, the row is auto-deleted after this many days."
         },
         "update_rule" => %{
           "type" => "string",
@@ -86,9 +86,18 @@ defmodule AgenticAiAgent.Tools.MemoryStore do
   def precheck(_input) do
     cfg = Application.get_env(:agentic_ai_agent, AgenticAiAgent.LLM.AzureOpenAIEmbeddings, [])
 
-    case Keyword.get(cfg, :deployment) do
-      v when v in [nil, ""] -> {:error, "embeddings deployment not configured"}
-      _ -> :ok
+    cond do
+      Keyword.get(cfg, :endpoint) in [nil, ""] ->
+        {:error, "embeddings endpoint not configured"}
+
+      Keyword.get(cfg, :api_key) in [nil, ""] ->
+        {:error, "embeddings api key not configured"}
+
+      Keyword.get(cfg, :deployment) in [nil, ""] ->
+        {:error, "embeddings deployment not configured"}
+
+      true ->
+        :ok
     end
   end
 

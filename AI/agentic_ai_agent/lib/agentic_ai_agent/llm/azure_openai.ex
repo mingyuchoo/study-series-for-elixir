@@ -29,7 +29,7 @@ defmodule AgenticAiAgent.LLM.AzureOpenAI do
   def chat(messages, opts \\ []) do
     with {:ok, cfg} <- fetch_config(),
          {:ok, body} <- build_body(messages, opts),
-         {:ok, resp} <- post(cfg, body) do
+         {:ok, resp} <- post_with_temperature_fallback(cfg, body) do
       parse_response(resp)
     end
   end
@@ -87,6 +87,24 @@ defmodule AgenticAiAgent.LLM.AzureOpenAI do
 
   # ----- HTTP -----
 
+  defp post_with_temperature_fallback(cfg, %{"temperature" => _} = body) do
+    case post(cfg, body) do
+      {:error, {:http_error, 400, resp_body}} = error ->
+        if unsupported_temperature?(resp_body) do
+          body
+          |> Map.delete("temperature")
+          |> then(&post(cfg, &1))
+        else
+          error
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp post_with_temperature_fallback(cfg, body), do: post(cfg, body)
+
   defp post(cfg, body) do
     url =
       "#{cfg.endpoint}/openai/deployments/#{cfg.deployment}/chat/completions?api-version=#{cfg.api_version}"
@@ -96,11 +114,14 @@ defmodule AgenticAiAgent.LLM.AzureOpenAI do
       {"content-type", "application/json"}
     ]
 
-    case Req.post(url,
-           headers: headers,
-           json: body,
-           receive_timeout: cfg.receive_timeout
-         ) do
+    request_opts =
+      [
+        headers: headers,
+        json: body,
+        receive_timeout: cfg.receive_timeout
+      ] ++ cfg.request_options
+
+    case Req.post(url, request_opts) do
       {:ok, %{status: status, body: resp_body}} when status in 200..299 ->
         {:ok, resp_body}
 
@@ -114,6 +135,14 @@ defmodule AgenticAiAgent.LLM.AzureOpenAI do
         {:error, {:transport_error, reason}}
     end
   end
+
+  defp unsupported_temperature?(%{"error" => error}) when is_map(error) do
+    Map.get(error, "param") == "temperature" and
+      (Map.get(error, "code") == "unsupported_value" or
+         (Map.get(error, "message") || "") =~ "temperature")
+  end
+
+  defp unsupported_temperature?(_), do: false
 
   # ----- Response normalization -----
 
@@ -180,7 +209,8 @@ defmodule AgenticAiAgent.LLM.AzureOpenAI do
          api_key: api_key,
          deployment: deployment,
          api_version: Keyword.get(cfg, :api_version, @default_api_version),
-         receive_timeout: Keyword.get(cfg, :receive_timeout, @default_timeout_ms)
+         receive_timeout: Keyword.get(cfg, :receive_timeout, @default_timeout_ms),
+         request_options: Keyword.get(cfg, :request_options, [])
        }}
     end
   end
