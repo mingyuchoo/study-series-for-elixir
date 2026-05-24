@@ -37,7 +37,10 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
 
         {:noreply,
          socket
-         |> put_flash(:info, gettext("Deleted %{n} run(s) older than %{d} day(s).", n: deleted, d: n))
+         |> put_flash(
+           :info,
+           gettext("Deleted %{n} run(s) older than %{d} day(s).", n: deleted, d: n)
+         )
          |> assign(:runs, Traces.list_recent_runs(50))
          |> assign(:total_runs, Traces.count_runs())}
 
@@ -65,13 +68,19 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
           <div class="eyebrow mb-2">{gettext("Runs")}</div>
           <h1 class="text-2xl font-semibold">{gettext("Runs")}</h1>
           <p class="text-sm opacity-70">
-            {gettext("Every chat turn opens a run. Steps and tool calls are persisted for replay and offline evaluation.")}
+            {gettext(
+              "Every chat turn opens a run. Steps and tool calls are persisted for replay and offline evaluation."
+            )}
           </p>
         </header>
 
         <section class="rounded-lg border border-base-300 bg-base-200 p-3">
           <div class="mb-2 eyebrow">{gettext("Cleanup")}</div>
-          <form phx-change="select_retention" phx-submit="delete_older" class="flex flex-wrap items-center gap-2 text-sm">
+          <form
+            phx-change="select_retention"
+            phx-submit="delete_older"
+            class="flex flex-wrap items-center gap-2 text-sm"
+          >
             <span>{gettext("Delete runs older than")}</span>
             <select
               name="days"
@@ -83,13 +92,19 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
             </select>
             <button
               type="submit"
-              data-confirm={gettext("Delete every run older than %{d} days? This cannot be undone.", d: @retention_days)}
+              data-confirm={
+                gettext("Delete every run older than %{d} days? This cannot be undone.",
+                  d: @retention_days
+                )
+              }
               class="rounded-full border border-base-300 px-4 py-1 text-xs font-medium hover:bg-base-300/40"
             >
               {gettext("Delete")}
             </button>
             <span class="ml-auto text-[11px] opacity-60">
-              {gettext("Linked eval cases keep their scores. Sub-agent children become orphans (parent_run_id nilified).")}
+              {gettext(
+                "Linked eval cases keep their scores. Sub-agent children become orphans (parent_run_id nilified)."
+              )}
             </span>
           </form>
 
@@ -114,28 +129,36 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
         </div>
 
         <ul :if={@runs != []} class="space-y-2">
-          <li :for={run <- @runs} class="rounded border p-3">
-            <div class="flex items-baseline justify-between gap-3">
-              <.link navigate={~p"/runs/#{run.id}"} class="font-mono text-xs hover:underline">
-                {String.slice(run.id, 0, 8)}
+          <li :for={run <- @runs} class="rounded border p-3 hover:bg-base-200/40">
+            <div class="flex items-start gap-3">
+              <.link navigate={~p"/chat/#{run.id}"} class="min-w-0 flex-1">
+                <div class="flex items-baseline justify-between gap-3">
+                  <span class="font-mono text-xs">{String.slice(run.id, 0, 8)}</span>
+                  <span class={[
+                    "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
+                    status_color(run.status)
+                  ]}>
+                    {run.status}
+                  </span>
+                  <span class="ml-auto text-xs opacity-60">
+                    <span :if={run.cost_micro_usd && run.cost_micro_usd > 0} class="font-mono">
+                      {AgenticAiAgent.LLM.Pricing.format(run.cost_micro_usd)} ·
+                    </span>
+                    {format_latency(run.latency_ms)} · {format_time(run.inserted_at)}
+                  </span>
+                </div>
+                <p class="mt-2 truncate text-sm">{truncate(run.user_input, 200)}</p>
+                <p :if={run.final_answer} class="mt-1 truncate text-xs opacity-70">
+                  → {truncate(run.final_answer, 200)}
+                </p>
               </.link>
-              <span class={[
-                "rounded px-2 py-0.5 text-[10px] font-mono uppercase",
-                status_color(run.status)
-              ]}>
-                {run.status}
-              </span>
-              <span class="ml-auto text-xs opacity-60">
-                <span :if={run.cost_micro_usd && run.cost_micro_usd > 0} class="font-mono">
-                  {AgenticAiAgent.LLM.Pricing.format(run.cost_micro_usd)} ·
-                </span>
-                {format_latency(run.latency_ms)} · {format_time(run.inserted_at)}
-              </span>
+              <.link
+                navigate={~p"/runs/#{run.id}"}
+                class="shrink-0 rounded-full border border-base-content/20 px-3 py-1 text-xs opacity-70 hover:bg-base-200 hover:opacity-100"
+              >
+                {gettext("Trace")}
+              </.link>
             </div>
-            <p class="mt-2 truncate text-sm">{truncate(run.user_input, 200)}</p>
-            <p :if={run.final_answer} class="mt-1 truncate text-xs opacity-70">
-              → {truncate(run.final_answer, 200)}
-            </p>
           </li>
         </ul>
       </div>
@@ -143,10 +166,17 @@ defmodule AgenticAiAgentWeb.RunLive.Index do
     """
   end
 
-  defp status_color("done"), do: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
+  defp status_color("done"),
+    do: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
+
   defp status_color("failed"), do: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
-  defp status_color("running"), do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
-  defp status_color("awaiting_approval"), do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
+  defp status_color("running"),
+    do: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200"
+
+  defp status_color("awaiting_approval"),
+    do: "bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"
+
   defp status_color("cancelled"), do: "bg-base-300 text-base-content"
   defp status_color(_), do: "bg-gray-100 text-gray-800"
 

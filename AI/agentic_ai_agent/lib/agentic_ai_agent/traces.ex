@@ -24,6 +24,8 @@ defmodule AgenticAiAgent.Traces do
     |> Repo.update!()
   end
 
+  def get_run(id), do: Repo.get(Run, id)
+
   def get_run!(id), do: Repo.get!(Run, id)
 
   def list_recent_runs(limit \\ 25) do

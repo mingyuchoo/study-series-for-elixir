@@ -4,10 +4,9 @@ defmodule AgenticAiAgent.Conversation do
   and the system prompt; the LLM adapter is *not* called from here — that
   is the orchestrator's job (`AgenticAiAgent.Chat`).
 
-  This is intentionally a process so that:
-    * a LiveView can link to it and have its lifecycle bound to the page,
-    * later phases (ReAct loop, sub-agents) can keep their own conversation
-      stream without interleaving with the parent's.
+  This is intentionally a process so later phases (ReAct loop, sub-agents)
+  can keep their own conversation stream without interleaving with the
+  parent's.
 
   Messages follow the OpenAI shape (see `AgenticAiAgent.LLM.Adapter` docs).
   """
@@ -24,6 +23,10 @@ defmodule AgenticAiAgent.Conversation do
   end
 
   # ----- Client API -----
+
+  def start(opts \\ []) do
+    GenServer.start(__MODULE__, opts, Keyword.take(opts, [:name]))
+  end
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, Keyword.take(opts, [:name]))

@@ -56,10 +56,14 @@ defmodule AgenticAiAgent.Eval do
   def load_golden(path) when is_binary(path) do
     file =
       cond do
-        File.exists?(path) -> path
+        File.exists?(path) ->
+          path
+
         File.exists?(Application.app_dir(:agentic_ai_agent, path)) ->
           Application.app_dir(:agentic_ai_agent, path)
-        true -> path
+
+        true ->
+          path
       end
 
     with {:ok, raw} <- File.read(file),
@@ -204,8 +208,13 @@ defmodule AgenticAiAgent.Eval do
     |> Enum.group_by(key_fun)
     |> Map.new(fn {k, cs} ->
       avg = Enum.sum(Enum.map(cs, & &1.total_score)) / length(cs)
+
       {to_string(k || "_"),
-       %{"count" => length(cs), "passed" => Enum.count(cs, & &1.passed), "avg_score" => Float.round(avg, 4)}}
+       %{
+         "count" => length(cs),
+         "passed" => Enum.count(cs, & &1.passed),
+         "avg_score" => Float.round(avg, 4)
+       }}
     end)
   end
 
@@ -220,7 +229,7 @@ defmodule AgenticAiAgent.Eval do
     parent = self()
 
     spawn(fn ->
-      {:ok, conv} = Conversation.start_link(system_prompt: build_system_prompt(card))
+      {:ok, conv} = Conversation.start(system_prompt: build_system_prompt(card))
 
       {:ok, _runtime} =
         Runtime.start(
@@ -228,7 +237,8 @@ defmodule AgenticAiAgent.Eval do
           card: card,
           user_input: input,
           subscriber: parent,
-          max_steps: case_data["max_steps"] || 12
+          max_steps: case_data["max_steps"] || 12,
+          stop_conversation_on_finish: true
         )
     end)
 

@@ -66,6 +66,12 @@ defmodule AgenticAiAgentWeb.CardLive.Show do
             >
               {gettext("Profile settings")}
             </.link>
+            <.link
+              navigate={~p"/chat?card=#{@card.slug}"}
+              class="rounded border px-3 py-1 text-xs hover:bg-base-200"
+            >
+              {gettext("Chat with this card")}
+            </.link>
           </div>
         </header>
 

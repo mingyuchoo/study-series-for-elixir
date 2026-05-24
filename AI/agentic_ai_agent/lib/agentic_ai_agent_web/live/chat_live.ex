@@ -1,25 +1,28 @@
 defmodule AgenticAiAgentWeb.ChatLive do
   use AgenticAiAgentWeb, :live_view
 
-  alias AgenticAiAgent.{Conversation, Design, Feedback}
+  alias AgenticAiAgent.{Conversation, Design, Feedback, Traces}
   alias AgenticAiAgent.Agent.{Charter, Runtime}
   alias AgenticAiAgentWeb.AgentProfiles
 
   @impl true
-  def mount(_params, _session, socket) do
-    card = Design.get_card_by_slug("default")
+  def mount(params, _session, socket) do
+    run = load_run(params["run_id"])
+    card = card_for(params, run)
     system_prompt = build_system_prompt(card)
 
     socket =
       socket
       |> assign(:card, card)
-      |> assign(:turns, [])
-      |> assign(:awaiting, false)
-      |> assign(:status, nil)
-      |> assign(:run_id, nil)
-      |> assign(:error, nil)
+      |> assign(:view_run, run)
+      |> assign(:read_only?, not is_nil(run))
+      |> assign(:turns, run_turns(run))
+      |> assign(:awaiting, run_awaiting?(run))
+      |> assign(:status, run_status(run))
+      |> assign(:run_id, run && run.id)
+      |> assign(:error, run_error(run))
       |> assign(:conversation, nil)
-      |> assign(:pending_approval, nil)
+      |> assign(:pending_approval, pending_approval(run))
       |> assign(:show_steering?, false)
       |> assign(:flagged_run_ids, MapSet.new())
       |> assign(:praised_run_ids, MapSet.new())
@@ -28,11 +31,18 @@ defmodule AgenticAiAgentWeb.ChatLive do
       |> assign(:form, to_form(%{"text" => ""}))
 
     socket =
-      if connected?(socket) do
-        {:ok, conv} = Conversation.start_link(system_prompt: system_prompt)
-        assign(socket, :conversation, conv)
-      else
-        socket
+      cond do
+        connected?(socket) && is_nil(run) ->
+          {:ok, conv} = Conversation.start(system_prompt: system_prompt)
+          assign(socket, :conversation, conv)
+
+        connected?(socket) && run_awaiting?(run) ->
+          Phoenix.PubSub.subscribe(AgenticAiAgent.PubSub, Runtime.topic(run.id))
+
+          socket
+
+        true ->
+          socket
       end
 
     {:ok, socket}
@@ -47,6 +57,9 @@ defmodule AgenticAiAgentWeb.ChatLive do
         {:noreply, socket}
 
       socket.assigns.awaiting ->
+        {:noreply, socket}
+
+      socket.assigns.read_only? ->
         {:noreply, socket}
 
       socket.assigns.conversation == nil ->
@@ -195,14 +208,14 @@ defmodule AgenticAiAgentWeb.ChatLive do
     do: {:noreply, assign(socket, :run_id, run_id)}
 
   def handle_info({:agent, :status, status}, socket),
-    do: {:noreply, assign(socket, :status, status)}
+    do: {:noreply, refresh_or_assign_status(socket, status)}
 
   def handle_info({:agent, :step, _payload}, socket) do
-    {:noreply, assign(socket, :turns, refresh_turns(socket.assigns.conversation))}
+    {:noreply, refresh_run_view(socket)}
   end
 
   def handle_info({:agent, :tool_call, _info}, socket) do
-    {:noreply, assign(socket, :turns, refresh_turns(socket.assigns.conversation))}
+    {:noreply, refresh_run_view(socket)}
   end
 
   def handle_info({:agent, :approval_requested, info}, socket) do
@@ -210,7 +223,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
   end
 
   def handle_info({:agent, :delegated, _info}, socket) do
-    {:noreply, assign(socket, :turns, refresh_turns(socket.assigns.conversation))}
+    {:noreply, refresh_run_view(socket)}
   end
 
   def handle_info({:agent, :final, _content, _run_id}, socket) do
@@ -220,7 +233,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:status, :done)
      |> assign(:pending_approval, nil)
      |> assign(:show_steering?, false)
-     |> assign(:turns, refresh_turns(socket.assigns.conversation))}
+     |> refresh_run_view()}
   end
 
   def handle_info({:agent, :failed, reason, _run_id}, socket) do
@@ -229,7 +242,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:awaiting, false)
      |> assign(:status, :failed)
      |> assign(:show_steering?, false)
-     |> assign(:turns, refresh_turns(socket.assigns.conversation))
+     |> refresh_run_view()
      |> assign(:error, format_error(reason))}
   end
 
@@ -240,13 +253,13 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:status, :cancelled)
      |> assign(:pending_approval, nil)
      |> assign(:show_steering?, false)
-     |> assign(:turns, refresh_turns(socket.assigns.conversation))}
+     |> refresh_run_view()}
   end
 
   def handle_info({:agent, :steered, _info}, socket) do
     {:noreply,
      socket
-     |> assign(:turns, refresh_turns(socket.assigns.conversation))
+     |> refresh_run_view()
      |> assign(:show_steering?, false)
      |> assign(:pending_approval, nil)}
   end
@@ -261,6 +274,159 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
   defp refresh_turns(nil), do: []
   defp refresh_turns(conv), do: Conversation.turns(conv)
+
+  defp refresh_run_view(%{assigns: %{view_run: nil}} = socket),
+    do: assign(socket, :turns, refresh_turns(socket.assigns.conversation))
+
+  defp refresh_run_view(%{assigns: %{view_run: %{id: id}}} = socket) do
+    case Traces.get_run(id) do
+      nil ->
+        socket
+        |> assign(:awaiting, false)
+        |> assign(:status, :failed)
+        |> assign(:error, gettext("Run no longer exists."))
+
+      run ->
+        socket
+        |> assign(:view_run, run)
+        |> assign(:turns, run_turns(run))
+        |> assign(:awaiting, run_awaiting?(run))
+        |> assign(:status, run_status(run))
+        |> assign(:pending_approval, pending_approval(run))
+        |> assign(:error, run_error(run))
+    end
+  end
+
+  defp refresh_or_assign_status(%{assigns: %{view_run: nil}} = socket, status),
+    do: assign(socket, :status, status)
+
+  defp refresh_or_assign_status(socket, _status), do: refresh_run_view(socket)
+
+  defp load_run(nil), do: nil
+
+  defp load_run(id) when is_binary(id) do
+    Traces.get_run(id)
+  rescue
+    Ecto.Query.CastError -> nil
+  end
+
+  defp card_for(_params, %{agentic_card_id: id}) when is_binary(id), do: Design.get_card!(id)
+
+  defp card_for(params, _run) do
+    slug = params["card"] || "default"
+    Design.get_card_by_slug(slug) || Design.get_card_by_slug("default")
+  end
+
+  defp run_turns(nil), do: []
+
+  defp run_turns(run) do
+    user_turn =
+      if blank?(run.user_input), do: [], else: [%{"role" => "user", "content" => run.user_input}]
+
+    step_turns =
+      run.id
+      |> Traces.list_steps()
+      |> Enum.flat_map(&step_to_turns/1)
+
+    final_turn =
+      if blank?(run.final_answer) or final_already_in_steps?(step_turns, run.final_answer) do
+        []
+      else
+        [%{"role" => "assistant", "content" => run.final_answer}]
+      end
+
+    user_turn ++ step_turns ++ final_turn
+  end
+
+  defp step_to_turns(%{kind: "llm_call", payload: payload}) do
+    content = Map.get(payload || %{}, "content")
+    tool_calls = Map.get(payload || %{}, "tool_calls") || []
+
+    if blank?(content) and tool_calls == [] do
+      []
+    else
+      [
+        %{"role" => "assistant", "content" => content || "", "tool_calls" => tool_calls}
+      ]
+    end
+  end
+
+  defp step_to_turns(%{kind: "tool_call", payload: payload}) do
+    payload = payload || %{}
+    name = Map.get(payload, "name")
+    output = Map.get(payload, "output")
+    error = Map.get(payload, "error")
+
+    content =
+      Jason.encode!(
+        %{"tool" => name, "output" => output, "error" => error}
+        |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+        |> Map.new(),
+        pretty: true
+      )
+
+    [%{"role" => "tool", "content" => content}]
+  end
+
+  defp step_to_turns(%{kind: "final", payload: %{"content" => content}})
+       when is_binary(content) do
+    [%{"role" => "assistant", "content" => content}]
+  end
+
+  defp step_to_turns(_step), do: []
+
+  defp final_already_in_steps?(turns, final_answer) do
+    Enum.any?(turns, fn
+      %{"role" => "assistant", "content" => ^final_answer} -> true
+      _ -> false
+    end)
+  end
+
+  defp run_awaiting?(%{status: status}) when status in ["running", "awaiting_approval"], do: true
+  defp run_awaiting?(_), do: false
+
+  defp run_status(nil), do: nil
+  defp run_status(%{workflow_state: "planning"}), do: :planning
+  defp run_status(%{workflow_state: "acting"}), do: :acting
+  defp run_status(%{workflow_state: "observing"}), do: :observing
+  defp run_status(%{workflow_state: "reflecting"}), do: :reflecting
+  defp run_status(%{workflow_state: "awaiting_approval"}), do: :awaiting_approval
+  defp run_status(%{status: "running"}), do: :starting
+  defp run_status(%{status: "awaiting_approval"}), do: :awaiting_approval
+  defp run_status(%{status: "done"}), do: :done
+  defp run_status(%{status: "failed"}), do: :failed
+  defp run_status(%{status: "cancelled"}), do: :cancelled
+  defp run_status(_), do: nil
+
+  defp run_error(%{status: "failed", errors: errors}) when is_map(errors) do
+    Map.get(errors, "reason") || inspect(errors)
+  end
+
+  defp run_error(_), do: nil
+
+  defp pending_approval(nil), do: nil
+
+  defp pending_approval(run) do
+    run.id
+    |> Traces.list_approvals()
+    |> Enum.find(&(&1.status == "pending"))
+    |> case do
+      nil ->
+        nil
+
+      approval ->
+        %{
+          approval_id: approval.id,
+          tool_name: approval.tool_name,
+          input: approval.input,
+          risk_level: approval.risk_level
+        }
+    end
+  end
+
+  defp blank?(nil), do: true
+  defp blank?(text) when is_binary(text), do: String.trim(text) == ""
+  defp blank?(_), do: false
 
   defp build_system_prompt(nil),
     do: Charter.prepend("You are a helpful assistant. Respond in the user's language.")
@@ -343,13 +509,30 @@ defmodule AgenticAiAgentWeb.ChatLive do
               </span>
             </p>
           </div>
-          <button
-            phx-click="reset"
-            type="button"
-            class="rounded-full border border-base-content px-5 py-2 text-sm font-medium tracking-[-0.02em] hover:bg-base-200"
-          >
-            {gettext("Reset")}
-          </button>
+          <div class="flex items-center gap-2">
+            <.link
+              :if={@read_only? and @run_id}
+              navigate={~p"/runs/#{@run_id}"}
+              class="rounded-full border border-base-content/30 px-5 py-2 text-sm font-medium tracking-[-0.02em] hover:bg-base-200"
+            >
+              {gettext("Trace")}
+            </.link>
+            <.link
+              :if={@read_only?}
+              navigate={~p"/chat"}
+              class="rounded-full border border-base-content px-5 py-2 text-sm font-medium tracking-[-0.02em] hover:bg-base-200"
+            >
+              {gettext("New chat")}
+            </.link>
+            <button
+              :if={!@read_only?}
+              phx-click="reset"
+              type="button"
+              class="rounded-full border border-base-content px-5 py-2 text-sm font-medium tracking-[-0.02em] hover:bg-base-200"
+            >
+              {gettext("Reset")}
+            </button>
+          </div>
         </header>
 
         <div
@@ -548,15 +731,19 @@ defmodule AgenticAiAgentWeb.ChatLive do
             id="chat-message-input"
             name="text"
             value={@form[:text].value}
-            placeholder={gettext("Type a message...")}
+            placeholder={
+              if @read_only?,
+                do: gettext("Viewing a saved run"),
+                else: gettext("Type a message...")
+            }
             autocomplete="off"
             phx-hook=".FocusOnReady"
             class="flex-1 rounded-full border border-base-content bg-base-100 px-5 py-3 text-sm"
-            disabled={@awaiting}
+            disabled={@awaiting or @read_only?}
           />
           <button
             type="submit"
-            disabled={@awaiting}
+            disabled={@awaiting or @read_only?}
             class="px-7 py-3 text-sm font-medium disabled:opacity-50"
             style="background:#141413;color:#F3F0EE;border-radius:20px;letter-spacing:-0.02em;"
           >

@@ -60,6 +60,7 @@ defmodule AgenticAiAgentWeb.Router do
       live "/cards/:id/history", CardLive.History, :index
 
       live "/chat", ChatLive
+      live "/chat/:run_id", ChatLive
 
       live "/runs", RunLive.Index, :index
       live "/runs/:id", RunLive.Show, :show

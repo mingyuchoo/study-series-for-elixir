@@ -4,7 +4,8 @@ defmodule AgenticAiAgentWeb.RunLiveTest do
   import Phoenix.LiveViewTest
 
   alias AgenticAiAgent.Repo
-  alias AgenticAiAgent.Traces.Run
+  alias AgenticAiAgent.Design.AgenticCard
+  alias AgenticAiAgent.Traces.{Run, Step}
 
   defp make_run!(opts \\ []) do
     %Run{
@@ -22,6 +23,45 @@ defmodule AgenticAiAgentWeb.RunLiveTest do
       {:ok, _view, html} = live(conn, ~p"/runs")
       assert html =~ "Cleanup"
       assert html =~ "Delete runs older than"
+    end
+
+    test "links each run row to the chat replay and keeps trace available", %{conn: conn} do
+      run = make_run!(user_input: "show this in chat")
+
+      {:ok, _view, html} = live(conn, ~p"/runs")
+
+      assert html =~ ~s|href="/chat/#{run.id}"|
+      assert html =~ ~s|href="/runs/#{run.id}"|
+    end
+  end
+
+  describe "GET /chat/:run_id" do
+    test "can open chat with a specific card by slug", %{conn: conn} do
+      card =
+        %AgenticCard{slug: "runtime-code-deployer-test", name: "Runtime Code Deployer Test"}
+        |> Repo.insert!()
+
+      {:ok, _view, html} = live(conn, ~p"/chat?card=#{card.slug}")
+
+      assert html =~ card.slug
+    end
+
+    test "renders a saved run as a read-only conversation", %{conn: conn} do
+      run = make_run!(user_input: "오늘 날씨 알려줘.", status: "done")
+
+      Repo.insert!(%Step{
+        run_id: run.id,
+        idx: 0,
+        kind: "llm_call",
+        payload: %{"content" => "오늘은 맑습니다.", "tool_calls" => []}
+      })
+
+      {:ok, _view, html} = live(conn, ~p"/chat/#{run.id}")
+
+      assert html =~ "오늘 날씨 알려줘."
+      assert html =~ "오늘은 맑습니다."
+      assert html =~ "Viewing a saved run"
+      assert html =~ ~s|href="/runs/#{run.id}"|
     end
   end
 

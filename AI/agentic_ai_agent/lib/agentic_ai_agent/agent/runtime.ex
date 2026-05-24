@@ -110,6 +110,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
     parent_run_id = Keyword.get(opts, :parent_run_id)
     skill_slug = Keyword.get(opts, :skill_slug)
     tools_allow = Keyword.get(opts, :tools_allow)
+    stop_conversation_on_finish = Keyword.get(opts, :stop_conversation_on_finish, false)
 
     started_at = DateTime.utc_now()
 
@@ -148,6 +149,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
       pending_approval: nil,
       pending_delegate: nil,
       tools_allow: tools_allow,
+      stop_conversation_on_finish: stop_conversation_on_finish,
       workflow: Workflow.from_card(card),
       # ↓ Planning/Reflection extensions (§4)
       reflexion_count: 0,
@@ -220,6 +222,36 @@ defmodule AgenticAiAgent.Agent.Runtime do
   # Ignore other sub-agent events (statuses, intermediate steps).
   def handle_info({:agent, _kind, _payload}, state), do: {:noreply, state}
   def handle_info({:agent, _kind, _payload, _id}, state), do: {:noreply, state}
+
+  @impl true
+  def terminate(reason, _state) when reason in [:normal, :shutdown] do
+    :ok
+  end
+
+  def terminate({:shutdown, _reason}, _state), do: :ok
+
+  def terminate(reason, %{run: %{id: run_id}} = state) do
+    run = Traces.get_run(run_id)
+
+    if run && run.status in ["running", "awaiting_approval"] do
+      latency = DateTime.diff(DateTime.utc_now(), state.started_at, :millisecond)
+
+      Traces.update_run!(run, %{
+        status: "failed",
+        errors: %{"reason" => "runtime terminated unexpectedly: #{format_reason(reason)}"},
+        finished_at: DateTime.utc_now(),
+        latency_ms: latency
+      })
+
+      Phoenix.PubSub.broadcast(@pubsub, @runs_topic, {:runs, :updated, run_id})
+    end
+
+    :ok
+  rescue
+    error ->
+      Logger.error("Runtime terminate cleanup failed: #{Exception.message(error)}")
+      :ok
+  end
 
   # ----- Decisions (HITL) -----
 
@@ -902,7 +934,8 @@ defmodule AgenticAiAgent.Agent.Runtime do
            max_steps: max_steps,
            parent_run_id: state.run.id,
            skill_slug: skill && skill.slug,
-           tools_allow: tools_allow
+           tools_allow: tools_allow,
+           stop_conversation_on_finish: true
          ) do
       {:ok, _sub_pid} ->
         sub_run_id = wait_for_sub_run_id(state)
@@ -998,6 +1031,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
 
     notify(state, {:agent, :final, content, state.run.id})
     Phoenix.PubSub.broadcast(@pubsub, @runs_topic, {:runs, :updated, state.run.id})
+    maybe_stop_conversation(state)
     {:stop, :normal, state}
   end
 
@@ -1027,6 +1061,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
 
     notify(state, {:agent, :cancelled, reason, state.run.id})
     Phoenix.PubSub.broadcast(@pubsub, @runs_topic, {:runs, :updated, state.run.id})
+    maybe_stop_conversation(state)
     {:stop, :normal, state}
   end
 
@@ -1056,6 +1091,7 @@ defmodule AgenticAiAgent.Agent.Runtime do
 
     notify(state, {:agent, :failed, reason, state.run.id})
     Phoenix.PubSub.broadcast(@pubsub, @runs_topic, {:runs, :updated, state.run.id})
+    maybe_stop_conversation(state)
     {:stop, :normal, state}
   end
 
@@ -1115,6 +1151,22 @@ defmodule AgenticAiAgent.Agent.Runtime do
       escalated_at_iteration: state.reflexion_escalated_at
     ]
   end
+
+  defp maybe_stop_conversation(state) do
+    if state.stop_conversation_on_finish || not Process.alive?(state.subscriber) do
+      stop_conversation(state.conversation)
+    end
+
+    :ok
+  end
+
+  defp stop_conversation(pid) when is_pid(pid) do
+    if Process.alive?(pid), do: GenServer.stop(pid)
+  catch
+    :exit, _ -> :ok
+  end
+
+  defp stop_conversation(_), do: :ok
 
   # Length of the leading same-theme run in a newest-first history.
   # `[a, a, b]` → 2. `[nil, a, a]` → 0 (no signal at the front).
