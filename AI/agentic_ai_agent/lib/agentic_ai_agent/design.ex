@@ -8,7 +8,14 @@ defmodule AgenticAiAgent.Design do
   import Ecto.Query
 
   alias AgenticAiAgent.Repo
-  alias AgenticAiAgent.Design.{AgenticCard, CapabilityMatrix, CardVersion, TaskTaxonomy, WorkflowGraph}
+
+  alias AgenticAiAgent.Design.{
+    AgenticCard,
+    CapabilityMatrix,
+    CardVersion,
+    TaskTaxonomy,
+    WorkflowGraph
+  }
 
   # ----- Queries -----
 
@@ -85,7 +92,10 @@ defmodule AgenticAiAgent.Design do
   end
 
   defp card_attrs(data) do
-    Map.take(data, ~w(slug name role goal scope capabilities tool_policy reasoning_policy safety_policy output_contract evaluation_mapping metadata))
+    Map.take(
+      data,
+      ~w(slug name role goal scope capabilities tool_policy reasoning_policy safety_policy output_contract evaluation_mapping metadata)
+    )
   end
 
   # ----- File loader -----
@@ -215,6 +225,32 @@ defmodule AgenticAiAgent.Design do
   def short_sha(sha) when is_binary(sha), do: String.slice(sha, 0, 12)
   def short_sha(_), do: ""
 
+  @doc """
+  Returns YAML with the top-level `metadata:` block merged with `change`.
+
+  This preserves the rest of the card source byte-for-byte, which keeps large
+  prompt and workflow blocks readable in card history diffs.
+  """
+  @spec apply_metadata_change(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
+  def apply_metadata_change(current_yaml, change)
+      when is_binary(current_yaml) and is_map(change) do
+    with {:ok, %{} = parsed} <- safe_parse_yaml(current_yaml) do
+      base = Map.get(parsed, "metadata") || %{}
+      merged = Map.merge(stringify_keys(base), stringify_keys(change))
+      serialized = serialize_metadata_block(merged)
+
+      new_yaml =
+        case replace_top_block(current_yaml, "metadata", serialized) do
+          {:ok, replaced} -> replaced
+          :not_found -> String.trim_trailing(current_yaml) <> "\n\n" <> serialized <> "\n"
+        end
+
+      {:ok, new_yaml}
+    else
+      {:error, _} = err -> err
+    end
+  end
+
   # SHA256 of the body; idempotency guard skips writing duplicate snapshots.
   defp snapshot_card_version(slug, body, reason) do
     sha = sha256(body)
@@ -240,5 +276,60 @@ defmodule AgenticAiAgent.Design do
 
   defp sha256(body) when is_binary(body) do
     :crypto.hash(:sha256, body) |> Base.encode16(case: :lower)
+  end
+
+  defp safe_parse_yaml(yaml) do
+    case YamlElixir.read_from_string(yaml) do
+      {:ok, %{} = m} -> {:ok, m}
+      {:ok, _} -> {:error, :card_yaml_not_map}
+      {:error, reason} -> {:error, {:yaml_parse, reason}}
+    end
+  end
+
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn {key, value} -> {to_string(key), value} end)
+  end
+
+  defp serialize_metadata_block(metadata) when is_map(metadata) do
+    order = ~w(version owner agent_avatar_path agent_avatar_options)
+    extras = Map.keys(metadata) -- order
+    keys = (order ++ Enum.sort(extras)) |> Enum.filter(&Map.has_key?(metadata, &1))
+
+    "metadata:\n" <>
+      Enum.map_join(keys, "\n", fn key ->
+        render_metadata_entry(key, metadata[key])
+      end)
+  end
+
+  defp render_metadata_entry(key, values) when is_list(values) do
+    items =
+      Enum.map_join(values, "\n", fn value ->
+        "    - #{render_metadata_scalar(value)}"
+      end)
+
+    "  #{key}:\n" <> items
+  end
+
+  defp render_metadata_entry(key, value),
+    do: "  #{key}: #{render_metadata_scalar(value)}"
+
+  defp render_metadata_scalar(value) when is_binary(value), do: Jason.encode!(value)
+
+  defp render_metadata_scalar(value) when is_boolean(value) or is_number(value),
+    do: to_string(value)
+
+  defp render_metadata_scalar(nil), do: "null"
+  defp render_metadata_scalar(value), do: Jason.encode!(value)
+
+  @spec replace_top_block(String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | :not_found
+  defp replace_top_block(text, key, new_block) when is_binary(text) and is_binary(key) do
+    regex = ~r/(?m)^#{Regex.escape(key)}:.*?(?=^[a-zA-Z_][a-zA-Z0-9_]*:|\z)/s
+
+    if Regex.match?(regex, text) do
+      {:ok, Regex.replace(regex, text, new_block <> "\n", global: false)}
+    else
+      :not_found
+    end
   end
 end

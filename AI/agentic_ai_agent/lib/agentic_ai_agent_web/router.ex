@@ -25,6 +25,7 @@ defmodule AgenticAiAgentWeb.Router do
 
       live "/cards", CardLive.Index, :index
       live "/cards/:id", CardLive.Show, :show
+      live "/cards/:id/profile", CardLive.ProfileSettings, :edit
       live "/cards/:id/edit-source", CardLive.EditSource, :edit
       live "/cards/:id/history", CardLive.History, :index
 

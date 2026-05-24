@@ -2,6 +2,7 @@ defmodule AgenticAiAgentWeb.CardLive.Index do
   use AgenticAiAgentWeb, :live_view
 
   alias AgenticAiAgent.Design
+  alias AgenticAiAgentWeb.AgentProfiles
 
   @impl true
   def mount(_params, _session, socket) do
@@ -52,7 +53,9 @@ defmodule AgenticAiAgentWeb.CardLive.Index do
             <div class="eyebrow mb-2">{gettext("Cards")}</div>
             <h1 class="text-2xl font-semibold">{gettext("Agentic Cards")}</h1>
             <p class="text-sm opacity-70">
-              {gettext("Cards are authored as YAML under priv/cards/. The database is a cache — use the button to re-sync after editing files.")}
+              {gettext(
+                "Cards are authored as YAML under priv/cards/. The database is a cache — use the button to re-sync after editing files."
+              )}
             </p>
           </div>
           <button
@@ -70,15 +73,35 @@ defmodule AgenticAiAgentWeb.CardLive.Index do
 
         <ul class="space-y-4">
           <li :for={card <- @cards} class="rounded-lg border p-4">
-            <div class="flex items-baseline justify-between gap-3">
-              <div>
-                <.link navigate={~p"/cards/#{card.id}"} class="text-lg font-semibold hover:underline">
-                  {card.name}
-                </.link>
-                <p class="font-mono text-xs opacity-60">{card.slug}</p>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 items-start gap-3">
+                <img
+                  src={AgentProfiles.default_path(card)}
+                  alt=""
+                  class="h-10 w-10 shrink-0 rounded-full border border-base-300 bg-base-200 object-cover"
+                />
+                <div>
+                  <.link
+                    navigate={~p"/cards/#{card.id}"}
+                    class="text-lg font-semibold hover:underline"
+                  >
+                    {card.name}
+                  </.link>
+                  <p class="font-mono text-xs opacity-60">{card.slug}</p>
+                </div>
               </div>
-              <div class="text-xs opacity-70">
-                {length(card.task_taxonomies)} {gettext("taxonomies")} · {length(card.workflow_graphs)} {gettext("workflows")}
+              <div class="flex shrink-0 items-center gap-2 text-xs">
+                <span class="opacity-70">
+                  {length(card.task_taxonomies)} {gettext("taxonomies")} · {length(
+                    card.workflow_graphs
+                  )} {gettext("workflows")}
+                </span>
+                <.link
+                  navigate={~p"/cards/#{card.id}/profile"}
+                  class="rounded border px-2 py-0.5 hover:bg-base-200"
+                >
+                  {gettext("Profile settings")}
+                </.link>
               </div>
             </div>
             <p :if={card.goal} class="mt-2 text-sm opacity-80">{card.goal}</p>

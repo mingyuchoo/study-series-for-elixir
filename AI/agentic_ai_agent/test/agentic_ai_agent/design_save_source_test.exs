@@ -54,4 +54,36 @@ defmodule AgenticAiAgent.DesignSaveSourceTest do
       refute Design.card_source_path(@test_slug)
     end
   end
+
+  describe "apply_metadata_change/2" do
+    test "replaces only the metadata block" do
+      yaml = """
+      slug: #{@test_slug}
+      name: Metadata Test
+      role: |
+        Keep this prompt text exactly.
+      metadata:
+        version: "0.1.0"
+        owner: mingyuchoo
+        agent_avatar_path: /images/avatars/avatar-01.png
+      task_taxonomies: []
+      """
+
+      assert {:ok, updated} =
+               Design.apply_metadata_change(yaml, %{
+                 "agent_avatar_path" => "/images/avatars/avatar-03.png",
+                 "agent_avatar_options" => [
+                   "/images/avatars/avatar-01.png",
+                   "/images/avatars/avatar-03.png"
+                 ]
+               })
+
+      assert updated =~ "role: |\n  Keep this prompt text exactly."
+      assert updated =~ ~s(agent_avatar_path: "/images/avatars/avatar-03.png")
+      assert updated =~ ~s(    - "/images/avatars/avatar-01.png")
+      assert updated =~ "task_taxonomies: []"
+      assert {:ok, parsed} = YamlElixir.read_from_string(updated)
+      assert parsed["metadata"]["owner"] == "mingyuchoo"
+    end
+  end
 end

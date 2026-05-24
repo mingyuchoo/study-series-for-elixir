@@ -3,16 +3,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
 
   alias AgenticAiAgent.{Conversation, Design, Feedback}
   alias AgenticAiAgent.Agent.{Charter, Runtime}
-
-  @agent_avatar_paths [
-    "/images/avatars/avatar-01.png",
-    "/images/avatars/avatar-02.png",
-    "/images/avatars/avatar-03.png",
-    "/images/avatars/avatar-04.png",
-    "/images/avatars/avatar-05.png",
-    "/images/avatars/avatar-06.png",
-    "/images/avatars/avatar-07.png"
-  ]
+  alias AgenticAiAgentWeb.AgentProfiles
 
   @impl true
   def mount(_params, _session, socket) do
@@ -31,8 +22,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
       |> assign(:pending_approval, nil)
       |> assign(:flagged_run_ids, MapSet.new())
       |> assign(:praised_run_ids, MapSet.new())
-      |> assign(:agent_avatar_paths, @agent_avatar_paths)
-      |> assign(:agent_avatar_path, default_agent_avatar_path(card))
+      |> assign(:agent_avatar_path, AgentProfiles.default_path(card))
       |> assign(:form, to_form(%{"text" => ""}))
 
     socket =
@@ -90,14 +80,6 @@ defmodule AgenticAiAgentWeb.ChatLive do
      |> assign(:run_id, nil)
      |> assign(:awaiting, false)
      |> assign(:pending_approval, nil)}
-  end
-
-  def handle_event("select_agent_avatar", %{"path" => path}, socket) do
-    if valid_agent_avatar_path?(path) do
-      {:noreply, assign(socket, :agent_avatar_path, path)}
-    else
-      {:noreply, socket}
-    end
   end
 
   def handle_event("approve", _params, %{assigns: %{pending_approval: pa, run_id: rid}} = socket)
@@ -265,21 +247,6 @@ defmodule AgenticAiAgentWeb.ChatLive do
   defp refresh_turns(nil), do: []
   defp refresh_turns(conv), do: Conversation.turns(conv)
 
-  defp default_agent_avatar_path(%{metadata: %{"agent_avatar_path" => path}})
-       when is_binary(path) do
-    if valid_agent_avatar_path?(path), do: path, else: List.first(@agent_avatar_paths)
-  end
-
-  defp default_agent_avatar_path(_card), do: List.first(@agent_avatar_paths)
-
-  defp valid_agent_avatar_path?(path), do: path in @agent_avatar_paths
-
-  defp avatar_number(path) do
-    path
-    |> Path.basename(".png")
-    |> String.replace("avatar-", "")
-  end
-
   defp build_system_prompt(nil),
     do: Charter.prepend("You are a helpful assistant. Respond in the user's language.")
 
@@ -342,7 +309,7 @@ defmodule AgenticAiAgentWeb.ChatLive do
     ~H"""
     <Layouts.app flash={@flash} current_path={@current_path} locale={@locale}>
       <div class="flex h-[calc(100vh-8rem)] flex-col">
-        <header class="mb-3 flex items-start justify-between gap-4">
+        <header class="mb-3 flex items-baseline justify-between">
           <div>
             <h1 class="text-2xl font-semibold">{gettext("Chat")}</h1>
             <p class="text-xs opacity-60">
@@ -353,63 +320,13 @@ defmodule AgenticAiAgentWeb.ChatLive do
               </span>
             </p>
           </div>
-
-          <div class="flex flex-wrap items-center justify-end gap-2">
-            <div
-              id="agent-avatar-picker"
-              phx-hook=".AgentAvatarPicker"
-              data-current={@agent_avatar_path}
-              class="flex items-center gap-1"
-            >
-              <script :type={Phoenix.LiveView.ColocatedHook} name=".AgentAvatarPicker">
-                const key = "agentic_ai_agent.agent_avatar_path"
-
-                export default {
-                  mounted() {
-                    const stored = window.localStorage.getItem(key)
-                    const paths = this.paths()
-
-                    if (stored && paths.includes(stored) && stored !== this.el.dataset.current) {
-                      this.pushEvent("select_agent_avatar", { path: stored })
-                    }
-
-                    this.el.addEventListener("click", (event) => {
-                      const button = event.target.closest("[data-avatar-path]")
-                      if (!button) return
-                      window.localStorage.setItem(key, button.dataset.avatarPath)
-                    })
-                  },
-                  paths() {
-                    return [...this.el.querySelectorAll("[data-avatar-path]")]
-                      .map((button) => button.dataset.avatarPath)
-                  }
-                }
-              </script>
-              <button
-                :for={path <- @agent_avatar_paths}
-                type="button"
-                phx-click="select_agent_avatar"
-                phx-value-path={path}
-                data-avatar-path={path}
-                title={"Agent profile #{avatar_number(path)}"}
-                aria-label={"Agent profile #{avatar_number(path)}"}
-                class={[
-                  "h-8 w-8 overflow-hidden rounded-full border bg-base-200 p-0 transition hover:scale-105",
-                  @agent_avatar_path == path && "border-base-content ring-2 ring-base-content",
-                  @agent_avatar_path != path && "border-base-300 opacity-75 hover:opacity-100"
-                ]}
-              >
-                <img src={path} alt="" class="h-full w-full object-cover" />
-              </button>
-            </div>
-            <button
-              phx-click="reset"
-              type="button"
-              class="rounded border px-3 py-1 text-xs hover:bg-base-200"
-            >
-              {gettext("Reset")}
-            </button>
-          </div>
+          <button
+            phx-click="reset"
+            type="button"
+            class="rounded border px-3 py-1 text-xs hover:bg-base-200"
+          >
+            {gettext("Reset")}
+          </button>
         </header>
 
         <div
