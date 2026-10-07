@@ -13,13 +13,12 @@ $ProjectRoot = Split-Path -Parent $ScriptDir
 # Elixir/Erlang 경로 설정 (.tool-versions 기준, asdf 사용 시)
 # Windows 의 Elixir/Erlang 설치 경로가 다르면 시스템 PATH 또는 Program Files 설치본을 사용합니다.
 $ErlangHomeCandidates = @(
-    (Join-Path $HOME '.asdf\installs\erlang\28.5'),
-    (Join-Path $HOME '.asdf\installs\erlang\28.4.3'),
+    (Join-Path $HOME '.asdf\installs\erlang\29.1.1'),
     'C:\Program Files\Erlang OTP'
 )
 
 $ElixirHomeCandidates = @(
-    (Join-Path $HOME '.asdf\installs\elixir\1.19.5-otp-28'),
+    (Join-Path $HOME '.asdf\installs\elixir\1.20.4-otp-29'),
     'C:\Program Files\Elixir'
 )
 
@@ -174,6 +173,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'deps'))) {
     mix deps.get
     if ($LASTEXITCODE -ne 0) { throw "mix deps.get 실패 (exit=$LASTEXITCODE)" }
 }
+
+# 프런트엔드 의존성과 빌드 도구 설치
+mix assets.setup
+if ($LASTEXITCODE -ne 0) { throw "mix assets.setup 실패 (exit=$LASTEXITCODE)" }
 
 # 프로젝트 컴파일 (프로토콜 컨솔리데이션 디렉터리 생성을 위해 명시적으로 수행)
 # Elixir 1.19 의 일부 빌드 경로에서 _build/dev/consolidated 가 자동으로 생성되지 않아

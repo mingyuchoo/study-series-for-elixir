@@ -48,7 +48,7 @@ config :mime, :extensions, %{"log" => "text/plain"}
 
 # esbuild 설정 (버전 필수)
 config :esbuild,
-  version: "0.25.0",
+  version: "0.28.2",
   web: [
     args:
       ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
@@ -58,10 +58,9 @@ config :esbuild,
 
 # tailwind 설정 (버전 필수)
 config :tailwind,
-  version: "3.4.17",
+  version: "4.3.3",
   web: [
     args: ~w(
-      --config=tailwind.config.js
       --input=css/app.css
       --output=../priv/static/assets/css/app.css
     ),

@@ -6,7 +6,7 @@ defmodule Core.Agent.Tools.FileSystem do
 
   @behaviour Core.Agent.Tool
 
-  @workspace_dir Application.compile_env(:core, :workspace_dir, "/tmp/agentic_workspace")
+  @default_workspace_dir "/tmp/agentic_workspace"
 
   def definition("read_file") do
     %{
@@ -126,7 +126,7 @@ defmodule Core.Agent.Tools.FileSystem do
 
   defp safe_path(path, user_id) when is_binary(path) and is_binary(user_id) do
     workspace =
-      Application.get_env(:core, :workspace_dir, @workspace_dir)
+      Application.get_env(:core, :workspace_dir, @default_workspace_dir)
       |> Path.expand()
       |> Path.join("users")
       |> Path.join(user_id)

@@ -20,8 +20,8 @@ Azure OpenAI API(gpt-5-mini)와 다중 에이전트(Supervisor + Worker) 오케�
 
 ## 기술 스택
 
-- **언어**: Elixir 1.19 / OTP 28
-- **웹 프레임워크**: Phoenix 1.8 + LiveView 1.1 + Bandit
+- **언어**: Elixir 1.20.4 / OTP 29.1.1
+- **웹 프레임워크**: Phoenix 1.8.15 + LiveView 1.2.12 + Bandit 1.12.5
 - **데이터베이스**: SQLite3 (Ecto)
 - **AI**: Azure OpenAI API (gpt-5-mini)
 - **인증**: bcrypt_elixir
@@ -106,8 +106,10 @@ LLM 메시지 형식 변환도 입력값만으로 결과를 반환합니다.
 ### 2. 개발 환경 부팅
 
 ```bash
-# 의존성
+# .tool-versions의 Elixir / Erlang 설치 및 Node.js 22 이상 준비
+# 의존성과 프런트엔드 패키지 / CLI 설치
 mix deps.get
+mix assets.setup
 
 # DB 생성 + 마이그레이션 + 시드(관리자 / 에이전트 / MCP)
 mix ecto.setup
@@ -135,6 +137,10 @@ export AZURE_OPENAI_DEPLOYMENT="your-deployment-name"
 ### 3. 프로덕션 릴리스 빌드
 
 ```bash
+# 의존성 및 에셋 빌드 도구 설치 (npm 포함)
+MIX_ENV=prod mix deps.get --only prod
+MIX_ENV=prod mix assets.setup
+
 # 에셋 빌드
 MIX_ENV=prod mix assets.deploy
 
@@ -206,10 +212,10 @@ DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
 
 기본 외부 MCP 서버:
 
-- `firecrawl`: 웹 스크래핑/검색 MCP. `FIRECRAWL_API_KEY` 필요.
-- `context7`: 최신 라이브러리/API 문서 조회 MCP. `CONTEXT7_API_KEY` 권장 및 기본 설정에 사용.
-- `filesystem`: 지정한 로컬 디렉터리 파일 접근 MCP. `MCP_FILESYSTEM_ROOT` 필요.
-- `desktop-commander`: 로컬 파일/터미널 제어 MCP. 기본 비활성 상태로 등록되며, 활성화 전 권한 위임 수준을 확인해야 합니다.
+- `firecrawl` (`firecrawl-mcp` 3.28.2): 웹 스크래핑/검색 MCP. `FIRECRAWL_API_KEY` 필요.
+- `context7` (`@upstash/context7-mcp` 4.1.1): 최신 라이브러리/API 문서 조회 MCP. `CONTEXT7_API_KEY` 권장 및 기본 설정에 사용.
+- `filesystem` (`@modelcontextprotocol/server-filesystem` 2026.8.31): 지정한 로컬 디렉터리 파일 접근 MCP. `MCP_FILESYSTEM_ROOT` 필요.
+- `desktop-commander` (`@wonderwhy-er/desktop-commander` 0.2.52): 로컬 파일/터미널 제어 MCP. 기본 비활성 상태로 등록되며, 활성화 전 권한 위임 수준을 확인해야 합니다.
 
 로컬 권한 위임 수준:
 
@@ -230,10 +236,12 @@ mix run --no-halt -e "Core.MCP.Transport.Stdio.start()"
 
 ## UI / 디자인 시스템
 
-- **Tailwind CSS 3.4** (Phoenix standalone CLI) + **daisyUI v5**(라이트/다크 테마) + **Heroicons v2**.
+- **Tailwind CSS 4.3.3** (Phoenix standalone CLI) + **daisyUI 5.7.47**(라이트/다크 테마) + **Heroicons 2.2.0**.
 - Heroicons 는 `apps/web/mix.exs`에 git 의존성으로 포함되어 `deps/heroicons/optimized` 에서 SVG 를 읽고, `apps/web/assets/vendor/heroicons.js` Tailwind 플러그인이 `hero-*` 유틸리티 클래스를 생성합니다. `<.icon name="hero-x-mark" />` 형태로 사용합니다.
 - 자산 빌드 산출물은 `apps/web/priv/static/assets/` 로 출력되며, 개발 환경에서는 watcher(`esbuild --watch`, `tailwind --watch`)가 자동으로 재빌드합니다.
-- ⚠️ `apps/web/assets/vendor/daisyui.js` 는 ESM 형식으로 `default` export 를 노출하므로 `tailwind.config.js` 에서 `require("./vendor/daisyui").default` 로 unwrap 해야 컴포넌트 CSS(`navbar`, `btn`, `dropdown`, `card` 등)가 정상 생성됩니다.
+- Tailwind 소스 경로, 플러그인, LiveView 변형과 라이트/다크 테마는 `apps/web/assets/css/app.css`에서 설정합니다. daisyUI, topbar, forms, typography는 npm 패키지로 관리하며 `mix assets.setup`이 `npm ci --include=dev`로 잠금 파일의 버전을 설치합니다. `NODE_ENV=production`에서도 자산 빌드에 필요한 개발 의존성을 설치합니다. Tailwind CLI와 npm `tailwindcss`는 동일한 버전을 사용합니다.
+- typography가 고정한 `postcss-selector-parser` 6.0.10은 [알려진 취약점](https://github.com/advisories/GHSA-rj75-hqrm-r3gf)이 있어 npm `overrides`로 수정 버전 7.1.6 이상을 사용합니다. 상위 패키지가 수정 버전을 채택하면 이 override를 제거할 수 있습니다.
+- Tailwind 4의 브라우저 지원 기준은 Safari 16.4+, Chrome 111+, Firefox 128+입니다. [공식 업그레이드 가이드](https://tailwindcss.com/docs/upgrade-guide)를 참고하세요.
 
 ### 컴포넌트 규칙
 
@@ -251,7 +259,7 @@ mix run --no-halt -e "Core.MCP.Transport.Stdio.start()"
 | 로딩 인디케이터 | `loading loading-dots|spinner loading-xs|sm|md` |
 | 레이아웃 | `hero`, `card bg-base-100 shadow-xl`, `navbar`, `join` (버튼 그룹) 우선 |
 
-커스텀 CSS는 `apps/web/assets/css/app.css`의 **채팅 마크다운 `prose` 스타일** 과 LiveView 로딩 유틸리티(`phx-click-loading`, `phx-loading`) 만 유지하며, 그 외 폼/모달/토스트 관련 규칙은 daisyUI 에 위임합니다.
+커스텀 CSS는 `apps/web/assets/css/app.css`에서 Carbon 디자인 오버라이드, 채팅 마크다운 `prose` 스타일과 LiveView 로딩 상태를 처리합니다. daisyUI 테마 색상은 `--color-base-content`, `--color-neutral` 등의 CSS 변수를 사용합니다.
 
 ## 개발
 
@@ -259,7 +267,12 @@ mix run --no-halt -e "Core.MCP.Transport.Stdio.start()"
 iex -S mix phx.server   # IEx + 서버
 mix test                # 테스트
 mix compile --warnings-as-errors
+mix hex.outdated --all   # 직접 / 전이 Hex 의존성 확인
+npm outdated --prefix apps/web/assets
+npm audit --prefix apps/web/assets
 ```
+
+의존성은 2026-10-07 기준 최신 안정 릴리스로 갱신했습니다. 프리릴리스는 제외하며, 전이 의존성은 상위 패키지의 버전 제약을 따릅니다. 새 버전을 적용할 때는 `mix.exs`, `mix.lock`, `apps/web/assets/package.json`, `apps/web/assets/package-lock.json`을 함께 갱신하고 컴파일, 테스트와 `mix assets.deploy`를 검증하세요.
 
 ## ReAct 패턴
 

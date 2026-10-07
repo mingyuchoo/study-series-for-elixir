@@ -83,6 +83,9 @@ if ! mix deps.loadpaths --no-compile >/dev/null 2>&1; then
     mix deps.get
 fi
 
+# 프런트엔드 의존성과 빌드 도구 설치
+mix assets.setup
+
 # 데이터베이스 마이그레이션
 echo -e "${GREEN}[INFO]${NC} 데이터베이스 마이그레이션..."
 mix ecto.create

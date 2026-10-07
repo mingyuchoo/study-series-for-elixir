@@ -504,7 +504,7 @@ defmodule Core.Agent.WorkerAgent do
 
     opts = [
       conversation_id: task_attrs[:conversation_id],
-      user_id: state.user_id,
+      user_id: task_attrs[:user_id],
       relevance_score: if(success, do: 0.5, else: 0.7)
     ]
 

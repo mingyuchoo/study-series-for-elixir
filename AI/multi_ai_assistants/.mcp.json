@@ -2,21 +2,33 @@
   "mcpServers": {
     "firecrawl": {
       "command": "npx",
-      "args": ["-y", "firecrawl-mcp"],
+      "args": [
+        "-y",
+        "firecrawl-mcp@3.28.2"
+      ],
       "env": {
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}"
       }
     },
     "context7": {
       "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp", "--api-key", "${CONTEXT7_API_KEY}"],
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@4.1.1",
+        "--api-key",
+        "${CONTEXT7_API_KEY}"
+      ],
       "env": {
         "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
       }
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${MCP_FILESYSTEM_ROOT}"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2026.8.31",
+        "${MCP_FILESYSTEM_ROOT}"
+      ],
       "env": {
         "MCP_FILESYSTEM_ROOT": "${MCP_FILESYSTEM_ROOT}"
       },
@@ -24,7 +36,10 @@
     },
     "desktop-commander": {
       "command": "npx",
-      "args": ["-y", "@wonderwhy-er/desktop-commander"],
+      "args": [
+        "-y",
+        "@wonderwhy-er/desktop-commander@0.2.52"
+      ],
       "env": {},
       "enabled": true,
       "local_permission_level": "full"

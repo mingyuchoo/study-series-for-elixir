@@ -54,6 +54,7 @@ build_release() {
     export MIX_ENV=prod
 
     mix deps.get --only prod
+    mix assets.setup
     mix assets.deploy
     mix release --overwrite
 }

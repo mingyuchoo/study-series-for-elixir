@@ -22,7 +22,7 @@ import "phoenix_html"
 // Phoenix Socket 및 LiveView 설정 수립
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import topbar from "../vendor/topbar"
+import topbar from "topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const Hooks = {}

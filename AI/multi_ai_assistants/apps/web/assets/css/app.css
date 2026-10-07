@@ -1,29 +1,137 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss" source(none);
+
+@source "../js";
+@source "../../lib/web_web";
+@source "../../lib/web_web.ex";
+
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+@plugin "../vendor/heroicons.js";
+@plugin "daisyui" {
+  themes: false;
+}
+
+@theme {
+  --color-brand: #0f62fe;
+}
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-primary: #0f62fe;
+  --color-primary-content: #ffffff;
+  --color-secondary: #161616;
+  --color-secondary-content: #ffffff;
+  --color-accent: #0043ce;
+  --color-accent-content: #ffffff;
+  --color-neutral: #161616;
+  --color-neutral-content: #ffffff;
+  --color-base-100: #ffffff;
+  --color-base-200: #f4f4f4;
+  --color-base-300: #e0e0e0;
+  --color-base-content: #161616;
+  --color-info: #0f62fe;
+  --color-info-content: #ffffff;
+  --color-success: #24a148;
+  --color-success-content: #ffffff;
+  --color-warning: #f1c21b;
+  --color-warning-content: #161616;
+  --color-error: #da1e28;
+  --color-error-content: #ffffff;
+  --radius-selector: 0;
+  --radius-field: 0;
+  --radius-box: 0;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-primary: #0f62fe;
+  --color-primary-content: #ffffff;
+  --color-secondary: #ffffff;
+  --color-secondary-content: #161616;
+  --color-accent: #4589ff;
+  --color-accent-content: #161616;
+  --color-neutral: #262626;
+  --color-neutral-content: #ffffff;
+  --color-base-100: #161616;
+  --color-base-200: #262626;
+  --color-base-300: #393939;
+  --color-base-content: #ffffff;
+  --color-info: #0f62fe;
+  --color-info-content: #ffffff;
+  --color-success: #24a148;
+  --color-success-content: #ffffff;
+  --color-warning: #f1c21b;
+  --color-warning-content: #161616;
+  --color-error: #da1e28;
+  --color-error-content: #ffffff;
+  --radius-selector: 0;
+  --radius-field: 0;
+  --radius-box: 0;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
 
 @layer base {
   :root {
     --carbon-blue: #0f62fe;
     --carbon-blue-hover: #0050e6;
     --carbon-blue-active: #002d9c;
+    --carbon-link: #0f62fe;
+    --carbon-link-hover: #0043ce;
     --carbon-ink: #161616;
     --carbon-muted: #525252;
     --carbon-subtle: #8c8c8c;
     --carbon-canvas: #ffffff;
     --carbon-surface: #f4f4f4;
+    --carbon-surface-2: #e0e0e0;
     --carbon-hairline: #e0e0e0;
   }
 
   [data-theme="dark"] {
+    --carbon-link: #78a9ff;
+    --carbon-link-hover: #a6c8ff;
     --carbon-ink: #ffffff;
     --carbon-muted: #c6c6c6;
     --carbon-subtle: #8d8d8d;
     --carbon-canvas: #161616;
     --carbon-surface: #262626;
+    --carbon-surface-2: #393939;
     --carbon-hairline: #393939;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --carbon-link: #78a9ff;
+      --carbon-link-hover: #a6c8ff;
+      --carbon-ink: #ffffff;
+      --carbon-muted: #c6c6c6;
+      --carbon-subtle: #8d8d8d;
+      --carbon-canvas: #161616;
+      --carbon-surface: #262626;
+      --carbon-surface-2: #393939;
+      --carbon-hairline: #393939;
+    }
   }
 
   html {
@@ -259,11 +367,6 @@
     display: inline-flex;
   }
 
-  .chat-bubble {
-    border-radius: 0;
-    box-shadow: none;
-  }
-
   .join > :where(*:not(:first-child)) {
     margin-inline-start: -1px;
   }
@@ -297,38 +400,94 @@
   cursor: wait;
 }
 
+/* daisyUI의 utilities 레이어보다 우선하여 대화풍선의 표면·본문 대비를 유지합니다. */
+.chat-bubble {
+  max-width: min(100%, 48rem);
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--carbon-hairline);
+  border-radius: 0;
+  background-color: var(--carbon-surface);
+  color: var(--carbon-ink);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.16px;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+}
+
+.chat-bubble::before {
+  display: none;
+}
+
+.chat-bubble-user {
+  background-color: var(--carbon-surface-2);
+}
+
+.chat-bubble-moderator,
+.chat-bubble-final {
+  border-inline-start: 3px solid var(--carbon-ink);
+  background-color: var(--carbon-canvas);
+}
+
+.chat-bubble-tool {
+  border-inline-start: 3px solid var(--carbon-muted);
+}
+
+.chat-header,
+.chat-attachment {
+  color: var(--carbon-muted);
+  letter-spacing: 0.32px;
+}
+
+
 /* ========================================
    채팅 메시지 마크다운 렌더링 (prose)
-   - daisyUI 테마 변수(--bc, --b2, --n 등)에 맞춰 색상을 적용합니다.
+   - DESIGN.md의 Carbon 표면·본문·링크 토큰을 사용합니다.
    ======================================== */
 .prose {
-  --tw-prose-body: oklch(var(--bc) / 0.8);
-  --tw-prose-headings: oklch(var(--bc));
-  --tw-prose-links: oklch(var(--bc));
-  --tw-prose-bold: oklch(var(--bc));
-  --tw-prose-code: oklch(var(--bc) / 0.8);
-  --tw-prose-pre-bg: oklch(var(--n));
-  --tw-prose-pre-code: oklch(var(--nc));
+  --tw-prose-body: var(--carbon-ink);
+  --tw-prose-headings: var(--carbon-ink);
+  --tw-prose-links: var(--carbon-link);
+  --tw-prose-bold: var(--carbon-ink);
+  --tw-prose-code: var(--carbon-ink);
+  --tw-prose-pre-bg: var(--carbon-surface-2);
+  --tw-prose-pre-code: var(--carbon-ink);
+  --tw-prose-quotes: var(--carbon-ink);
+  --tw-prose-quote-borders: var(--carbon-muted);
+  --tw-prose-counters: var(--carbon-muted);
+  --tw-prose-bullets: var(--carbon-muted);
+  --tw-prose-hr: var(--carbon-hairline);
+  --tw-prose-th-borders: var(--carbon-hairline);
+  --tw-prose-td-borders: var(--carbon-hairline);
+}
+
+.chat-bubble .prose {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
 .prose pre {
   @apply overflow-x-auto my-3;
-  background: oklch(var(--n));
-  border: 1px solid oklch(var(--bc) / 0.15);
+  background: var(--carbon-surface-2);
+  border: 1px solid var(--carbon-hairline);
+  border-radius: 0;
 }
 
 .prose pre code {
   @apply text-sm leading-relaxed;
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
-  color: oklch(var(--nc));
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  color: var(--carbon-ink);
 }
 
 .prose code:not(pre code) {
   @apply px-1.5 py-0.5 font-medium;
-  background: oklch(var(--b3));
-  color: oklch(var(--bc));
+  background: var(--carbon-surface-2);
+  color: var(--carbon-ink);
   font-size: 0.875em;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 .prose code:not(pre code)::before,
@@ -337,19 +496,19 @@
 }
 
 .prose h1 {
-  @apply text-xl font-bold mt-6 mb-3 pb-2;
-  color: oklch(var(--bc));
-  border-bottom: 1px solid oklch(var(--bc) / 0.15);
+  @apply text-xl font-normal mt-6 mb-3 pb-2;
+  color: var(--carbon-ink);
+  border-bottom: 1px solid var(--carbon-hairline);
 }
 
 .prose h2 {
   @apply text-lg font-semibold mt-5 mb-2;
-  color: oklch(var(--bc) / 0.9);
+  color: var(--carbon-ink);
 }
 
 .prose h3 {
   @apply text-base font-semibold mt-4 mb-2;
-  color: oklch(var(--bc) / 0.8);
+  color: var(--carbon-ink);
 }
 
 .prose ul {
@@ -364,7 +523,7 @@
 .prose ul > li::before {
   content: '—';
   @apply absolute left-0 font-normal;
-  color: oklch(var(--bc) / 0.4);
+  color: var(--carbon-muted);
 }
 
 .prose ol {
@@ -380,77 +539,86 @@
 
 .prose ol > li::before {
   content: counter(item);
-  @apply absolute left-0 flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full;
-  background: oklch(var(--n));
-  color: oklch(var(--nc));
+  @apply absolute left-0 flex items-center justify-center w-5 h-5 text-xs font-semibold;
+  color: var(--carbon-muted);
 }
 
 .prose blockquote {
   @apply my-3 pl-4 py-2 italic;
-  border-left: 4px solid oklch(var(--bc) / 0.2);
-  background: oklch(var(--b2));
+  border-left: 3px solid var(--carbon-muted);
+  background: var(--carbon-surface-2);
   quotes: none;
 }
 
 .prose blockquote p {
   @apply m-0;
-  color: oklch(var(--bc) / 0.7);
+  color: var(--carbon-ink);
 }
 
 .prose table {
-  @apply w-full my-3 border-collapse overflow-hidden;
+  @apply block max-w-full w-full my-3 border-collapse overflow-x-auto;
 }
 
 .prose thead {
-  background: oklch(var(--b2));
+  background: var(--carbon-surface-2);
 }
 
 .prose th {
   @apply px-4 py-2 text-left text-sm font-semibold;
-  color: oklch(var(--bc));
-  border-bottom: 2px solid oklch(var(--bc) / 0.15);
+  color: var(--carbon-ink);
+  border-bottom: 1px solid var(--carbon-hairline);
 }
 
 .prose td {
   @apply px-4 py-2 text-sm;
-  color: oklch(var(--bc) / 0.7);
-  border-bottom: 1px solid oklch(var(--bc) / 0.08);
+  color: var(--carbon-ink);
+  border-bottom: 1px solid var(--carbon-hairline);
 }
 
 .prose tbody tr:hover {
-  background: oklch(var(--b2));
+  background: var(--carbon-surface-2);
 }
 
 .prose a {
   @apply font-medium no-underline transition-colors;
-  color: oklch(var(--bc));
+  color: var(--carbon-link);
   text-decoration: underline;
-  text-decoration-color: oklch(var(--bc) / 0.2);
+  text-decoration-color: currentColor;
   text-underline-offset: 2px;
 }
 
 .prose a:hover {
-  color: oklch(var(--bc));
-  text-decoration-color: oklch(var(--bc) / 0.5);
+  color: var(--carbon-link-hover);
+}
+
+.prose blockquote a,
+.prose table a {
+  color: var(--carbon-link-hover);
+}
+
+.prose a:focus-visible {
+  outline: 2px solid var(--carbon-link);
+  outline-offset: 2px;
 }
 
 .prose hr {
   @apply my-4 border-0 h-px;
-  background: oklch(var(--bc) / 0.15);
+  background: var(--carbon-hairline);
 }
 
 .prose strong {
-  @apply font-bold;
-  color: oklch(var(--bc));
+  @apply font-semibold;
+  color: var(--carbon-ink);
 }
 
 .prose em {
   @apply italic;
-  color: oklch(var(--bc) / 0.7);
+  color: var(--carbon-ink);
 }
 
 .prose p {
-  @apply my-2 leading-relaxed;
+  @apply my-2;
+  line-height: 1.5;
 }
 
 .prose img {
@@ -471,5 +639,5 @@
 
 .prose input[type="checkbox"] {
   @apply mr-2 rounded;
-  border-color: oklch(var(--bc) / 0.2);
+  border-color: var(--carbon-muted);
 }

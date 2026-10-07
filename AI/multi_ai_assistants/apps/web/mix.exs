@@ -9,7 +9,7 @@ defmodule Web.MixProject do
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.19",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -30,18 +30,18 @@ defmodule Web.MixProject do
   defp deps do
     [
       {:core, in_umbrella: true},
-      {:phoenix, "~> 1.8.3"},
-      {:phoenix_ecto, "~> 4.6"},
-      {:phoenix_html, "~> 4.2"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.1"},
-      {:bandit, "~> 1.2"},
-      {:jason, "~> 1.4"},
-      {:telemetry_metrics, "~> 1.0"},
-      {:telemetry_poller, "~> 1.0"},
-      {:phoenix_live_dashboard, "~> 0.8"},
-      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      {:phoenix, "~> 1.8.15"},
+      {:phoenix_ecto, "~> 4.7.0"},
+      {:phoenix_html, "~> 4.3.0"},
+      {:phoenix_live_reload, "~> 1.7.0", only: :dev},
+      {:phoenix_live_view, "~> 1.2.12"},
+      {:bandit, "~> 1.12.5"},
+      {:jason, "~> 1.4.5"},
+      {:telemetry_metrics, "~> 1.2.0"},
+      {:telemetry_poller, "~> 1.3.0"},
+      {:phoenix_live_dashboard, "~> 0.9.1"},
+      {:esbuild, "~> 0.10.0", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5.1", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.2.0",
@@ -49,14 +49,18 @@ defmodule Web.MixProject do
        app: false,
        compile: false,
        depth: 1},
-      {:mdex, "~> 0.14"}
+      {:mdex, "~> 0.14.2"}
     ]
   end
 
   defp aliases do
     [
       setup: ["deps.get"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.setup": [
+        "cmd --cd assets npm ci --include=dev",
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing"
+      ],
       "assets.build": ["tailwind web", "esbuild web"],
       "assets.deploy": [
         "tailwind web --minify",

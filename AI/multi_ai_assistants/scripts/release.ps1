@@ -58,6 +58,7 @@ function Build-Release {
     try {
         $env:MIX_ENV = 'prod'
         Invoke-Checked mix deps.get --only prod
+        Invoke-Checked mix assets.setup
         Invoke-Checked mix assets.deploy
         Invoke-Checked mix release --overwrite
     } finally {

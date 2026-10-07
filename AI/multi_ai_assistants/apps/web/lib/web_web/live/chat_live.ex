@@ -996,7 +996,7 @@ defmodule WebWeb.ChatLive do
                 />
               </div>
             </div>
-            <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-1">
+            <div class="chat-header text-xs mb-1 flex flex-wrap items-center gap-2">
               <span class={message_speaker_class(message)}>{message_speaker_label(message)}</span>
               <span :if={debate_visibility_label(message)} class="badge badge-xs badge-ghost">
                 {debate_visibility_label(message)}
@@ -1054,8 +1054,8 @@ defmodule WebWeb.ChatLive do
                     />
                   </div>
                 </div>
-                <div class="chat-header text-xs opacity-60 mb-1 flex items-center gap-2">
-                  <span class="font-semibold text-info">
+                <div class="chat-header text-xs mb-1 flex flex-wrap items-center gap-2">
+                  <span class="font-semibold text-base-content">
                     {speaker_streaming_label(@current_speaker)}
                   </span>
                   <.streaming_status_badge status={@streaming_status} />
@@ -1211,10 +1211,10 @@ defmodule WebWeb.ChatLive do
     <%= if @attachments != [] do %>
       <div class="mt-2 space-y-1">
         <%= for a <- @attachments do %>
-          <div class="text-xs opacity-80 flex items-center gap-1">
+          <div class="chat-attachment text-xs flex flex-wrap items-center gap-1">
             <.icon name="hero-paper-clip" class="w-3 h-3" />
             {Map.get(a, "filename") || Map.get(a, :filename)}
-            <span class="opacity-50">
+            <span>
               ({format_bytes(Map.get(a, "size") || Map.get(a, :size))})
             </span>
           </div>
@@ -1244,24 +1244,25 @@ defmodule WebWeb.ChatLive do
 
     cond do
       role in [:user, "user"] ->
-        "chat-bubble-primary"
+        "chat-bubble-user"
 
       role in [:tool, "tool"] ->
-        "chat-bubble-warning"
+        "chat-bubble-tool"
 
       visibility == :final ->
-        "chat-bubble-accent"
+        "chat-bubble-final"
 
-      visibility == :debate_turn and is_map(agent) and agent.type == :supervisor ->
+      visibility == :debate_turn and is_map(agent) and
+          Map.get(agent, :type) in [:supervisor, "supervisor"] ->
         # 모더레이터의 메타 메시지
-        "chat-bubble-info"
+        "chat-bubble-moderator"
 
       visibility == :debate_turn ->
         # 워커 발언
-        "chat-bubble-secondary"
+        "chat-bubble-worker"
 
       true ->
-        "chat-bubble-accent"
+        "chat-bubble-assistant"
     end
   end
 
@@ -1294,8 +1295,8 @@ defmodule WebWeb.ChatLive do
 
   defp message_speaker_class(message) do
     case message_visibility(message) do
-      :final -> "font-semibold text-accent"
-      :debate_turn -> "font-medium text-base-content/80"
+      :final -> "font-semibold text-base-content"
+      :debate_turn -> "font-medium text-base-content"
       _ -> ""
     end
   end
@@ -1316,11 +1317,11 @@ defmodule WebWeb.ChatLive do
 
   defp speaker_streaming_label(_), do: "Assistant"
 
-  defp speaker_chat_bubble_class(%{type: :supervisor}), do: "chat-bubble-info"
-  defp speaker_chat_bubble_class(%{type: "supervisor"}), do: "chat-bubble-info"
-  defp speaker_chat_bubble_class(%{type: :worker}), do: "chat-bubble-secondary"
-  defp speaker_chat_bubble_class(%{type: "worker"}), do: "chat-bubble-secondary"
-  defp speaker_chat_bubble_class(_), do: "chat-bubble-accent"
+  defp speaker_chat_bubble_class(%{type: :supervisor}), do: "chat-bubble-moderator"
+  defp speaker_chat_bubble_class(%{type: "supervisor"}), do: "chat-bubble-moderator"
+  defp speaker_chat_bubble_class(%{type: :worker}), do: "chat-bubble-worker"
+  defp speaker_chat_bubble_class(%{type: "worker"}), do: "chat-bubble-worker"
+  defp speaker_chat_bubble_class(_), do: "chat-bubble-assistant"
 
   defp agent_response_error?(response) when is_binary(response) do
     String.starts_with?(response, "작업 수행 중 오류가 발생했습니다:")

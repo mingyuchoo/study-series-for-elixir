@@ -9,7 +9,7 @@ defmodule Core.MixProject do
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.19",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -37,13 +37,14 @@ defmodule Core.MixProject do
   defp deps do
     [
       {:agent_domain, in_umbrella: true},
-      {:ecto_sql, "~> 3.14"},
-      {:ecto_sqlite3, "~> 0.25"},
-      {:hnswlib, "~> 0.1.7"},
-      {:req, "~> 0.7"},
-      {:jason, "~> 1.4"},
-      {:telemetry, "~> 1.3"},
-      {:bcrypt_elixir, "~> 3.0"}
+      {:ecto_sql, "~> 3.14.0"},
+      {:ecto_sqlite3, "~> 0.25.0"},
+      {:hnswlib, "~> 0.1.10"},
+      {:nx, "~> 1.0.0"},
+      {:req, "~> 0.7.5"},
+      {:jason, "~> 1.4.5"},
+      {:telemetry, "~> 1.4.2"},
+      {:bcrypt_elixir, "~> 3.3.2"}
     ]
   end
 end
