@@ -586,6 +586,11 @@ defmodule Core.Agent.GroupChat do
 
     case result do
       {:ok, output} ->
+        # ReAct can stream text in an earlier model turn before a tool call, while
+        # its return value contains only the last model turn. Keep text already
+        # shown to the user when replacing the stream with a persisted message.
+        output = complete_streamed_output(partial_output, output)
+
         {:ok, message} =
           persist_message(state, %{
             role: :assistant,
@@ -612,6 +617,16 @@ defmodule Core.Agent.GroupChat do
         state = persist_interrupted_worker_turn(state, worker_agent, partial_output)
         notify(state, {:agent_status, state.conversation_id, worker_agent.name, :error})
         {:error, reason, state}
+    end
+  end
+
+  defp complete_streamed_output("", output), do: output
+
+  defp complete_streamed_output(streamed, output) do
+    if String.ends_with?(streamed, output) do
+      streamed
+    else
+      String.trim_trailing(streamed) <> "\n\n" <> output
     end
   end
 

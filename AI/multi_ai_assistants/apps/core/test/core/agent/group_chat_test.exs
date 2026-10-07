@@ -23,6 +23,77 @@ defmodule Core.Agent.GroupChatTest do
     end
   end
 
+  defmodule MultiStepStreamingWorker do
+    use GenServer
+
+    def start_link(_opts), do: GenServer.start_link(__MODULE__, :ok)
+
+    @impl true
+    def init(state), do: {:ok, state}
+
+    @impl true
+    def handle_call({:execute_task_stream, _task_attrs, callback}, _from, state) do
+      callback.({:chunk, "오늘 날씨를 확인했습니다. "})
+      callback.({:tool_execution, []})
+      callback.({:tool_completed, [], []})
+      callback.({:chunk, "현재 기온은 20도입니다."})
+      {:reply, {:ok, "현재 기온은 20도입니다."}, state}
+    end
+  end
+
+  test "research worker keeps text shown before a tool call in its saved answer" do
+    user = user_fixture()
+    conversation = conversation_fixture(user_id: user.id)
+    supervisor = supervisor_fixture()
+
+    worker =
+      worker_fixture(%{
+        name: "research_worker",
+        display_name: "Research Worker",
+        description: "오늘 날씨 알려줘.",
+        enabled_tools: ["search_web"]
+      })
+
+    {:ok, worker_pid} = MultiStepStreamingWorker.start_link([])
+    RoutingRules.seed_defaults()
+
+    previous_endpoint = Application.get_env(:core, :azure_openai_endpoint)
+    Application.delete_env(:core, :azure_openai_endpoint)
+    on_exit(fn -> Application.put_env(:core, :azure_openai_endpoint, previous_endpoint) end)
+
+    assert {:ok, answer} =
+             GroupChat.run(%{
+               supervisor: supervisor,
+               workers: [{worker, worker_pid}],
+               conversation_id: conversation.id,
+               user_id: user.id,
+               user_request: "오늘 날씨 알려줘.",
+               liveview_pid: self(),
+               max_rounds: 1
+             })
+
+    supervisor_id = supervisor.id
+    assert_receive {:debate_message_inserted, _, %{agent_id: ^supervisor_id, content: handoff}}
+    assert handoff =~ "Research Worker"
+    assert_receive {:stream_chunk, _, "오늘 날씨를 확인했습니다. "}
+    assert_receive {:stream_chunk, _, "현재 기온은 20도입니다."}
+
+    worker_id = worker.id
+
+    assert_receive {:debate_message_inserted, _, %{agent_id: ^worker_id, content: displayed}}
+    assert displayed == "오늘 날씨를 확인했습니다. 현재 기온은 20도입니다."
+
+    worker_message =
+      Message
+      |> where([m], m.conversation_id == ^conversation.id and m.agent_id == ^worker.id)
+      |> Repo.one!()
+
+    assert worker_message.content =~ "오늘 날씨를 확인했습니다."
+    assert worker_message.content =~ "현재 기온은 20도입니다."
+    assert answer == "오늘 날씨를 확인했습니다. 현재 기온은 20도입니다."
+    assert worker_message.content == answer
+  end
+
   test "worker response streamed before an error remains in the conversation" do
     user = user_fixture()
     conversation = conversation_fixture(user_id: user.id)
