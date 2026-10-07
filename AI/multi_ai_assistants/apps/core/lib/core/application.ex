@@ -4,6 +4,10 @@ defmodule Core.Application do
 
   @impl true
   def start(_type, _args) do
+    # 로케일에 따라 Latin-1로 시작하면 한글 로그가 \x{...}로 이스케이프됩니다.
+    :ok = :io.setopts(:standard_io, encoding: :unicode)
+    :ok = :io.setopts(:standard_error, encoding: :unicode)
+
     children = [
       Core.Repo,
       {Registry, keys: :unique, name: Core.Agent.Registry},

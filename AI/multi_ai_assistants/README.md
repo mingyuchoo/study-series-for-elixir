@@ -126,6 +126,10 @@ mix ecto.setup
 
 브라우저에서 <http://localhost:4000> 접속 → `/users/register`로 계정 생성 후 `/chat` 이동.
 
+앱 시작 시 표준 출력과 표준 오류의 인코딩을 Unicode(UTF-8)로 설정합니다.
+Erlang이 로케일에 따라 Latin-1 출력으로 시작하더라도 한글 로그가 `\x{C11C}\x{C6B8}`
+형태로 이스케이프되지 않도록 합니다. 실행 중인 서버에는 재시작 후 적용됩니다.
+
 AI 채팅을 사용하려면 실행 전에 Azure OpenAI 환경변수를 설정하세요.
 
 ```bash
