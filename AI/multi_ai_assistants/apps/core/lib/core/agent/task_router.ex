@@ -39,6 +39,15 @@ defmodule Core.Agent.TaskRouter do
   end
 
   def select_worker(user_request, workers) do
+    case select_worker_with_score(user_request, workers) do
+      {:ok, worker, _score} -> {:ok, worker}
+      error -> error
+    end
+  end
+
+  def select_worker_with_score(_user_request, []), do: {:error, :no_workers_available}
+
+  def select_worker_with_score(user_request, workers) do
     route_worker(user_request, workers, RoutingRules.list_active_rules())
   end
 
@@ -54,7 +63,7 @@ defmodule Core.Agent.TaskRouter do
     case Enum.sort_by(scored_workers, fn {_worker, score} -> score end, :desc) do
       [{worker, score} | _] ->
         Logger.info("Selected worker: #{worker.name} (score: #{score})")
-        {:ok, worker}
+        {:ok, worker, score}
 
       [] ->
         {:error, :no_workers_available}

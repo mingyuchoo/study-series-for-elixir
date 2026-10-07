@@ -12,10 +12,10 @@ defmodule Core.Agent.MemoryManager do
   require Logger
   alias Core.Repo
   alias Core.Schema.AgentMemory
+  alias Core.Schema.UserProfile
   import Ecto.Query
 
   @memory_dir "data/memories"
-  @user_profile_key "user_profile"
 
   @doc """
   사용자 프로필 정보를 조회합니다.
@@ -25,12 +25,14 @@ defmodule Core.Agent.MemoryManager do
     - `{:ok, profile}` - 프로필이 존재하는 경우
     - `{:error, :not_found}` - 프로필이 없는 경우
   """
-  def get_user_profile do
-    case Repo.get_by(AgentMemory, memory_type: :project_context, key: @user_profile_key) do
+  def get_user_profile(user_id) when is_binary(user_id) do
+    case Repo.get_by(UserProfile, user_id: user_id) do
       nil -> {:error, :not_found}
-      memory -> {:ok, memory.value}
+      profile -> {:ok, profile.data}
     end
   end
+
+  def get_user_profile(_), do: {:error, :not_found}
 
   @doc """
   사용자 프로필 정보를 저장합니다.
@@ -51,41 +53,22 @@ defmodule Core.Agent.MemoryManager do
       ...> })
       {:ok, %AgentMemory{}}
   """
-  def save_user_profile(profile) do
-    # 글로벌 프로필이므로 특정 에이전트에 연결하지 않음
-    # 대신 첫 번째 활성 supervisor 에이전트를 사용
-    agent = get_default_agent()
+  def save_user_profile(user_id, profile) when is_binary(user_id) and is_map(profile) do
+    attrs = %{user_id: user_id, data: profile}
 
-    if agent do
-      attrs = %{
-        agent_id: agent.id,
-        memory_type: :project_context,
-        key: @user_profile_key,
-        value: Map.merge(profile, %{updated_at: DateTime.utc_now() |> DateTime.to_iso8601()}),
-        relevance_score: 1.0
-      }
-
-      case Repo.get_by(AgentMemory, memory_type: :project_context, key: @user_profile_key) do
-        nil ->
-          %AgentMemory{}
-          |> AgentMemory.changeset(attrs)
-          |> Repo.insert()
-
-        existing ->
-          existing
-          |> AgentMemory.changeset(attrs)
-          |> Repo.update()
-      end
-    else
-      {:error, :no_agent_available}
+    case Repo.get_by(UserProfile, user_id: user_id) do
+      nil -> %UserProfile{} |> UserProfile.changeset(attrs) |> Repo.insert()
+      existing -> existing |> UserProfile.changeset(attrs) |> Repo.update()
     end
   end
+
+  def save_user_profile(_, _), do: {:error, :invalid_profile}
 
   @doc """
   사용자 프로필이 완전한지 확인합니다.
   """
-  def user_profile_complete? do
-    case get_user_profile() do
+  def user_profile_complete?(user_id) do
+    case get_user_profile(user_id) do
       {:ok, profile} ->
         has_user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name)
         has_agent_name = Map.get(profile, "agent_name") || Map.get(profile, :agent_name)
@@ -96,16 +79,6 @@ defmodule Core.Agent.MemoryManager do
       {:error, _} ->
         false
     end
-  end
-
-  defp get_default_agent do
-    import Ecto.Query
-
-    from(a in Core.Schema.Agent,
-      where: a.type == :supervisor and a.status == :active,
-      limit: 1
-    )
-    |> Repo.one()
   end
 
   @doc """
@@ -134,6 +107,7 @@ defmodule Core.Agent.MemoryManager do
   def store(agent_id, memory_type, key, value, opts \\ []) do
     attrs = %{
       agent_id: agent_id,
+      user_id: Keyword.get(opts, :user_id),
       memory_type: memory_type,
       key: key,
       value: value,
@@ -144,7 +118,7 @@ defmodule Core.Agent.MemoryManager do
     }
 
     # Upsert: 존재하면 업데이트, 없으면 삽입
-    case get_memory(agent_id, memory_type, key) do
+    case get_memory(agent_id, memory_type, key, Keyword.get(opts, :user_id)) do
       nil ->
         %AgentMemory{}
         |> AgentMemory.changeset(attrs)
@@ -176,11 +150,20 @@ defmodule Core.Agent.MemoryManager do
       [%AgentMemory{}]
   """
   def retrieve(agent_id, memory_type, opts \\ []) do
+    user_id = Keyword.get(opts, :user_id)
+
     query =
       from(m in AgentMemory,
         where: m.agent_id == ^agent_id and m.memory_type == ^memory_type,
         order_by: [desc: m.relevance_score, desc: m.inserted_at]
       )
+
+    query =
+      if user_id do
+        from(m in query, where: m.user_id == ^user_id)
+      else
+        from(m in query, where: is_nil(m.user_id))
+      end
 
     query =
       if key = Keyword.get(opts, :key) do
@@ -249,14 +232,7 @@ defmodule Core.Agent.MemoryManager do
         performance_metric: retrieve(agent_id, :performance_metric)
       }
 
-      # 사용자 프로필 가져오기
-      user_profile =
-        case get_user_profile() do
-          {:ok, profile} -> profile
-          {:error, _} -> nil
-        end
-
-      content = build_markdown_content(agent, memories_by_type, user_profile)
+      content = build_markdown_content(agent, memories_by_type, nil)
 
       file_path = get_memory_file_path(agent.name)
       File.mkdir_p!(Path.dirname(file_path))
@@ -304,8 +280,20 @@ defmodule Core.Agent.MemoryManager do
 
   # 비공개 함수들
 
-  defp get_memory(agent_id, memory_type, key) do
-    Repo.get_by(AgentMemory, agent_id: agent_id, memory_type: memory_type, key: key)
+  defp get_memory(agent_id, memory_type, key, user_id \\ nil) do
+    query =
+      from(m in AgentMemory,
+        where: m.agent_id == ^agent_id and m.memory_type == ^memory_type and m.key == ^key
+      )
+
+    query =
+      if user_id do
+        from(m in query, where: m.user_id == ^user_id)
+      else
+        from(m in query, where: is_nil(m.user_id))
+      end
+
+    Repo.one(query)
   end
 
   defp get_memory_file_path(agent_name) do
@@ -385,9 +373,6 @@ defmodule Core.Agent.MemoryManager do
     # 간단한 파서: 섹션을 추출하고 메모리 생성
     # 기본 구현 - 추후 개선 가능
 
-    # User Profile 섹션 파싱 및 저장
-    parse_and_save_user_profile(content)
-
     sections = %{
       "Conversation Summaries" => :conversation_summary,
       "Learned Patterns" => :learned_pattern,
@@ -409,42 +394,6 @@ defmodule Core.Agent.MemoryManager do
 
     {:ok, results}
   end
-
-  defp parse_and_save_user_profile(content) do
-    case extract_section(content, "User Profile") do
-      nil ->
-        :ok
-
-      section_content ->
-        profile = parse_user_profile_section(section_content)
-
-        if map_size(profile) > 0 do
-          save_user_profile(profile)
-        end
-    end
-  end
-
-  defp parse_user_profile_section(section_content) do
-    # "- **사용자 이름**: 홍길동" 형식 파싱
-    patterns = [
-      {~r/\*\*사용자 이름\*\*:\s*(.+)/, :user_name},
-      {~r/\*\*AI 비서 이름\*\*:\s*(.+)/, :agent_name},
-      {~r/\*\*도시\*\*:\s*(.+)/, :city}
-    ]
-
-    Enum.reduce(patterns, %{}, fn {regex, key}, acc ->
-      put_profile_value(acc, key, Regex.run(regex, section_content))
-    end)
-  end
-
-  defp put_profile_value(acc, key, [_, value]) do
-    case String.trim(value) do
-      "_Unknown_" -> acc
-      trimmed -> Map.put(acc, key, trimmed)
-    end
-  end
-
-  defp put_profile_value(acc, _key, _match), do: acc
 
   defp extract_section(content, section_name) do
     case Regex.run(~r/## #{section_name}\n\n(.*?)(?=\n## |\z)/s, content) do

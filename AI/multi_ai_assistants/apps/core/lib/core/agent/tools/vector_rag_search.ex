@@ -8,20 +8,9 @@ defmodule Core.Agent.Tools.VectorRagSearch do
   alias Core.Contexts.VectorRags
 
   def definition("search_vector_rag") do
-    knowledge_names =
-      VectorRags.list_active_vector_rags()
-      |> Enum.map(& &1.name)
-
-    knowledge_hint =
-      case knowledge_names do
-        [] -> "No Vector RAG knowledge bases are currently available."
-        names -> "Available Vector RAG knowledge bases: #{Enum.join(names, ", ")}."
-      end
-
     %{
       name: "search_vector_rag",
-      description:
-        "Search the local Vector RAG knowledge bases for relevant internal/contextual knowledge. #{knowledge_hint} Use this before answering when the task may relate to an available knowledge base.",
+      description: "Search the current user's knowledge bases for relevant source chunks.",
       parameters: %{
         type: "object",
         properties: %{
@@ -46,11 +35,12 @@ defmodule Core.Agent.Tools.VectorRagSearch do
 
   def definition(_), do: nil
 
-  def execute("search_vector_rag", %{"query" => query} = arguments) when is_binary(query) do
+  def execute("search_vector_rag", %{"query" => query} = arguments, user_id)
+      when is_binary(query) and is_binary(user_id) do
     k = normalize_k(Map.get(arguments, "k"))
     knowledge_name = Map.get(arguments, "knowledge_name") || Map.get(arguments, "rag_name")
 
-    results = VectorRags.retrieve_context(query, k: k, rag_name: knowledge_name)
+    results = VectorRags.retrieve_context(user_id, query, k: k, rag_name: knowledge_name)
 
     {:ok,
      %{
@@ -61,15 +51,17 @@ defmodule Core.Agent.Tools.VectorRagSearch do
          Enum.map(results, fn result ->
            %{
              knowledge_name: result.rag_name,
+             source_filename: result.source_filename,
              chunk: result.position + 1,
-             distance: result.distance,
+             score: result.score,
              content: result.content
            }
          end)
      }}
   end
 
-  def execute("search_vector_rag", _arguments), do: {:error, "query is required"}
+  def execute("search_vector_rag", _arguments, _user_id), do: {:error, :invalid_query_or_user}
+  def execute("search_vector_rag", _arguments), do: {:error, :user_context_required}
 
   defp normalize_k(k) when is_integer(k), do: k |> max(1) |> min(10)
 

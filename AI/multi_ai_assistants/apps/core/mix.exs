@@ -41,6 +41,7 @@ defmodule Core.MixProject do
       {:hnswlib, "~> 0.1.7"},
       {:req, "~> 0.7"},
       {:jason, "~> 1.4"},
+      {:telemetry, "~> 1.3"},
       {:bcrypt_elixir, "~> 3.0"}
     ]
   end

@@ -18,7 +18,7 @@ defmodule Core.Agent.GroupChat do
 
   require Logger
 
-  alias Core.Agent.{Coordinator, MemoryManager}
+  alias Core.Agent.{Coordinator, MemoryManager, RunStore, TaskRouter, Telemetry}
   alias Core.Contexts.VectorRags
   alias Core.LLM.AzureOpenAI
   alias Core.Repo
@@ -34,6 +34,7 @@ defmodule Core.Agent.GroupChat do
           required(:supervisor) => Core.Schema.Agent.t(),
           required(:workers) => [worker_entry()],
           required(:conversation_id) => String.t(),
+          required(:user_id) => String.t(),
           required(:user_request) => String.t(),
           optional(:liveview_pid) => pid() | nil,
           optional(:max_rounds) => pos_integer()
@@ -46,16 +47,66 @@ defmodule Core.Agent.GroupChat do
   """
   @spec run(opts()) :: {:ok, String.t()} | {:error, term()}
   def run(%{} = opts) do
-    state = init_state(opts)
+    with {:ok, run} <- RunStore.create(opts.conversation_id, opts.user_id, opts.user_request) do
+      opts |> init_state() |> Map.put(:run_id, run.id) |> execute_state()
+    end
+  end
+
+  def resume(%{} = opts, run_id) do
+    case RunStore.get_owned(opts.user_id, run_id) do
+      %{status: :running, conversation_id: conversation_id} = run
+      when conversation_id == opts.conversation_id ->
+        state =
+          opts
+          |> Map.put(:user_request, run.user_request)
+          |> init_state()
+          |> Map.merge(%{
+            run_id: run.id,
+            round: run.round,
+            transcript: restore_transcript(run.transcript)
+          })
+
+        execute_state(state)
+
+      _ ->
+        {:error, :run_not_resumable}
+    end
+  end
+
+  defp execute_state(state) do
+    previous = Process.get(:agent_run_id)
+    Process.put(:agent_run_id, state.run_id)
+
+    try do
+      Telemetry.measure(
+        :run,
+        %{run_id: state.run_id, conversation_id: state.conversation_id},
+        fn ->
+          do_execute_state(state)
+        end
+      )
+    after
+      if previous == nil,
+        do: Process.delete(:agent_run_id),
+        else: Process.put(:agent_run_id, previous)
+    end
+  end
+
+  defp do_execute_state(state) do
+    existing_final = Repo.get_by(Message, agent_run_id: state.run_id)
 
     notify(
       state,
       {:debate_started, state.conversation_id,
-       %{user_request: state.user_request, max_rounds: state.max_rounds}}
+       %{user_request: state.user_request, max_rounds: state.max_rounds, run_id: state.run_id}}
     )
 
-    case loop(state) do
+    result = if existing_final, do: {:ok, existing_final.content, state}, else: loop(state)
+
+    case result do
       {:ok, final_answer, _state} ->
+        RunStore.finish(state.run_id, final_answer)
+
         Logger.info(
           "GroupChat finished: conversation=#{state.conversation_id}, rounds=#{state.round}"
         )
@@ -64,6 +115,7 @@ defmodule Core.Agent.GroupChat do
         {:ok, final_answer}
 
       {:error, reason} = error ->
+        RunStore.fail(state.run_id, reason)
         Logger.error("GroupChat failed: #{inspect(reason)}")
         notify(state, {:debate_finished, state.conversation_id, nil})
         error
@@ -77,6 +129,7 @@ defmodule Core.Agent.GroupChat do
       supervisor: Map.fetch!(opts, :supervisor),
       workers: Map.fetch!(opts, :workers),
       conversation_id: Map.fetch!(opts, :conversation_id),
+      user_id: Map.fetch!(opts, :user_id),
       user_request: Map.fetch!(opts, :user_request),
       liveview_pid: Map.get(opts, :liveview_pid),
       max_rounds: Map.get(opts, :max_rounds, @default_max_rounds),
@@ -86,15 +139,21 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp loop(state) do
-    if state.round >= state.max_rounds do
-      # 강제 종료: 모더레이터에게 final만 산출하도록 지시
-      force_finalize(state)
-    else
-      case run_round(state) do
-        {:final, final_answer, state} -> {:ok, final_answer, state}
-        {:ok, final_answer, state} -> {:ok, final_answer, state}
-        {:continue, state} -> loop(state)
-      end
+    cond do
+      RunStore.cancelled?(state.run_id) ->
+        {:error, :cancelled}
+
+      state.round >= state.max_rounds ->
+        # 강제 종료: 모더레이터에게 final만 산출하도록 지시
+        force_finalize(state)
+
+      true ->
+        case run_round(state) do
+          {:final, final_answer, state} -> {:ok, final_answer, state}
+          {:ok, final_answer, state} -> {:ok, final_answer, state}
+          {:continue, state} -> loop(state)
+          {:error, reason} -> {:error, reason}
+        end
     end
   end
 
@@ -106,6 +165,27 @@ defmodule Core.Agent.GroupChat do
       notify(state, {:stream_postprocess, state.conversation_id})
     end
 
+    case select_first_round_worker(state) do
+      {:ok, worker_name} ->
+        run_speaker_decision(state, worker_name, state.user_request, "규칙 기반 라우팅")
+
+      :moderator ->
+        run_moderator_round(state)
+    end
+  end
+
+  defp select_first_round_worker(%{round: 1} = state) do
+    workers = Enum.map(state.workers, fn {agent, _pid} -> agent end)
+
+    case TaskRouter.select_worker_with_score(state.user_request, workers) do
+      {:ok, worker, score} when score >= 35 -> {:ok, worker.name}
+      _ -> :moderator
+    end
+  end
+
+  defp select_first_round_worker(_state), do: :moderator
+
+  defp run_moderator_round(state) do
     case call_moderator(state, force_final: false) do
       {:ok, %{decision: "final", final_answer: answer, reasoning: reasoning}}
       when is_binary(answer) and answer != "" ->
@@ -114,6 +194,9 @@ defmodule Core.Agent.GroupChat do
       {:ok,
        %{decision: "speak", next_speaker: name, instruction: instruction, reasoning: reasoning}} ->
         run_speaker_decision(state, name, instruction, reasoning)
+
+      {:ok, %{decision: "parallel", assignments: assignments, reasoning: reasoning}} ->
+        run_parallel_decision(state, assignments, reasoning)
 
       {:ok, decision} ->
         Logger.warning("Moderator returned malformed decision: #{inspect(decision)}; finalizing")
@@ -141,7 +224,76 @@ defmodule Core.Agent.GroupChat do
     end
   end
 
-  defp handle_worker_turn({:ok, _output, state}, _worker_agent), do: {:continue, state}
+  defp run_parallel_decision(state, assignments, reasoning) when is_list(assignments) do
+    assignments = Enum.take(assignments, 3)
+
+    workers =
+      Enum.map(assignments, fn assignment ->
+        name = assignment["worker"]
+        instruction = assignment["instruction"]
+        {find_worker(state, name), instruction}
+      end)
+
+    valid? =
+      length(workers) >= 2 and
+        Enum.all?(workers, fn {worker, instruction} ->
+          match?({_, _}, worker) and is_binary(instruction) and instruction != ""
+        end) and
+        length(Enum.uniq_by(workers, fn {{agent, _}, _} -> agent.id end)) == length(workers)
+
+    if valid? do
+      announced_state =
+        Enum.reduce(workers, state, fn {{agent, _pid}, instruction}, acc ->
+          announce_moderator_pick(acc, agent, instruction, reasoning)
+        end)
+
+      results =
+        Task.async_stream(
+          workers,
+          fn {{agent, pid}, instruction} ->
+            {agent, run_worker_turn(announced_state, agent, pid, instruction)}
+          end,
+          ordered: true,
+          max_concurrency: 3,
+          timeout: 150_000,
+          on_timeout: :kill_task
+        )
+
+      next_state =
+        Enum.reduce(results, announced_state, fn
+          {:ok, {_agent, {:ok, _output, worker_state}}}, acc ->
+            append_transcript(acc, List.last(worker_state.transcript))
+
+          {:ok, {agent, {:error, reason, _}}}, acc ->
+            append_transcript(acc, %{
+              kind: :worker_error,
+              round: acc.round,
+              speaker: agent.name,
+              display_name: agent.display_name || agent.name,
+              content: inspect(reason)
+            })
+
+          {:exit, reason}, acc ->
+            append_transcript(acc, %{
+              kind: :worker_error,
+              round: acc.round,
+              content: inspect(reason)
+            })
+        end)
+
+      RunStore.checkpoint(next_state.run_id, next_state.round, next_state.transcript)
+      {:continue, next_state}
+    else
+      force_finalize(state)
+    end
+  end
+
+  defp run_parallel_decision(state, _assignments, _reasoning), do: force_finalize(state)
+
+  defp handle_worker_turn({:ok, _output, state}, _worker_agent) do
+    RunStore.checkpoint(state.run_id, state.round, state.transcript)
+    {:continue, state}
+  end
 
   defp handle_worker_turn({:error, reason, state}, worker_agent) do
     # 워커가 실패해도 토론을 강제 종료해 부분 답변이라도 반환
@@ -150,6 +302,7 @@ defmodule Core.Agent.GroupChat do
     state =
       append_transcript(state, %{
         kind: :worker_error,
+        round: state.round,
         speaker: worker_agent.name,
         display_name: worker_agent.display_name || worker_agent.name,
         content: "워커 실행 오류: #{inspect(reason)}"
@@ -159,23 +312,28 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp finalize(state, answer, reasoning) do
-    {:ok, message} = persist_final_message(state, answer)
-    notify(state, {:debate_message_inserted, state.conversation_id, message})
+    if RunStore.cancelled?(state.run_id) do
+      {:error, :cancelled}
+    else
+      {:ok, message} = persist_final_message(state, answer)
+      notify(state, {:debate_message_inserted, state.conversation_id, message})
 
-    state =
-      append_transcript(state, %{
-        kind: :final,
-        speaker: state.supervisor.name,
-        display_name: state.supervisor.display_name || "Moderator",
-        content: answer,
-        reasoning: reasoning
-      })
+      state =
+        append_transcript(state, %{
+          kind: :final,
+          round: state.round,
+          speaker: state.supervisor.name,
+          display_name: state.supervisor.display_name || "Moderator",
+          content: answer,
+          reasoning: reasoning
+        })
 
-    {:final, answer, state}
+      {:final, answer, state}
+    end
   end
 
   defp force_finalize(state) do
-    {:final, answer, state} =
+    result =
       case call_moderator(state, force_final: true) do
         {:ok, %{decision: "final", final_answer: answer, reasoning: reasoning}}
         when is_binary(answer) and answer != "" ->
@@ -187,7 +345,10 @@ defmodule Core.Agent.GroupChat do
           finalize(state, fallback, "fallback: 모더레이터 응답 실패")
       end
 
-    {:ok, answer, state}
+    case result do
+      {:final, answer, state} -> {:ok, answer, state}
+      error -> error
+    end
   end
 
   defp fallback_final_answer(state) do
@@ -246,7 +407,7 @@ defmodule Core.Agent.GroupChat do
 
   defp moderator_system_prompt(state, force_final?) do
     user_profile_block =
-      case MemoryManager.get_user_profile() do
+      case MemoryManager.get_user_profile(state.user_id) do
         {:ok, profile} ->
           user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name) || "?"
           city = Map.get(profile, "city") || Map.get(profile, :city) || "?"
@@ -274,20 +435,23 @@ defmodule Core.Agent.GroupChat do
     You are the GROUP CHAT MODERATOR. Each round you decide ONE of:
       A) "speak" — pick exactly one worker to take the next turn, with a concrete instruction.
       B) "final" — declare the debate finished and produce the synthesized final answer.
+      C) "parallel" — assign 2 or 3 independent subtasks to distinct workers.
 
     Return ONLY valid JSON. No markdown fences, no commentary.
 
     Schema:
     {
-      "decision": "speak" | "final",
+      "decision": "speak" | "final" | "parallel",
       "next_speaker": "<worker_name>",       // required when decision = "speak"
       "instruction": "<actionable task>",    // required when decision = "speak"
+      "assignments": [{"worker": "<worker_name>", "instruction": "<task>"}], // parallel only
       "reasoning": "<one short sentence>",   // always required
       "final_answer": "<markdown answer>"    // required when decision = "final"
     }
 
     Rules:
     - Use only worker names from the provided list.
+    - Use parallel only when subtasks are independent and need no result from each other.
     - Trivial questions: finalize early (round 1 or 2 is fine).
     - Avoid picking the same worker more than 2 rounds in a row.
     - For real-time data (prices, news, weather, URLs), pick `research_worker` first.
@@ -319,7 +483,7 @@ defmodule Core.Agent.GroupChat do
       |> Jason.encode!()
 
     transcript_block = format_transcript_for_moderator(state.transcript)
-    knowledge_block = format_available_knowledge()
+    knowledge_block = format_available_knowledge(state.user_id)
 
     """
     USER REQUEST:
@@ -372,6 +536,7 @@ defmodule Core.Agent.GroupChat do
         decision: decision,
         next_speaker: Map.get(decoded, "next_speaker"),
         instruction: Map.get(decoded, "instruction"),
+        assignments: Map.get(decoded, "assignments"),
         reasoning: Map.get(decoded, "reasoning") || "",
         final_answer: Map.get(decoded, "final_answer")
       }
@@ -428,6 +593,8 @@ defmodule Core.Agent.GroupChat do
 
     task_attrs = %{
       conversation_id: state.conversation_id,
+      user_id: state.user_id,
+      run_id: state.run_id,
       supervisor_id: state.supervisor.id,
       user_request: build_worker_request(state, instruction),
       context:
@@ -458,6 +625,7 @@ defmodule Core.Agent.GroupChat do
         new_state =
           append_transcript(state, %{
             kind: :worker,
+            round: state.round,
             speaker: worker_agent.name,
             display_name: worker_agent.display_name || worker_agent.name,
             content: output
@@ -507,8 +675,8 @@ defmodule Core.Agent.GroupChat do
     end
   end
 
-  defp format_available_knowledge do
-    case VectorRags.list_active_vector_rags() do
+  defp format_available_knowledge(user_id) do
+    case VectorRags.list_active_vector_rags(user_id) do
       [] ->
         "(사용 가능한 Vector RAG 지식 없음)"
 
@@ -574,12 +742,40 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp persist_final_message(state, content) do
-    persist_message(state, %{
-      role: :assistant,
-      content: content,
-      agent_id: state.supervisor.id,
-      visibility: :final
-    })
+    case Repo.get_by(Message, agent_run_id: state.run_id) do
+      nil ->
+        persist_message(state, %{
+          role: :assistant,
+          content: content,
+          agent_id: state.supervisor.id,
+          visibility: :final,
+          agent_run_id: state.run_id
+        })
+
+      message ->
+        {:ok, Repo.preload(message, :agent)}
+    end
+  end
+
+  defp restore_transcript(%{"entries" => entries}) when is_list(entries),
+    do: restore_entries(entries)
+
+  defp restore_transcript(%{entries: entries}) when is_list(entries), do: restore_entries(entries)
+  defp restore_transcript(_), do: []
+
+  defp restore_entries(entries) do
+    Enum.map(entries, fn entry ->
+      keys = [:kind, :round, :speaker, :display_name, :content, :reasoning, :instruction]
+
+      Map.new(keys, fn key ->
+        value = Map.get(entry, key) || Map.get(entry, Atom.to_string(key))
+
+        value =
+          if key == :kind and is_binary(value), do: String.to_existing_atom(value), else: value
+
+        {key, value}
+      end)
+    end)
   end
 
   ## 보조

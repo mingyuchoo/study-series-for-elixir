@@ -28,6 +28,7 @@ defmodule Core.MCP.Server do
   alias Core.MCP.{Prompts, Protocol, Resources, Tools}
 
   @protocol_version "2025-06-18"
+  @modern_version "2026-07-28"
   @server_name "multi-ai-assistants-mcp-server"
   @server_version "1.0.0"
 
@@ -111,6 +112,19 @@ defmodule Core.MCP.Server do
       params = Map.get(request, "params", %{})
       {result, new_state} = dispatch_method(method, params, state)
 
+      result =
+        if modern_request?(params) and method != "server/discover" do
+          case result do
+            {:ok, map} when is_map(map) ->
+              {:ok, Map.put_new(map, "resultType", "complete") |> put_server_info()}
+
+            other ->
+              other
+          end
+        else
+          result
+        end
+
       response = build_response(id, result)
       {response, new_state}
     else
@@ -127,6 +141,17 @@ defmodule Core.MCP.Server do
   defp get_id(_), do: {:ok, nil}
 
   defp dispatch_method("initialize", params, state), do: handle_initialize(params, state)
+
+  defp dispatch_method("server/discover", _params, state) do
+    result = %{
+      "resultType" => "complete",
+      "supportedVersions" => [@modern_version, @protocol_version],
+      "capabilities" => state.capabilities
+    }
+
+    {{:ok, put_server_info(result)}, state}
+  end
+
   defp dispatch_method("notifications/initialized", _params, state), do: handle_initialized(state)
   defp dispatch_method("tools/list", _params, state), do: {Tools.list(), state}
   defp dispatch_method("tools/call", params, state), do: {Tools.call(params), state}
@@ -175,6 +200,14 @@ defmodule Core.MCP.Server do
         "listChanged" => true
       }
     }
+  end
+
+  defp modern_request?(params) do
+    get_in(params, ["_meta", "io.modelcontextprotocol/protocolVersion"]) == @modern_version
+  end
+
+  defp put_server_info(result) do
+    Map.put(result, "_meta", %{"io.modelcontextprotocol/serverInfo" => server_info()})
   end
 
   defp build_response(id, {:ok, result}) do

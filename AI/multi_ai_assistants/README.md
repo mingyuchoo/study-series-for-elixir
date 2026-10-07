@@ -10,11 +10,11 @@ Azure OpenAI API(gpt-5-mini)와 다중 에이전트(Supervisor + Worker) 오케�
 - 사용자별 대화 소유권 분리
 - LiveView 기반 실시간 스트리밍 채팅
 - 대화에 파일 첨부 (텍스트/PDF/이미지 등, workspace에 저장되어 에이전트가 분석 가능)
-- Vector RAG 문서 업로드/검색
+- 사용자별 지식 문서 업로드/검색 (`/knowledge`)
 - 관리자 페이지
   - `/admin/agents` : 에이전트 CRUD
   - `/admin/mcps` : MCP 서버 CRUD (환경변수 상태 확인 포함)
-  - `/admin/rag` : Vector RAG 관리
+  - `/knowledge` : 본인 지식 문서 관리
   - `/admin/dashboard/home` : 운영 대시보드
   - `/admin/dashboard` : Phoenix LiveDashboard
 
@@ -70,11 +70,14 @@ multi_ai_assistants/
 | `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` | LLM. 미설정 시 앱은 부팅되지만 AI 채팅 호출은 실패 |
 | `AZURE_OPENAI_API_VERSION` | Azure OpenAI API 버전. 미설정 시 `2024-12-01-preview` |
 | `AZURE_OPENAI_DEPLOYMENT` | Azure 배포 이름. 미설정 시 `gpt-5-mini` |
+| `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | 선택. 설정 시 실제 임베딩과 HNSW 검색, 미설정 시 키워드 검색 |
+| `MAX_MODEL_CALLS_PER_RUN` / `MAX_TOOL_CALLS_PER_RUN` / `MAX_TOKENS_PER_RUN` | 실행별 예산. 기본값 18 / 24 / 60000 |
 | `FIRECRAWL_API_KEY` | Firecrawl MCP |
 | `CONTEXT7_API_KEY` | Context7 MCP |
 | `MCP_FILESYSTEM_ROOT` | Filesystem MCP 허용 루트 디렉터리 |
 | `WORKSPACE_DIR` | 업로드/에이전트 작업 디렉토리. 미설정 시 `./workspace` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `seeds.exs`로 만들 초기 관리자 계정. 미설정 시 개발용 기본값 |
+| `ADMIN_EMAILS` | 관리자 UI 허용 목록(쉼표 구분). 시드 계정도 여기에 별도로 등록해야 함 |
 | `DATABASE_PATH` | 프로덕션 DB 경로. 미설정 시 릴리스 루트의 `multi_ai_assistants.db` |
 | `SECRET_KEY_BASE` | 프로덕션 필수 secret. `mix phx.gen.secret`로 생성 |
 | `PHX_HOST` / `PORT` | 프로덕션 웹 서버 설정. 미설정 시 `localhost` / `4000` |
@@ -145,7 +148,7 @@ DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
 | `/chat`, `/chat/:id` | LiveView 채팅 (인증 필수) |
 | `/admin/agents*` | 에이전트 관리 |
 | `/admin/mcps*` | MCP 관리 |
-| `/admin/rag` | Vector RAG 관리 |
+| `/knowledge` | 본인 지식 문서 관리 |
 | `/admin/dashboard/home` | 운영 대시보드 |
 | `/admin/dashboard` | LiveDashboard |
 | `/api/health` | 헬스체크 |
@@ -158,10 +161,22 @@ DATABASE_PATH=/var/lib/multi_ai_assistants/multi_ai_assistants.db \
 | `calculate` | 수학 계산 |
 | `search_web` | 웹 검색 (DuckDuckGo) |
 | `firecrawl_scrape` / `firecrawl_search` | Firecrawl 기반 스크래핑/검색 |
-| `read_file` / `write_file` / `list_directory` | 워크스페이스 파일 I/O |
+| `read_file` / `list_directory` | 현재 사용자 워크스페이스의 파일 조회 |
+| `write_file` | 승인 흐름이 구현될 때까지 비활성화 |
 | `search_vector_rag` | 업로드된 Vector RAG 문서 검색 |
-| `execute_code` | Elixir 코드 실행 |
-| `mcp_filesystem_call` / `mcp_desktop_commander_call` | 등록된 MCP 서버 도구 호출 |
+| `execute_code` | 안전한 격리 실행 환경이 제공될 때까지 비활성화 |
+| `mcp_filesystem_call` / `mcp_desktop_commander_call` | 승인 흐름이 구현될 때까지 비활성화 |
+
+## 실행 및 데이터 경계
+
+- 사용자 프로필, 에이전트 메모리, 지식 문서, 첨부 파일은 사용자별로 분리됩니다. 파일 도구는 `WORKSPACE_DIR/users/<user_id>` 아래 상대 경로만 읽으며 상위 디렉터리 이동과 심볼릭 링크를 거부합니다. 과거 공용 Markdown 메모리는 대화 실행 때 자동으로 읽거나 쓰지 않습니다.
+- 관리자 UI는 `ADMIN_EMAILS`에 등록된 사용자만 접근할 수 있습니다. 기존 전역 Vector RAG 문서에는 소유자 정보가 없으므로 새 검색에서 제외됩니다. 소유자가 자신의 문서를 다시 업로드해야 합니다.
+- 그룹 채팅은 `agent_runs`에 라운드별 체크포인트와 사용량을 기록합니다. 중단 후 5분이 지난 실행은 채팅 화면에서 재개하거나 취소할 수 있습니다. 실행 중인 작업은 아직 영속 작업 큐에서 자동 재시작되지 않습니다.
+- 라우터가 첫 워커를 고르고, 모더레이터는 독립적인 2~3개 워커 작업을 병렬로 배정할 수 있습니다. 병렬 배정은 모더레이터 판단에 따릅니다.
+- 지식 문서에 임베딩 배포를 설정하면 Azure 임베딩과 HNSW 검색을 키워드 검색과 결합합니다. 설정하지 않으면 키워드 검색을 사용합니다. 각 검색 결과에는 원본 파일명이 포함됩니다.
+- MCP 클라이언트는 2026-07-28 `server/discover`를 우선 시도하고 이전 `initialize` 방식으로 돌아갑니다. 서버도 두 요청 방식을 지원합니다.
+- 도구, 모델, 실행 시간과 토큰 사용량은 Telemetry 이벤트로 수집됩니다. 외부 관측 시스템으로 내보내려면 별도 핸들러가 필요합니다.
+- 라우팅 회귀 평가 데이터는 `apps/core/priv/evals/routing.json`에 있습니다. 시드가 적용된 DB에서 `mix run scripts/evaluate_routing.exs`로 실행하고 실패 사례를 데이터에 추가하세요. 답변 품질 평가는 별도 라벨 데이터가 필요합니다.
 
 ## MCP (Model Context Protocol)
 

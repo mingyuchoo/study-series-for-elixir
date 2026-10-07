@@ -8,6 +8,8 @@ defmodule Core.Agent.ToolRegistry do
 
   alias Core.Repo
   alias Core.Schema.Tool
+  alias Core.Agent.ToolPolicy
+  alias Core.Agent.Telemetry
 
   @tool_modules %{
     "calculate" => Core.Agent.Tools.Calculator,
@@ -33,9 +35,13 @@ defmodule Core.Agent.ToolRegistry do
     |> order_by([t], asc: t.name)
     |> Repo.all()
     |> Enum.flat_map(fn tool ->
-      case tool_module(tool.name) do
-        {:ok, module} -> List.wrap(module.definition(tool.name))
-        {:error, :invalid_tool_module} -> []
+      if ToolPolicy.restricted?(tool.name) do
+        []
+      else
+        case tool_module(tool.name) do
+          {:ok, module} -> List.wrap(module.definition(tool.name))
+          {:error, :invalid_tool_module} -> []
+        end
       end
     end)
   end
@@ -43,14 +49,38 @@ defmodule Core.Agent.ToolRegistry do
   @doc """
   이름으로 도구를 실행하고 주어진 인자를 전달합니다.
   """
-  def execute(tool_name, arguments) do
+  def execute(tool_name, arguments, opts \\ []) do
+    with :ok <- ToolPolicy.authorize(tool_name, opts) do
+      Telemetry.measure(:tool, %{run_id: Keyword.get(opts, :run_id), tool: tool_name}, fn ->
+        do_execute(tool_name, arguments, opts)
+      end)
+    end
+  end
+
+  defp do_execute(tool_name, arguments, opts) do
     case Repo.get_by(Tool, name: tool_name, enabled: true) do
       nil ->
         {:error, :tool_not_found}
 
       tool ->
         with {:ok, module} <- tool_module(tool.name) do
-          module.execute(tool_name, arguments)
+          if tool_name == "search_vector_rag" do
+            Core.Agent.Tools.VectorRagSearch.execute(
+              tool_name,
+              arguments,
+              Keyword.get(opts, :user_id)
+            )
+          else
+            if tool_name in ~w(read_file write_file list_directory) do
+              Core.Agent.Tools.FileSystem.execute(
+                tool_name,
+                arguments,
+                Keyword.get(opts, :user_id)
+              )
+            else
+              module.execute(tool_name, arguments)
+            end
+          end
         end
     end
   end

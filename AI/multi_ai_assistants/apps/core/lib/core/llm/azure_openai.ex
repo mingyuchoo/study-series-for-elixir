@@ -5,6 +5,8 @@ defmodule Core.LLM.AzureOpenAI do
   """
 
   require Logger
+  alias Core.Agent.RunStore
+  alias Core.Agent.Telemetry
 
   @type message :: %{role: String.t(), content: String.t()}
   @type tool :: %{type: String.t(), function: map()}
@@ -19,9 +21,48 @@ defmodule Core.LLM.AzureOpenAI do
   @default_model "gpt-5-mini"
   @default_api_version "2024-10-21"
 
+  def embed_texts(texts, opts \\ []) when is_list(texts) and texts != [] do
+    deployment =
+      Keyword.get(opts, :model) || Application.get_env(:core, :azure_openai_embedding_deployment)
+
+    with true <- is_binary(deployment) and deployment != "",
+         {:ok, config} <- get_config(),
+         :ok <- RunStore.reserve_model_call(Process.get(:agent_run_id)),
+         {:ok, %{status: 200, body: %{"data" => data} = response_body}} <-
+           Req.post("#{String.trim_trailing(config.endpoint, "/")}/openai/v1/embeddings",
+             json: %{model: deployment, input: texts},
+             headers: [{"api-key", config.api_key}],
+             receive_timeout: 120_000
+           ) do
+      vectors =
+        data
+        |> Enum.sort_by(& &1["index"])
+        |> Enum.map(& &1["embedding"])
+
+      dimensions =
+        Enum.map(vectors, fn vector -> if is_list(vector), do: length(vector), else: 0 end)
+
+      if length(vectors) == length(texts) and
+           Enum.all?(vectors, fn vector ->
+             is_list(vector) and vector != [] and Enum.all?(vector, &is_number/1)
+           end) and
+           length(Enum.uniq(dimensions)) == 1 do
+        RunStore.add_tokens(Process.get(:agent_run_id), response_body["usage"])
+        {:ok, vectors, deployment}
+      else
+        {:error, :invalid_embedding_response}
+      end
+    else
+      false -> {:error, :embedding_not_configured}
+      {:ok, response} -> {:error, {:embedding_http_error, response.status}}
+      error -> error
+    end
+  end
+
   @spec chat_completion([message()], completion_opts()) :: {:ok, map()} | {:error, term()}
   def chat_completion(messages, opts \\ []) do
-    with {:ok, config} <- get_config() do
+    with {:ok, config} <- get_config(),
+         :ok <- RunStore.reserve_model_call(Process.get(:agent_run_id)) do
       model = Keyword.get(opts, :model, config.deployment)
 
       # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
@@ -38,15 +79,21 @@ defmodule Core.LLM.AzureOpenAI do
 
       url = build_url(config, model)
 
-      case Req.post(url,
-             json: body,
-             headers: [
-               {"api-key", config.api_key},
-               {"Content-Type", "application/json"}
-             ],
-             receive_timeout: 120_000
-           ) do
+      response =
+        Telemetry.measure(:model, %{run_id: Process.get(:agent_run_id), model: model}, fn ->
+          Req.post(url,
+            json: body,
+            headers: [
+              {"api-key", config.api_key},
+              {"Content-Type", "application/json"}
+            ],
+            receive_timeout: 120_000
+          )
+        end)
+
+      case response do
         {:ok, %{status: 200, body: response_body}} ->
+          RunStore.add_tokens(Process.get(:agent_run_id), response_body["usage"])
           {:ok, parse_response(response_body)}
 
         {:ok, %{status: status, body: error_body}} ->
@@ -63,7 +110,8 @@ defmodule Core.LLM.AzureOpenAI do
   @spec stream_chat_completion([message()], completion_opts(), (map() -> any())) ::
           {:ok, map()} | {:error, term()}
   def stream_chat_completion(messages, opts \\ [], callback) do
-    with {:ok, config} <- get_config() do
+    with {:ok, config} <- get_config(),
+         :ok <- RunStore.reserve_model_call(Process.get(:agent_run_id)) do
       model = Keyword.get(opts, :model, config.deployment)
 
       # GPT-5 계열 Azure 배포는 temperature 기본값 1.0만 허용하는 경우가 있다.
@@ -81,17 +129,25 @@ defmodule Core.LLM.AzureOpenAI do
 
       url = build_url(config, model)
 
-      Req.post(url,
-        json: body,
-        headers: [
-          {"api-key", config.api_key},
-          {"Content-Type", "application/json"}
-        ],
-        receive_timeout: 120_000,
-        into: fn {:data, chunk}, acc ->
-          process_stream_chunk(chunk, callback, acc)
-        end
-      )
+      Process.put(:azure_stream_buffer, "")
+
+      try do
+        Telemetry.measure(:model, %{run_id: Process.get(:agent_run_id), model: model}, fn ->
+          Req.post(url,
+            json: body,
+            headers: [
+              {"api-key", config.api_key},
+              {"Content-Type", "application/json"}
+            ],
+            receive_timeout: 120_000,
+            into: fn {:data, chunk}, acc ->
+              process_stream_chunk(chunk, callback, acc)
+            end
+          )
+        end)
+      after
+        Process.delete(:azure_stream_buffer)
+      end
     end
   end
 
@@ -148,8 +204,12 @@ defmodule Core.LLM.AzureOpenAI do
   end
 
   defp process_stream_chunk(chunk, callback, acc) do
-    chunk
-    |> String.split("\n")
+    parts = String.split(Process.get(:azure_stream_buffer, "") <> chunk, "\n")
+    {lines, [remaining]} = Enum.split(parts, -1)
+    Process.put(:azure_stream_buffer, remaining)
+
+    lines
+    |> Enum.map(&String.trim_trailing(&1, "\r"))
     |> Enum.filter(&String.starts_with?(&1, "data: "))
     |> Enum.each(&process_stream_line(&1, callback))
 
@@ -165,8 +225,12 @@ defmodule Core.LLM.AzureOpenAI do
 
   defp decode_stream_json(json_str, callback) do
     case Jason.decode(json_str) do
-      {:ok, data} -> callback.(data)
-      _ -> :ok
+      {:ok, data} ->
+        RunStore.add_tokens(Process.get(:agent_run_id), data["usage"])
+        callback.(data)
+
+      _ ->
+        :ok
     end
   end
 end

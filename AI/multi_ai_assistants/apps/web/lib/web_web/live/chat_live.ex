@@ -1,7 +1,7 @@
 defmodule WebWeb.ChatLive do
   use WebWeb, :live_view
 
-  alias Core.Agent.{Supervisor, SupervisorAgent}
+  alias Core.Agent.{RunStore, Supervisor, SupervisorAgent}
   alias Core.Contexts.{Agents, Conversations, Mcps, VectorRags}
   alias Core.Repo
   alias Core.Schema.{Conversation, Message}
@@ -19,12 +19,14 @@ defmodule WebWeb.ChatLive do
     conversations = Conversations.list_conversations(user.id)
     available_agents = Agents.list_agents(status: :active)
     available_mcps = Mcps.list_mcps_with_status()
-    available_knowledge = VectorRags.list_vector_rags_with_status()
+    available_knowledge = VectorRags.list_vector_rags_with_status(socket.assigns.current_user.id)
 
     socket =
       socket
       |> assign(:conversations, conversations)
       |> assign(:current_conversation, nil)
+      |> assign(:current_run_id, nil)
+      |> assign(:resumable_run, nil)
       |> assign(:messages, [])
       |> assign(:input, "")
       |> assign(:loading, false)
@@ -71,6 +73,8 @@ defmodule WebWeb.ChatLive do
         socket =
           socket
           |> assign(:current_conversation, conversation)
+          |> assign(:current_run_id, nil)
+          |> assign(:resumable_run, RunStore.open_for_conversation(user.id, id))
           |> assign(:messages, messages)
           |> assign(:agent_usage_history, [])
           |> assign(:agent_execution_failed, false)
@@ -227,6 +231,37 @@ defmodule WebWeb.ChatLive do
   end
 
   @impl true
+  def handle_event("resume_run", %{"id" => run_id}, socket) do
+    conversation = socket.assigns.current_conversation
+    run = RunStore.open_for_conversation(socket.assigns.current_user.id, conversation.id)
+
+    if run && run.id == run_id && not socket.assigns.loading do
+      ensure_agent_started(conversation.id)
+      send(self(), {:resume_message_stream, conversation.id, run_id})
+
+      {:noreply,
+       socket
+       |> assign(:loading, true)
+       |> assign(:current_run_id, run_id)
+       |> assign(:resumable_run, nil)
+       |> assign(:message_sent_at, DateTime.utc_now())}
+    else
+      {:noreply, put_flash(socket, :error, "재개할 수 있는 작업이 없습니다.")}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_run", %{"id" => run_id}, socket) do
+    case RunStore.cancel(socket.assigns.current_user.id, run_id) do
+      {:ok, _} ->
+        {:noreply, socket |> assign(:resumable_run, nil) |> put_flash(:info, "작업을 취소했습니다.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "작업을 취소할 수 없습니다.")}
+    end
+  end
+
+  @impl true
   def handle_info({:process_message_stream, conversation_id, input}, socket) do
     liveview_pid = self()
 
@@ -244,6 +279,24 @@ defmodule WebWeb.ChatLive do
 
         kind, reason ->
           send(liveview_pid, {:stream_error, conversation_id, {kind, reason}})
+      end
+    end)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:resume_message_stream, conversation_id, run_id}, socket) do
+    liveview_pid = self()
+
+    Task.start(fn ->
+      try do
+        case SupervisorAgent.resume_chat(conversation_id, run_id, liveview_pid) do
+          {:ok, _} -> :ok
+          {:error, reason} -> send(liveview_pid, {:stream_error, conversation_id, reason})
+        end
+      catch
+        kind, reason -> send(liveview_pid, {:stream_error, conversation_id, {kind, reason}})
       end
     end)
 
@@ -333,7 +386,7 @@ defmodule WebWeb.ChatLive do
 
   @impl true
   def handle_info(
-        {:debate_started, conversation_id, %{max_rounds: max_rounds}},
+        {:debate_started, conversation_id, %{max_rounds: max_rounds, run_id: run_id}},
         socket
       ) do
     if current?(socket, conversation_id) do
@@ -342,6 +395,7 @@ defmodule WebWeb.ChatLive do
         |> assign(:debate_active, true)
         |> assign(:debate_round, 0)
         |> assign(:debate_max_rounds, max_rounds)
+        |> assign(:current_run_id, run_id)
         |> assign(:current_speaker, default_assistant_agent(socket))
 
       {:noreply, socket}
@@ -716,7 +770,7 @@ defmodule WebWeb.ChatLive do
 
   defp save_uploaded_files(socket, conversation_id) do
     workspace_dir = Application.get_env(:core, :workspace_dir) || "./workspace"
-    dir = Path.join(workspace_dir, conversation_id)
+    dir = Path.join([workspace_dir, "users", socket.assigns.current_user.id, conversation_id])
     File.mkdir_p!(dir)
 
     consume_uploaded_entries(socket, :attachments, fn %{path: tmp_path}, entry ->
@@ -729,6 +783,7 @@ defmodule WebWeb.ChatLive do
        %{
          "filename" => entry.client_name,
          "stored_path" => dest,
+         "relative_path" => Path.join(conversation_id, unique_name),
          "content_type" => entry.client_type,
          "size" => entry.client_size,
          "extension" => ext
@@ -747,7 +802,7 @@ defmodule WebWeb.ChatLive do
   defp build_llm_message(input, attachments) do
     file_list =
       Enum.map_join(attachments, "\n", fn a ->
-        "- #{a["filename"]} (#{a["content_type"]}, #{format_bytes(a["size"])})\n  경로: #{a["stored_path"]}"
+        "- #{a["filename"]} (#{a["content_type"]}, #{format_bytes(a["size"])})\n  경로: #{a["relative_path"]}"
       end)
 
     """
@@ -970,6 +1025,23 @@ defmodule WebWeb.ChatLive do
               </span>
             </div>
           <% end %>
+
+          <div :if={@resumable_run && !@loading} class="alert alert-warning mx-2 text-sm">
+            <span>중단된 작업을 이어서 실행할 수 있습니다.</span>
+            <button phx-click="resume_run" phx-value-id={@resumable_run.id} class="btn btn-sm">재개</button>
+            <button
+              phx-click="cancel_run"
+              phx-value-id={@resumable_run.id}
+              class="btn btn-sm btn-ghost"
+            >취소</button>
+          </div>
+
+          <button
+            :if={@loading && @current_run_id}
+            phx-click="cancel_run"
+            phx-value-id={@current_run_id}
+            class="btn btn-sm btn-ghost mx-2"
+          >작업 취소</button>
 
           <%= if @loading do %>
             <%= if @streaming_content != "" or @streaming_status do %>

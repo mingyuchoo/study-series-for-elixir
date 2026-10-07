@@ -1,0 +1,13 @@
+{
+  "workers": [
+    {"name": "calculator_worker", "description": "수학 계산 숫자 평균", "enabled_tools": ["calculate"]},
+    {"name": "research_worker", "description": "최신 뉴스 웹 검색 날씨 현재 가격", "enabled_tools": ["search_web"]},
+    {"name": "knowledge_worker", "description": "내부 문서 지식 요약", "enabled_tools": ["search_vector_rag"]}
+  ],
+  "cases": [
+    {"request": "평균 계산해줘", "expected": "calculator_worker"},
+    {"request": "최신 뉴스 검색해줘", "expected": "research_worker"},
+    {"request": "오늘 날씨 알려줘", "expected": "research_worker"},
+    {"request": "숫자 더하기", "expected": "calculator_worker"}
+  ]
+}

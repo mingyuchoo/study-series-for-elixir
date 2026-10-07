@@ -6,6 +6,7 @@ defmodule Core.Contexts.VectorRags do
   import Ecto.Query, warn: false
 
   alias Core.Repo
+  alias Core.LLM.AzureOpenAI
   alias Core.Schema.{VectorRag, VectorRagChunk}
 
   @embedding_dim 384
@@ -13,43 +14,71 @@ defmodule Core.Contexts.VectorRags do
   @chunk_overlap 180
   @default_k 4
 
-  def list_vector_rags do
-    from(r in VectorRag, order_by: [asc: r.name])
+  def list_vector_rags(user_id) when is_binary(user_id) do
+    from(r in VectorRag, where: r.user_id == ^user_id, order_by: [asc: r.name])
     |> Repo.all()
   end
 
-  def list_active_vector_rags do
-    from(r in VectorRag, where: r.enabled == true, order_by: [asc: r.name])
+  def list_active_vector_rags(user_id) when is_binary(user_id) do
+    from(r in VectorRag,
+      where: r.user_id == ^user_id and r.enabled == true,
+      order_by: [asc: r.name]
+    )
     |> Repo.all()
   end
 
-  def get_vector_rag!(id), do: Repo.get!(VectorRag, id)
+  def get_vector_rag!(user_id, id) do
+    from(r in VectorRag, where: r.user_id == ^user_id and r.id == ^id) |> Repo.one!()
+  end
 
   def change_vector_rag(%VectorRag{} = vector_rag, attrs \\ %{}) do
     VectorRag.changeset(vector_rag, attrs)
   end
 
-  def create_vector_rag(attrs, source) do
+  def create_vector_rag(attrs, source, user_id) when is_binary(user_id) do
     with {:ok, content} <- read_source(source),
          chunks when chunks != [] <- chunk_text(content),
-         {:ok, vector_rag} <- insert_vector_rag(attrs, source, length(chunks)),
-         {:ok, index_path} <- build_index(vector_rag.id, chunks),
-         {:ok, vector_rag} <- update_vector_rag(vector_rag, %{index_path: index_path}),
-         :ok <- insert_chunks(vector_rag.id, chunks) do
-      {:ok, vector_rag}
+         {:ok, vectors, embedding_model} <- prepare_embeddings(chunks),
+         embedding_dim = if(vectors, do: length(hd(vectors)), else: @embedding_dim),
+         {:ok, vector_rag} <-
+           insert_vector_rag(
+             attrs,
+             source,
+             length(chunks),
+             user_id,
+             embedding_dim,
+             embedding_model
+           ) do
+      case finish_creation(vector_rag, chunks, vectors, user_id) do
+        {:ok, completed} ->
+          {:ok, completed}
+
+        {:error, reason} ->
+          Repo.delete(vector_rag)
+          File.rm(Path.join(index_dir(), "#{vector_rag.id}.hnsw"))
+          {:error, reason}
+      end
     else
       [] -> {:error, :empty_document}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  def update_vector_rag(%VectorRag{} = vector_rag, attrs) do
+  defp finish_creation(vector_rag, chunks, vectors, user_id) do
+    with {:ok, index_path} <- build_index(vector_rag.id, vectors),
+         {:ok, updated} <- update_vector_rag(user_id, vector_rag, %{index_path: index_path}),
+         :ok <- insert_chunks(updated.id, chunks) do
+      {:ok, updated}
+    end
+  end
+
+  def update_vector_rag(user_id, %VectorRag{user_id: user_id} = vector_rag, attrs) do
     vector_rag
     |> VectorRag.changeset(attrs)
     |> Repo.update()
   end
 
-  def delete_vector_rag(%VectorRag{} = vector_rag) do
+  def delete_vector_rag(user_id, %VectorRag{user_id: user_id} = vector_rag) do
     result = Repo.delete(vector_rag)
 
     if vector_rag.index_path do
@@ -59,12 +88,16 @@ defmodule Core.Contexts.VectorRags do
     result
   end
 
-  def list_vector_rags_with_status do
-    list_vector_rags()
+  def list_vector_rags_with_status(user_id) do
+    list_vector_rags(user_id)
     |> Enum.map(&Map.put(&1, :status, vector_rag_status(&1)))
   end
 
   def vector_rag_status(%VectorRag{enabled: false}), do: :disabled
+
+  def vector_rag_status(%VectorRag{embedding_model: "lexical", chunk_count: count})
+      when count > 0,
+      do: :ready
 
   def vector_rag_status(%VectorRag{index_path: path, chunk_count: count})
       when is_binary(path) and count > 0 do
@@ -73,14 +106,17 @@ defmodule Core.Contexts.VectorRags do
 
   def vector_rag_status(_), do: :empty
 
-  def retrieve_context(query, opts \\ []) when is_binary(query) do
+  def retrieve_context(user_id, query, opts \\ []) when is_binary(user_id) and is_binary(query) do
     k = Keyword.get(opts, :k, @default_k)
     rag_name = Keyword.get(opts, :rag_name)
 
-    list_active_vector_rags()
+    list_active_vector_rags(user_id)
+    |> Enum.filter(&(vector_rag_status(&1) == :ready))
     |> filter_by_rag_name(rag_name)
-    |> Enum.flat_map(&query_vector_rag(&1, query, k))
-    |> Enum.sort_by(& &1.distance)
+    |> Enum.flat_map(fn rag ->
+      fuse_results(query_vector_rag(rag, query, k), query_lexical_rag(rag, query, k))
+    end)
+    |> Enum.sort_by(& &1.score, :desc)
     |> Enum.take(k)
   end
 
@@ -93,8 +129,8 @@ defmodule Core.Contexts.VectorRags do
 
   defp filter_by_rag_name(vector_rags, _rag_name), do: vector_rags
 
-  def build_context_block(query, opts \\ []) do
-    case retrieve_context(query, opts) do
+  def build_context_block(user_id, query, opts \\ []) do
+    case retrieve_context(user_id, query, opts) do
       [] ->
         ""
 
@@ -102,7 +138,7 @@ defmodule Core.Contexts.VectorRags do
         items =
           Enum.map_join(results, "\n", fn result ->
             """
-            [#{result.rag_name} ##{result.position + 1}]
+            [#{result.rag_name}/#{result.source_filename} ##{result.position + 1}]
             #{result.content}
             """
           end)
@@ -115,12 +151,15 @@ defmodule Core.Contexts.VectorRags do
     end
   end
 
-  defp insert_vector_rag(attrs, source, chunk_count) do
+  defp insert_vector_rag(attrs, source, chunk_count, user_id, embedding_dim, embedding_model) do
     attrs =
       attrs
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
       |> Map.put("source_filename", source_filename(source))
-      |> Map.put("embedding_dim", @embedding_dim)
+      |> Map.put("embedding_dim", embedding_dim)
+      |> Map.put("embedding_model", embedding_model)
       |> Map.put("chunk_count", chunk_count)
+      |> Map.put("user_id", user_id)
 
     %VectorRag{}
     |> VectorRag.changeset(attrs)
@@ -148,11 +187,32 @@ defmodule Core.Contexts.VectorRags do
     :ok
   end
 
-  defp build_index(vector_rag_id, chunks) do
-    vectors = Enum.map(chunks, &embed_text/1)
-    max_elements = max(length(vectors), 1)
+  defp prepare_embeddings(chunks) do
+    if Application.get_env(:core, :azure_openai_embedding_deployment) do
+      chunks
+      |> Enum.chunk_every(100)
+      |> Enum.reduce_while({:ok, [], nil}, fn batch, {:ok, acc, _model} ->
+        case AzureOpenAI.embed_texts(batch) do
+          {:ok, vectors, model} -> {:cont, {:ok, [vectors | acc], model}}
+          error -> {:halt, error}
+        end
+      end)
+      |> case do
+        {:ok, batches, model} -> {:ok, batches |> Enum.reverse() |> List.flatten(), model}
+        error -> error
+      end
+    else
+      {:ok, nil, "lexical"}
+    end
+  end
 
-    with {:ok, index} <- HNSWLib.Index.new(:cosine, @embedding_dim, max_elements),
+  defp build_index(_vector_rag_id, nil), do: {:ok, nil}
+
+  defp build_index(vector_rag_id, vectors) do
+    max_elements = max(length(vectors), 1)
+    dim = length(hd(vectors))
+
+    with {:ok, index} <- HNSWLib.Index.new(:cosine, dim, max_elements),
          :ok <-
            HNSWLib.Index.add_items(index, Nx.tensor(vectors, type: :f32),
              ids: Enum.to_list(0..(length(vectors) - 1))
@@ -164,13 +224,16 @@ defmodule Core.Contexts.VectorRags do
     end
   end
 
+  defp query_vector_rag(%VectorRag{embedding_model: "lexical"}, _query, _k), do: []
+
   defp query_vector_rag(%VectorRag{} = vector_rag, query, k) do
     with :ready <- vector_rag_status(vector_rag),
+         {:ok, query_vector} <- query_embedding(vector_rag, query),
          {:ok, index} <-
            HNSWLib.Index.load_index(:cosine, vector_rag.embedding_dim, vector_rag.index_path),
          :ok <- HNSWLib.Index.set_ef(index, max(k * 4, 10)),
          {:ok, labels, distances} <-
-           HNSWLib.Index.knn_query(index, Nx.tensor([embed_text(query)], type: :f32),
+           HNSWLib.Index.knn_query(index, Nx.tensor([query_vector], type: :f32),
              k: min(k, vector_rag.chunk_count)
            ) do
       ids = labels |> Nx.to_flat_list() |> Enum.map(&trunc/1)
@@ -185,6 +248,60 @@ defmodule Core.Contexts.VectorRags do
     end
   end
 
+  defp query_embedding(%VectorRag{embedding_model: nil}, query), do: {:ok, embed_text(query)}
+
+  defp query_embedding(%VectorRag{embedding_model: model}, query) do
+    case AzureOpenAI.embed_texts([query], model: model) do
+      {:ok, [vector], ^model} -> {:ok, vector}
+      _ -> {:error, :embedding_unavailable}
+    end
+  end
+
+  defp query_lexical_rag(%VectorRag{} = rag, query, k) do
+    terms =
+      Regex.scan(~r/[\p{L}\p{N}_-]+/u, String.downcase(query)) |> List.flatten() |> Enum.uniq()
+
+    if terms == [] do
+      []
+    else
+      from(c in VectorRagChunk, where: c.vector_rag_id == ^rag.id)
+      |> Repo.all()
+      |> Enum.map(fn chunk ->
+        content = String.downcase(chunk.content)
+        hits = Enum.count(terms, &String.contains?(content, &1))
+
+        {%{
+           rag_id: rag.id,
+           rag_name: rag.name,
+           source_filename: rag.source_filename,
+           position: chunk.position,
+           distance: 1.0,
+           content: chunk.content
+         }, hits}
+      end)
+      |> Enum.filter(fn {_result, hits} -> hits > 0 end)
+      |> Enum.sort_by(fn {_result, hits} -> hits end, :desc)
+      |> Enum.take(k)
+      |> Enum.map(&elem(&1, 0))
+    end
+  end
+
+  defp fuse_results(vector_results, lexical_results) do
+    [vector_results, lexical_results]
+    |> Enum.reduce(%{}, fn results, acc ->
+      results
+      |> Enum.with_index(1)
+      |> Enum.reduce(acc, fn {result, rank}, scores ->
+        key = {result.rag_id, result.position}
+
+        Map.update(scores, key, Map.put(result, :score, 1 / (60 + rank)), fn existing ->
+          %{existing | score: existing.score + 1 / (60 + rank)}
+        end)
+      end)
+    end)
+    |> Map.values()
+  end
+
   defp search_result_for_chunk({position, distance}, chunks, vector_rag) do
     case Map.get(chunks, position) do
       nil ->
@@ -195,6 +312,7 @@ defmodule Core.Contexts.VectorRags do
           %{
             rag_id: vector_rag.id,
             rag_name: vector_rag.name,
+            source_filename: vector_rag.source_filename,
             position: position,
             distance: distance,
             content: chunk.content

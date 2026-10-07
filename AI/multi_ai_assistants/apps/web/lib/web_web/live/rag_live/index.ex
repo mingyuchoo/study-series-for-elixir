@@ -55,7 +55,7 @@ defmodule WebWeb.RagLive.Index do
       result =
         consume_uploaded_entries(socket, :document, fn %{path: path}, consumed_entry ->
           source = %{path: path, client_name: consumed_entry.client_name}
-          {:ok, VectorRags.create_vector_rag(params, source)}
+          {:ok, VectorRags.create_vector_rag(params, source, socket.assigns.current_user.id)}
         end)
         |> List.first()
 
@@ -81,8 +81,9 @@ defmodule WebWeb.RagLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    rag = VectorRags.get_vector_rag!(id)
-    {:ok, _} = VectorRags.delete_vector_rag(rag)
+    user_id = socket.assigns.current_user.id
+    rag = VectorRags.get_vector_rag!(user_id, id)
+    {:ok, _} = VectorRags.delete_vector_rag(user_id, rag)
 
     {:noreply,
      socket
@@ -92,8 +93,9 @@ defmodule WebWeb.RagLive.Index do
 
   @impl true
   def handle_event("toggle", %{"id" => id}, socket) do
-    rag = VectorRags.get_vector_rag!(id)
-    {:ok, _} = VectorRags.update_vector_rag(rag, %{enabled: !rag.enabled})
+    user_id = socket.assigns.current_user.id
+    rag = VectorRags.get_vector_rag!(user_id, id)
+    {:ok, _} = VectorRags.update_vector_rag(user_id, rag, %{enabled: !rag.enabled})
     {:noreply, assign_rags(socket)}
   end
 
@@ -104,12 +106,12 @@ defmodule WebWeb.RagLive.Index do
       <section class="border-b border-base-300 bg-base-100">
         <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div class="max-w-3xl">
-            <p class="text-sm text-base-content/60">Admin / RAG</p>
+            <p class="text-sm text-base-content/60">내 지식</p>
             <h1 class="mt-3 text-4xl font-light leading-tight text-base-content">
               Vector RAG 관리
             </h1>
             <p class="mt-3 text-sm leading-6 text-base-content/70">
-              문서를 업로드하면 텍스트 청크를 만들고 HNSWLib 인덱스로 검색 가능한 지식을 구성합니다.
+              문서를 업로드하면 텍스트 청크를 만들고 검색 가능한 지식을 구성합니다.
             </p>
           </div>
         </div>
@@ -326,7 +328,7 @@ defmodule WebWeb.RagLive.Index do
   end
 
   defp assign_rags(socket) do
-    rags = VectorRags.list_vector_rags_with_status()
+    rags = VectorRags.list_vector_rags_with_status(socket.assigns.current_user.id)
 
     socket
     |> assign(:rags, rags)

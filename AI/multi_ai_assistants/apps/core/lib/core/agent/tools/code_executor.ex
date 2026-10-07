@@ -1,12 +1,10 @@
 defmodule Core.Agent.Tools.CodeExecutor do
   @moduledoc """
   Elixir 코드 스니펫을 실행하는 코드 실행 도구.
-  타임아웃이 있는 샌드박스 환경에서 실행됩니다.
+  안전한 외부 실행기가 준비될 때까지 비활성화됩니다.
   """
 
   @behaviour Core.Agent.Tool
-
-  @timeout 5_000
 
   def definition("execute_code") do
     %{
@@ -28,55 +26,5 @@ defmodule Core.Agent.Tools.CodeExecutor do
 
   def definition(_), do: nil
 
-  def execute("execute_code", %{"code" => code}) do
-    task =
-      Task.async(fn ->
-        eval_code(code)
-      end)
-
-    case Task.yield(task, @timeout) || Task.shutdown(task) do
-      {:ok, {:ok, result}} ->
-        {:ok,
-         %{
-           code: code,
-           result: inspect(result, pretty: true, limit: 1000),
-           type: type_of(result)
-         }}
-
-      {:ok, {:error, error}} ->
-        {:error, error}
-
-      nil ->
-        {:error, "Code execution timed out (#{@timeout}ms limit)"}
-    end
-  end
-
-  defp eval_code(code) do
-    case Code.string_to_quoted(code) do
-      {:ok, quoted} ->
-        eval_quoted(quoted)
-
-      {:error, {line, error, token}} ->
-        {:error, "line #{line}: #{Exception.message(error)} #{inspect(token)}"}
-    end
-  end
-
-  defp eval_quoted(quoted) do
-    {result, _binding} = Code.eval_quoted(quoted, [], __ENV__)
-    {:ok, result}
-  rescue
-    e -> {:error, Exception.message(e)}
-  catch
-    kind, reason -> {:error, "#{kind}: #{inspect(reason)}"}
-  end
-
-  defp type_of(value) when is_binary(value), do: "string"
-  defp type_of(value) when is_integer(value), do: "integer"
-  defp type_of(value) when is_float(value), do: "float"
-  defp type_of(value) when is_list(value), do: "list"
-  defp type_of(value) when is_map(value), do: "map"
-  defp type_of(value) when is_tuple(value), do: "tuple"
-  defp type_of(value) when is_boolean(value), do: "boolean"
-  defp type_of(value) when is_atom(value), do: "atom"
-  defp type_of(_), do: "unknown"
+  def execute("execute_code", _arguments), do: {:error, :code_execution_disabled}
 end

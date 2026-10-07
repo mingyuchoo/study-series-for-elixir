@@ -66,74 +66,98 @@ defmodule Core.Agent.Tools.FileSystem do
 
   def definition(_), do: nil
 
-  def execute("read_file", %{"path" => path}) do
-    full_path = safe_path(path)
+  def execute("read_file", %{"path" => path}, user_id) do
+    with {:ok, full_path} <- safe_path(path, user_id) do
+      case File.read(full_path) do
+        {:ok, content} ->
+          {:ok, %{path: path, content: content, size: byte_size(content)}}
 
-    case File.read(full_path) do
-      {:ok, content} ->
-        {:ok, %{path: path, content: content, size: byte_size(content)}}
+        {:error, :enoent} ->
+          {:error, "File not found: #{path}"}
 
-      {:error, :enoent} ->
-        {:error, "File not found: #{path}"}
-
-      {:error, reason} ->
-        {:error, "Failed to read file: #{inspect(reason)}"}
+        {:error, reason} ->
+          {:error, "Failed to read file: #{inspect(reason)}"}
+      end
     end
   end
 
-  def execute("write_file", %{"path" => path, "content" => content}) do
-    full_path = safe_path(path)
+  def execute("write_file", %{"path" => path, "content" => content}, user_id) do
+    with {:ok, full_path} <- safe_path(path, user_id),
+         :ok <- File.mkdir_p(Path.dirname(full_path)),
+         {:ok, ^full_path} <- safe_path(path, user_id) do
+      case File.write(full_path, content) do
+        :ok ->
+          {:ok, %{path: path, written_bytes: byte_size(content)}}
 
-    # 디렉토리 존재 확인
-    full_path |> Path.dirname() |> File.mkdir_p!()
-
-    case File.write(full_path, content) do
-      :ok ->
-        {:ok, %{path: path, written_bytes: byte_size(content)}}
-
-      {:error, reason} ->
-        {:error, "Failed to write file: #{inspect(reason)}"}
+        {:error, reason} ->
+          {:error, "Failed to write file: #{inspect(reason)}"}
+      end
     end
   end
 
-  def execute("list_directory", %{"path" => path}) do
-    full_path = safe_path(path)
+  def execute("list_directory", %{"path" => path}, user_id) do
+    with {:ok, full_path} <- safe_path(path, user_id) do
+      case File.ls(full_path) do
+        {:ok, entries} ->
+          files =
+            Enum.map(entries, fn entry ->
+              entry_path = Path.join(full_path, entry)
 
-    case File.ls(full_path) do
-      {:ok, entries} ->
-        files =
-          Enum.map(entries, fn entry ->
-            entry_path = Path.join(full_path, entry)
+              %{
+                name: entry,
+                type: if(File.dir?(entry_path), do: "directory", else: "file"),
+                size: file_size(entry_path)
+              }
+            end)
 
-            %{
-              name: entry,
-              type: if(File.dir?(entry_path), do: "directory", else: "file"),
-              size: file_size(entry_path)
-            }
-          end)
+          {:ok, %{path: path, entries: files}}
 
-        {:ok, %{path: path, entries: files}}
+        {:error, :enoent} ->
+          {:error, "Directory not found: #{path}"}
 
-      {:error, :enoent} ->
-        {:error, "Directory not found: #{path}"}
-
-      {:error, reason} ->
-        {:error, "Failed to list directory: #{inspect(reason)}"}
+        {:error, reason} ->
+          {:error, "Failed to list directory: #{inspect(reason)}"}
+      end
     end
   end
 
-  defp safe_path(path) do
-    # 경로 탐색 공격 방지
-    clean_path =
-      path
+  def execute(_, _, _), do: {:error, :invalid_arguments}
+  def execute(_, _), do: {:error, :user_context_required}
+
+  defp safe_path(path, user_id) when is_binary(path) and is_binary(user_id) do
+    workspace =
+      Application.get_env(:core, :workspace_dir, @workspace_dir)
       |> Path.expand()
-      |> String.replace(~r/\.\./, "")
+      |> Path.join("users")
+      |> Path.join(user_id)
 
-    workspace = Application.get_env(:core, :workspace_dir, @workspace_dir)
-    File.mkdir_p!(workspace)
+    full_path = Path.expand(path, workspace)
 
-    Path.join(workspace, clean_path)
+    if Path.type(path) == :relative and
+         (full_path == workspace or String.starts_with?(full_path, workspace <> "/")) and
+         not symlink_in_path?(workspace, full_path) do
+      {:ok, full_path}
+    else
+      {:error, :invalid_path}
+    end
   end
+
+  defp safe_path(_, _), do: {:error, :invalid_path}
+
+  defp symlink_in_path?(workspace, full_path) do
+    components = [workspace | Path.split(Path.relative_to(full_path, workspace))]
+
+    Enum.reduce_while(components, workspace, fn
+      ^workspace, _ ->
+        if symlink?(workspace), do: {:halt, :symlink}, else: {:cont, workspace}
+
+      component, prefix ->
+        current = Path.join(prefix, component)
+        if symlink?(current), do: {:halt, :symlink}, else: {:cont, current}
+    end) == :symlink
+  end
+
+  defp symlink?(path), do: match?({:ok, %{type: :symlink}}, File.lstat(path))
 
   defp file_size(path) do
     case File.stat(path) do

@@ -18,6 +18,7 @@ defmodule Core.Schema.AgentMemory do
 
     belongs_to(:agent, Core.Schema.Agent)
     belongs_to(:conversation, Core.Schema.Conversation)
+    belongs_to(:user, Core.Schema.User)
 
     timestamps(type: :utc_datetime)
   end
@@ -27,6 +28,7 @@ defmodule Core.Schema.AgentMemory do
     agent_memory
     |> cast(attrs, [
       :agent_id,
+      :user_id,
       :conversation_id,
       :memory_type,
       :key,
@@ -44,5 +46,6 @@ defmodule Core.Schema.AgentMemory do
     ])
     |> foreign_key_constraint(:agent_id)
     |> foreign_key_constraint(:conversation_id)
+    |> foreign_key_constraint(:user_id)
   end
 end

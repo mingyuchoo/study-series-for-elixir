@@ -254,12 +254,14 @@ defmodule Core.Agent.WorkerAgent do
     messages = build_initial_messages(user_request, context, task_attrs[:conversation_id])
 
     # 스킬이 포함된 시스템 프롬프트 구성
-    system_prompt = build_system_prompt_with_skills(state.agent)
+    system_prompt = build_system_prompt_with_skills(state.agent, task_attrs[:user_id])
 
     # ReactEngine 실행
     opts = [
       system_prompt: system_prompt,
-      max_iterations: state.agent.max_iterations || 10
+      max_iterations: state.agent.max_iterations || 10,
+      user_id: task_attrs[:user_id],
+      run_id: task_attrs[:run_id]
     ]
 
     case ReactEngine.run(messages, state.tools, opts) do
@@ -280,12 +282,14 @@ defmodule Core.Agent.WorkerAgent do
     messages = build_initial_messages(user_request, context, task_attrs[:conversation_id])
 
     # 스킬이 포함된 시스템 프롬프트 구성
-    system_prompt = build_system_prompt_with_skills(state.agent)
+    system_prompt = build_system_prompt_with_skills(state.agent, task_attrs[:user_id])
 
     # ReactEngine 스트리밍 모드 실행
     opts = [
       system_prompt: system_prompt,
-      max_iterations: state.agent.max_iterations || 10
+      max_iterations: state.agent.max_iterations || 10,
+      user_id: task_attrs[:user_id],
+      run_id: task_attrs[:run_id]
     ]
 
     case ReactEngine.run_stream(messages, state.tools, stream_callback, opts) do
@@ -298,7 +302,7 @@ defmodule Core.Agent.WorkerAgent do
     end
   end
 
-  defp build_system_prompt_with_skills(agent) do
+  defp build_system_prompt_with_skills(agent, user_id) do
     # 에이전트의 활성화된 도구 기반으로 사용 가능한 스킬 가져오기
     available_skills = SkillRegistry.get_available_skills(agent.enabled_tools)
 
@@ -306,8 +310,8 @@ defmodule Core.Agent.WorkerAgent do
     skill_prompt = SkillRegistry.build_skill_prompt(available_skills)
 
     # 사용자 프로필 정보 가져오기
-    user_context = build_user_context()
-    knowledge_context = build_knowledge_context(agent)
+    user_context = build_user_context(user_id)
+    knowledge_context = build_knowledge_context(agent, user_id)
 
     # 기본 시스템 프롬프트에 사용자 컨텍스트와 스킬 지식 결합
     base_prompt =
@@ -345,15 +349,15 @@ defmodule Core.Agent.WorkerAgent do
     end
   end
 
-  defp build_knowledge_context(%Agent{enabled_tools: enabled_tools})
+  defp build_knowledge_context(%Agent{enabled_tools: enabled_tools}, user_id)
        when is_list(enabled_tools) do
-    if "search_vector_rag" in enabled_tools, do: active_knowledge_context(), else: ""
+    if "search_vector_rag" in enabled_tools, do: active_knowledge_context(user_id), else: ""
   end
 
-  defp build_knowledge_context(_agent), do: ""
+  defp build_knowledge_context(_agent, _user_id), do: ""
 
-  defp active_knowledge_context do
-    case VectorRags.list_active_vector_rags() do
+  defp active_knowledge_context(user_id) do
+    case VectorRags.list_active_vector_rags(user_id) do
       [] -> ""
       vector_rags -> knowledge_context(vector_rags)
     end
@@ -381,8 +385,8 @@ defmodule Core.Agent.WorkerAgent do
   defp rag_description(_rag), do: ""
 
   # 사용자 프로필 기반 컨텍스트 생성
-  defp build_user_context do
-    case MemoryManager.get_user_profile() do
+  defp build_user_context(user_id) do
+    case MemoryManager.get_user_profile(user_id) do
       {:ok, profile} ->
         user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name)
         agent_name = Map.get(profile, "agent_name") || Map.get(profile, :agent_name)
@@ -500,6 +504,7 @@ defmodule Core.Agent.WorkerAgent do
 
     opts = [
       conversation_id: task_attrs[:conversation_id],
+      user_id: state.user_id,
       relevance_score: if(success, do: 0.5, else: 0.7)
     ]
 

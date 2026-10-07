@@ -45,13 +45,13 @@
         <%= if assigns[:current_user] do %>
           <ul class="menu menu-horizontal hidden lg:flex shrink-0 px-1 gap-1">
             <li><.link navigate={~p"/chat"}>Chat</.link></li>
-            <li>
+            <li><.link navigate={~p"/knowledge"}>내 지식</.link></li>
+            <li :if={WebWeb.UserAuth.admin?(@current_user)}>
               <details id="admin-menu" phx-hook="CloseOnOutsideClick">
                 <summary>Admin</summary>
                 <ul class="dropdown-content menu bg-base-100 z-40 w-52 border border-base-300 p-2">
                   <li><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
                   <li><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
-                  <li><.link navigate={~p"/admin/rag"}>RAG</.link></li>
                   <li><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
                 </ul>
               </details>
@@ -72,11 +72,13 @@
               class="menu menu-sm dropdown-content bg-base-100 z-40 mt-3 w-56 border border-base-300 p-2"
             >
               <li><.link navigate={~p"/chat"}>Chat</.link></li>
-              <li class="menu-title"><span>Admin</span></li>
-              <li><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
-              <li><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
-              <li><.link navigate={~p"/admin/rag"}>RAG</.link></li>
-              <li><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
+              <li><.link navigate={~p"/knowledge"}>내 지식</.link></li>
+              <%= if WebWeb.UserAuth.admin?(@current_user) do %>
+                <li class="menu-title"><span>Admin</span></li>
+                <li><.link navigate={~p"/admin/agents"}>에이전트</.link></li>
+                <li><.link navigate={~p"/admin/mcps"}>MCP 서버</.link></li>
+                <li><.link navigate={~p"/admin/dashboard/home"}>대시보드</.link></li>
+              <% end %>
             </ul>
           </div>
         <% end %>

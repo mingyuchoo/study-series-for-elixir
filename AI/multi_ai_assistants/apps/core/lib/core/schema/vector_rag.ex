@@ -13,8 +13,10 @@ defmodule Core.Schema.VectorRag do
     field(:source_filename, :string)
     field(:index_path, :string)
     field(:embedding_dim, :integer, default: 384)
+    field(:embedding_model, :string)
     field(:chunk_count, :integer, default: 0)
     field(:enabled, :boolean, default: true)
+    belongs_to(:user, Core.Schema.User)
 
     has_many(:chunks, VectorRagChunk)
 
@@ -29,12 +31,14 @@ defmodule Core.Schema.VectorRag do
       :source_filename,
       :index_path,
       :embedding_dim,
+      :embedding_model,
       :chunk_count,
-      :enabled
+      :enabled,
+      :user_id
     ])
-    |> validate_required([:name, :embedding_dim, :chunk_count])
+    |> validate_required([:name, :embedding_dim, :chunk_count, :user_id])
     |> validate_number(:embedding_dim, greater_than: 0)
     |> validate_number(:chunk_count, greater_than_or_equal_to: 0)
-    |> unique_constraint(:name)
+    |> unique_constraint([:user_id, :name])
   end
 end

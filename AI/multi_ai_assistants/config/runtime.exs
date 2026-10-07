@@ -19,6 +19,29 @@ config :core,
   azure_openai_api_version: System.get_env("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
   azure_openai_deployment: System.get_env("AZURE_OPENAI_DEPLOYMENT", "gpt-5-mini")
 
+config :core,
+       :azure_openai_embedding_deployment,
+       System.get_env("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+
+for {env_name, config_key, default} <- [
+      {"MAX_MODEL_CALLS_PER_RUN", :max_model_calls_per_run, 18},
+      {"MAX_TOOL_CALLS_PER_RUN", :max_tool_calls_per_run, 24},
+      {"MAX_TOKENS_PER_RUN", :max_tokens_per_run, 60_000}
+    ] do
+  value = System.get_env(env_name, Integer.to_string(default))
+
+  case Integer.parse(value) do
+    {number, ""} when number > 0 -> config :core, config_key, number
+    _ -> raise "#{env_name} must be a positive integer"
+  end
+end
+
+config :web,
+       :admin_emails,
+       System.get_env("ADMIN_EMAILS", "")
+       |> String.split(",", trim: true)
+       |> Enum.map(&String.downcase(String.trim(&1)))
+
 # 프로덕션용 런타임 설정
 if config_env() == :prod do
   database_path = System.get_env("DATABASE_PATH", default_prod_database_path)

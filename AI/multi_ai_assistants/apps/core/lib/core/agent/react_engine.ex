@@ -60,7 +60,9 @@ defmodule Core.Agent.ReactEngine do
         messages
       end
 
-    agent_loop(messages_with_system, tools, 0, max_iterations)
+    with_execution_context(Keyword.get(opts, :user_id), Keyword.get(opts, :run_id), fn ->
+      agent_loop(messages_with_system, tools, 0, max_iterations)
+    end)
   end
 
   @doc """
@@ -92,7 +94,28 @@ defmodule Core.Agent.ReactEngine do
         messages
       end
 
-    agent_loop_stream(messages_with_system, tools, stream_callback, 0, max_iterations)
+    with_execution_context(Keyword.get(opts, :user_id), Keyword.get(opts, :run_id), fn ->
+      agent_loop_stream(messages_with_system, tools, stream_callback, 0, max_iterations)
+    end)
+  end
+
+  defp with_execution_context(user_id, run_id, callback) do
+    previous = Process.get(:agent_execution_user_id)
+    previous_run = Process.get(:agent_run_id)
+    Process.put(:agent_execution_user_id, user_id)
+    Process.put(:agent_run_id, run_id)
+
+    try do
+      callback.()
+    after
+      if previous == nil,
+        do: Process.delete(:agent_execution_user_id),
+        else: Process.put(:agent_execution_user_id, previous)
+
+      if previous_run == nil,
+        do: Process.delete(:agent_run_id),
+        else: Process.put(:agent_run_id, previous_run)
+    end
   end
 
   # 비공개 함수들
@@ -131,7 +154,7 @@ defmodule Core.Agent.ReactEngine do
         messages_after_assistant = append_item(messages, assistant_message)
 
         {messages_after_tools, _failed_tool_names} =
-          execute_tool_calls(messages_after_assistant, tool_calls)
+          execute_tool_calls(messages_after_assistant, tool_calls, tools)
 
         agent_loop(messages_after_tools, tools, iteration + 1, max_iterations)
 
@@ -224,7 +247,7 @@ defmodule Core.Agent.ReactEngine do
     messages_after_assistant = append_item(messages, assistant_message)
 
     {messages_after_tools, failed_tool_names} =
-      execute_tool_calls(messages_after_assistant, tool_calls)
+      execute_tool_calls(messages_after_assistant, tool_calls, tools)
 
     stream_callback.({:tool_completed, tool_calls, failed_tool_names})
     agent_loop_stream(messages_after_tools, tools, stream_callback, iteration + 1, max_iterations)
@@ -365,16 +388,30 @@ defmodule Core.Agent.ReactEngine do
 
   defp append_item(list, item), do: List.insert_at(list, -1, item)
 
-  defp execute_tool_calls(messages, tool_calls) do
+  defp execute_tool_calls(messages, tool_calls, tools) do
+    allowed_tools = Enum.map(tools, & &1.name)
+
     {tool_messages, failed_tool_names} =
       Enum.map_reduce(tool_calls, [], fn tool_call, failed_tool_names ->
         function_name = tool_call["function"]["name"]
-        arguments = Jason.decode!(tool_call["function"]["arguments"])
+        arguments = Jason.decode(tool_call["function"]["arguments"] || "{}")
 
         Logger.info("Executing tool: #{function_name} with args: #{inspect(arguments)}")
 
         {result, failed_tool_names} =
-          case ToolRegistry.execute(function_name, arguments) do
+          case (case arguments do
+                  {:ok, args} when is_map(args) ->
+                    with :ok <- Core.Agent.RunStore.reserve_tool_call(Process.get(:agent_run_id)) do
+                      ToolRegistry.execute(function_name, args,
+                        allowed_tools: allowed_tools,
+                        user_id: Process.get(:agent_execution_user_id),
+                        run_id: Process.get(:agent_run_id)
+                      )
+                    end
+
+                  _ ->
+                    {:error, :invalid_tool_arguments}
+                end) do
             {:ok, result} ->
               {Jason.encode!(result), failed_tool_names}
 

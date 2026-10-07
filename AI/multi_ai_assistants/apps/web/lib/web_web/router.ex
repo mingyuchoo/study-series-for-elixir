@@ -52,8 +52,16 @@ defmodule WebWeb.Router do
       on_mount: [{WebWeb.UserAuth, :ensure_authenticated}] do
       live "/chat", ChatLive, :index
       live "/chat/:id", ChatLive, :show
+      live "/knowledge", RagLive.Index, :index
       live "/users/settings", UserSettingsLive, :edit
+    end
+  end
 
+  scope "/", WebWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_admin_user]
+
+    live_session :ensure_admin,
+      on_mount: [{WebWeb.UserAuth, :ensure_admin}] do
       live "/admin/agents", AgentLive.Index, :index
       live "/admin/agents/new", AgentLive.Form, :new
       live "/admin/agents/:id/edit", AgentLive.Form, :edit
@@ -61,8 +69,6 @@ defmodule WebWeb.Router do
       live "/admin/mcps", McpLive.Index, :index
       live "/admin/mcps/new", McpLive.Form, :new
       live "/admin/mcps/:id/edit", McpLive.Form, :edit
-
-      live "/admin/rag", RagLive.Index, :index
 
       live "/admin/dashboard/home", DashboardHomeLive, :home
     end
@@ -82,7 +88,7 @@ defmodule WebWeb.Router do
   import Phoenix.LiveDashboard.Router
 
   scope "/admin" do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :require_authenticated_user, :require_admin_user]
 
     live_dashboard "/dashboard",
       metrics: WebWeb.Telemetry,

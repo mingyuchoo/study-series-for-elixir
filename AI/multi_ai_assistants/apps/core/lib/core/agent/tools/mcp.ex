@@ -8,7 +8,8 @@ defmodule Core.Agent.Tools.Mcp do
   alias Core.Contexts.Mcps
 
   @timeout 30_000
-  @protocol_version "2024-11-05"
+  @legacy_version "2025-11-25"
+  @modern_version "2026-07-28"
 
   def definition("mcp_filesystem_call") do
     %{
@@ -70,11 +71,36 @@ defmodule Core.Agent.Tools.Mcp do
          {:ok, command} <- resolve_command(mcp.command),
          {:ok, args} <- resolve_placeholders(mcp.args || []),
          {:ok, env} <- resolve_env(mcp.env || %{}),
-         {:ok, port} <- open_port(command, args, env),
-         :ok <- initialize(port),
-         {:ok, result} <- call_tool(port, tool_name, arguments) do
-      close_port(port)
-      {:ok, normalize_result(result)}
+         {:ok, port} <- open_port(command, args, env) do
+      try do
+        case discover(port) do
+          {:ok, %{"supportedVersions" => versions}} when is_list(versions) ->
+            if @modern_version in versions do
+              call_tool(port, tool_name, arguments, :modern)
+            else
+              {:error, :unsupported_mcp_version}
+            end
+
+          _ ->
+            close_port(port)
+
+            with {:ok, legacy_port} <- open_port(command, args, env) do
+              try do
+                with :ok <- initialize(legacy_port) do
+                  call_tool(legacy_port, tool_name, arguments, :legacy)
+                end
+              after
+                close_port(legacy_port)
+              end
+            end
+        end
+        |> case do
+          {:ok, result} -> {:ok, normalize_result(result)}
+          error -> error
+        end
+      after
+        close_port(port)
+      end
     else
       {:error, reason} -> {:error, reason}
     end
@@ -171,7 +197,7 @@ defmodule Core.Agent.Tools.Mcp do
 
   defp initialize(port) do
     request(port, 1, "initialize", %{
-      protocolVersion: @protocol_version,
+      protocolVersion: @legacy_version,
       capabilities: %{},
       clientInfo: %{name: "multi-ai-assistants", version: "0.1.0"}
     })
@@ -185,11 +211,31 @@ defmodule Core.Agent.Tools.Mcp do
     end
   end
 
-  defp call_tool(port, tool_name, arguments) do
+  defp discover(port) do
+    request(port, 1, "server/discover", %{"_meta" => modern_metadata()}, 5_000)
+  end
+
+  defp modern_metadata do
+    %{
+      "io.modelcontextprotocol/protocolVersion" => @modern_version,
+      "io.modelcontextprotocol/clientCapabilities" => %{},
+      "io.modelcontextprotocol/clientInfo" => %{name: "multi-ai-assistants", version: "0.1.0"}
+    }
+  end
+
+  defp call_tool(port, tool_name, arguments, :modern) do
+    request(port, 2, "tools/call", %{
+      "name" => tool_name,
+      "arguments" => arguments,
+      "_meta" => modern_metadata()
+    })
+  end
+
+  defp call_tool(port, tool_name, arguments, :legacy) do
     request(port, 2, "tools/call", %{name: tool_name, arguments: arguments})
   end
 
-  defp request(port, id, method, params) do
+  defp request(port, id, method, params, timeout \\ @timeout) do
     payload =
       Jason.encode!(%{
         jsonrpc: "2.0",
@@ -199,7 +245,7 @@ defmodule Core.Agent.Tools.Mcp do
       })
 
     Port.command(port, payload <> "\n")
-    await_response(port, id, @timeout)
+    await_response(port, id, timeout)
   end
 
   defp notify(port, method, params) do

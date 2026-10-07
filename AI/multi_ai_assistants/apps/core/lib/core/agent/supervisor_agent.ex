@@ -13,7 +13,7 @@ defmodule Core.Agent.SupervisorAgent do
   alias Core.Agent.{GroupChat, MemoryManager, WorkerAgent}
   alias Core.Contexts.{Agents, Conversations}
   alias Core.Repo
-  alias Core.Schema.{Agent, Message}
+  alias Core.Schema.{Agent, Conversation, Message}
 
   # 프로필 수집 상태
   # :idle - 프로필 수집 중이 아님
@@ -25,6 +25,7 @@ defmodule Core.Agent.SupervisorAgent do
     :agent_id,
     :agent,
     :conversation_id,
+    :user_id,
     :worker_agents,
     profile_state: :idle,
     partial_profile: %{}
@@ -88,6 +89,10 @@ defmodule Core.Agent.SupervisorAgent do
     )
   end
 
+  def resume_chat(conversation_id, run_id, liveview_pid) do
+    GenServer.call(via_tuple(conversation_id), {:resume_run, run_id, liveview_pid}, 180_000)
+  end
+
   # 서버 콜백
 
   @impl true
@@ -97,9 +102,7 @@ defmodule Core.Agent.SupervisorAgent do
         {:stop, {:error, :agent_not_found}}
 
       %Agent{type: :supervisor} = agent ->
-        # Markdown에서 메모리 로드 시도
-        load_memory_from_markdown(agent_id, agent.name)
-
+        conversation = Repo.get!(Conversation, conversation_id)
         # 사용 가능한 Worker 로드
         worker_agents_data = Agents.list_workers()
 
@@ -107,12 +110,13 @@ defmodule Core.Agent.SupervisorAgent do
         worker_agents = start_workers(worker_agents_data)
 
         # 프로필 상태 초기화
-        {profile_state, partial_profile} = init_profile_state()
+        {profile_state, partial_profile} = init_profile_state(conversation.user_id)
 
         state = %__MODULE__{
           agent_id: agent_id,
           agent: agent,
           conversation_id: conversation_id,
+          user_id: conversation.user_id,
           worker_agents: worker_agents,
           profile_state: profile_state,
           partial_profile: partial_profile
@@ -204,6 +208,31 @@ defmodule Core.Agent.SupervisorAgent do
     end
   end
 
+  @impl true
+  def handle_call({:resume_run, run_id, liveview_pid}, _from, state) do
+    worker_agents = refresh_worker_agents(state.worker_agents)
+
+    result =
+      GroupChat.resume(
+        %{
+          supervisor: state.agent,
+          workers: worker_agents,
+          conversation_id: state.conversation_id,
+          user_id: state.user_id,
+          user_request: "",
+          liveview_pid: liveview_pid
+        },
+        run_id
+      )
+
+    case result do
+      {:ok, answer} -> notify_stream_complete(liveview_pid, state.conversation_id, answer)
+      _ -> :ok
+    end
+
+    {:reply, result, %{state | worker_agents: worker_agents}}
+  end
+
   # LiveView 가 스트리밍 응답을 기다리고 있는 경우 완료 알림을 전송한다.
   # 프로필 수집처럼 GenServer 동기 응답으로 즉시 결과를 돌려줄 때도
   # LiveView UI 가 "실시간 응답 중" 상태에 머무르지 않도록 동일한 메시지를 보낸다.
@@ -223,7 +252,7 @@ defmodule Core.Agent.SupervisorAgent do
 
   # 프로필 완료 여부 확인 및 수집 시작
   defp check_and_start_profile_collection(state) do
-    case MemoryManager.get_user_profile() do
+    case MemoryManager.get_user_profile(state.user_id) do
       {:ok, profile} ->
         continue_profile_collection(state, profile)
 
@@ -306,7 +335,7 @@ defmodule Core.Agent.SupervisorAgent do
       :collecting_user_name ->
         # 사용자 이름 저장
         new_profile = Map.put(state.partial_profile, :user_name, trimmed_input)
-        save_partial_profile(new_profile)
+        save_partial_profile(state.user_id, new_profile)
 
         response = """
         #{trimmed_input}님, 반가워요! 😊
@@ -332,7 +361,7 @@ defmodule Core.Agent.SupervisorAgent do
             Map.get(state.partial_profile, "user_name")
 
         new_profile = Map.put(state.partial_profile, :agent_name, trimmed_input)
-        save_partial_profile(new_profile)
+        save_partial_profile(state.user_id, new_profile)
 
         response = """
         좋아요, #{user_name}님! 저는 이제 #{trimmed_input}(이)에요. 🎉
@@ -364,7 +393,7 @@ defmodule Core.Agent.SupervisorAgent do
         new_profile = Map.put(state.partial_profile, :city, trimmed_input)
 
         # 완전한 프로필 저장
-        case MemoryManager.save_user_profile(new_profile) do
+        case MemoryManager.save_user_profile(state.user_id, new_profile) do
           {:ok, _} ->
             Logger.info("Profile collection completed for user: #{user_name}")
 
@@ -394,9 +423,9 @@ defmodule Core.Agent.SupervisorAgent do
   end
 
   # 부분 프로필 저장 (MemoryManager 활용)
-  defp save_partial_profile(profile) do
+  defp save_partial_profile(user_id, profile) do
     # 임시로 부분 프로필도 저장 (빈 값이 있어도)
-    MemoryManager.save_user_profile(profile)
+    MemoryManager.save_user_profile(user_id, profile)
   end
 
   # 스트리밍 메시지 처리 (그룹 채팅 모드)
@@ -423,6 +452,7 @@ defmodule Core.Agent.SupervisorAgent do
            supervisor: state.agent,
            workers: worker_agents,
            conversation_id: state.conversation_id,
+           user_id: state.user_id,
            user_request: user_message,
            liveview_pid: liveview_pid
          }) do
@@ -474,9 +504,6 @@ defmodule Core.Agent.SupervisorAgent do
     # 대화 요약 저장
     save_conversation_summary(state)
 
-    # 메모리를 Markdown 파일로 내보내기
-    export_memory_to_markdown(state.agent_id)
-
     # 모든 Worker 프로세스 종료
     Enum.each(state.worker_agents, fn {_agent, pid} ->
       if Process.alive?(pid) do
@@ -514,8 +541,8 @@ defmodule Core.Agent.SupervisorAgent do
   end
 
   # 프로필 상태 초기화
-  defp init_profile_state do
-    case MemoryManager.get_user_profile() do
+  defp init_profile_state(user_id) do
+    case MemoryManager.get_user_profile(user_id) do
       {:ok, profile} ->
         user_name = Map.get(profile, "user_name") || Map.get(profile, :user_name)
         agent_name = Map.get(profile, "agent_name") || Map.get(profile, :agent_name)
@@ -585,6 +612,7 @@ defmodule Core.Agent.SupervisorAgent do
 
     opts = [
       conversation_id: state.conversation_id,
+      user_id: state.user_id,
       relevance_score: 0.5
     ]
 
@@ -610,7 +638,11 @@ defmodule Core.Agent.SupervisorAgent do
     }
 
     # 이 오류 패턴이 이미 존재하는지 확인
-    existing = MemoryManager.retrieve(state.agent_id, :learned_pattern, key: key)
+    existing =
+      MemoryManager.retrieve(state.agent_id, :learned_pattern,
+        key: key,
+        user_id: state.user_id
+      )
 
     value =
       case existing do
@@ -625,6 +657,7 @@ defmodule Core.Agent.SupervisorAgent do
 
     opts = [
       conversation_id: state.conversation_id,
+      user_id: state.user_id,
       relevance_score: 0.7
     ]
 
@@ -634,34 +667,6 @@ defmodule Core.Agent.SupervisorAgent do
 
       {:error, reason} ->
         Logger.warning("Failed to record error pattern: #{inspect(reason)}")
-    end
-  end
-
-  # Markdown 파일에서 메모리 로드
-  defp load_memory_from_markdown(agent_id, agent_name) do
-    memory_path = Path.join(["data/memories", agent_name, "memory.md"])
-
-    if File.exists?(memory_path) do
-      case MemoryManager.import_from_markdown(agent_id, memory_path) do
-        {:ok, memories} ->
-          Logger.info("Loaded #{length(memories)} memories from #{memory_path}")
-
-        {:error, reason} ->
-          Logger.warning("Failed to load memories from markdown: #{inspect(reason)}")
-      end
-    else
-      Logger.debug("No memory file found at #{memory_path}, starting fresh")
-    end
-  end
-
-  # 메모리를 Markdown 파일로 저장
-  defp export_memory_to_markdown(agent_id) do
-    case MemoryManager.export_to_markdown(agent_id) do
-      {:ok, path} ->
-        Logger.info("Exported memories to #{path}")
-
-      {:error, reason} ->
-        Logger.warning("Failed to export memories to markdown: #{inspect(reason)}")
     end
   end
 
@@ -677,6 +682,7 @@ defmodule Core.Agent.SupervisorAgent do
 
       opts = [
         conversation_id: state.conversation_id,
+        user_id: state.user_id,
         relevance_score: 0.8
       ]
 

@@ -117,6 +117,20 @@ defmodule WebWeb.UserAuth do
     end
   end
 
+  def admin?(%{email: email}) when is_binary(email) do
+    String.downcase(email) in Application.get_env(:web, :admin_emails, [])
+  end
+
+  def admin?(_), do: false
+
+  def require_admin_user(conn, _opts) do
+    if admin?(conn.assigns[:current_user]) do
+      conn
+    else
+      conn |> redirect(to: ~p"/chat") |> halt()
+    end
+  end
+
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))
   end
@@ -146,6 +160,16 @@ defmodule WebWeb.UserAuth do
         |> Phoenix.LiveView.redirect(to: ~p"/users/log_in")
 
       {:halt, socket}
+    end
+  end
+
+  def on_mount(:ensure_admin, _params, session, socket) do
+    socket = mount_current_user(socket, session)
+
+    if admin?(socket.assigns.current_user) do
+      {:cont, socket}
+    else
+      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/chat")}
     end
   end
 

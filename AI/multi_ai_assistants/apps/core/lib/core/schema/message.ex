@@ -26,6 +26,7 @@ defmodule Core.Schema.Message do
     belongs_to(:conversation, Core.Schema.Conversation)
     belongs_to(:agent, Core.Schema.Agent)
     belongs_to(:agent_task, Core.Schema.AgentTask)
+    belongs_to(:agent_run, Core.Schema.AgentRun)
 
     timestamps(type: :utc_datetime)
   end
@@ -42,11 +43,13 @@ defmodule Core.Schema.Message do
       :visibility,
       :conversation_id,
       :agent_id,
-      :agent_task_id
+      :agent_task_id,
+      :agent_run_id
     ])
     |> validate_required([:role, :content, :conversation_id, :visibility])
     |> foreign_key_constraint(:conversation_id)
     |> foreign_key_constraint(:agent_id)
     |> foreign_key_constraint(:agent_task_id)
+    |> unique_constraint(:agent_run_id)
   end
 end

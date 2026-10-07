@@ -44,6 +44,31 @@ defmodule Core.MCP.ServerTest do
     end
   end
 
+  test "modern discovery advertises protocol and wraps tool responses" do
+    assert {:ok, discovery} =
+             Server.handle_request(%{
+               "jsonrpc" => "2.0",
+               "id" => 10,
+               "method" => "server/discover"
+             })
+
+    assert "2026-07-28" in discovery["result"]["supportedVersions"]
+    assert discovery["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"]
+
+    assert {:ok, response} =
+             Server.handle_request(%{
+               "jsonrpc" => "2.0",
+               "id" => 11,
+               "method" => "tools/list",
+               "params" => %{
+                 "_meta" => %{"io.modelcontextprotocol/protocolVersion" => "2026-07-28"}
+               }
+             })
+
+    assert response["result"]["resultType"] == "complete"
+    assert is_list(response["result"]["tools"])
+  end
+
   describe "tools/list" do
     test "도구 목록 반환" do
       request = %{
