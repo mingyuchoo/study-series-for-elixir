@@ -554,15 +554,37 @@ defmodule Core.Agent.GroupChat do
         "Round #{state.round}/#{state.max_rounds} of group chat. Stay focused on the moderator's instruction."
     }
 
-    stream_callback = build_stream_callback(state, worker_agent)
+    {:ok, stream_buffer} = Agent.start_link(fn -> "" end)
+    notify_stream = build_stream_callback(state, worker_agent)
 
-    case Coordinator.send_task_stream(
-           state.supervisor.id,
-           worker_agent.id,
-           worker_pid,
-           task_attrs,
-           stream_callback
-         ) do
+    stream_callback = fn
+      {:chunk, text} = event ->
+        Agent.update(stream_buffer, &(&1 <> text))
+        notify_stream.(event)
+
+      event ->
+        notify_stream.(event)
+    end
+
+    result =
+      try do
+        Coordinator.send_task_stream(
+          state.supervisor.id,
+          worker_agent.id,
+          worker_pid,
+          task_attrs,
+          stream_callback
+        )
+      rescue
+        exception -> {:error, {exception.__struct__, Exception.message(exception)}}
+      catch
+        :exit, reason -> {:error, {:exit, reason}}
+      end
+
+    partial_output = Agent.get(stream_buffer, & &1)
+    Agent.stop(stream_buffer)
+
+    case result do
       {:ok, output} ->
         {:ok, message} =
           persist_message(state, %{
@@ -587,8 +609,35 @@ defmodule Core.Agent.GroupChat do
         {:ok, output, new_state}
 
       {:error, reason} ->
+        state = persist_interrupted_worker_turn(state, worker_agent, partial_output)
         notify(state, {:agent_status, state.conversation_id, worker_agent.name, :error})
         {:error, reason, state}
+    end
+  end
+
+  defp persist_interrupted_worker_turn(state, worker_agent, partial_output) do
+    if String.trim(partial_output) == "" do
+      state
+    else
+      content = String.trim(partial_output) <> "\n\n_응답이 중단되어 여기까지 표시합니다._"
+
+      {:ok, message} =
+        persist_message(state, %{
+          role: :assistant,
+          content: content,
+          agent_id: worker_agent.id,
+          visibility: :debate_turn
+        })
+
+      notify(state, {:debate_message_inserted, state.conversation_id, message})
+
+      append_transcript(state, %{
+        kind: :worker,
+        round: state.round,
+        speaker: worker_agent.name,
+        display_name: worker_agent.display_name || worker_agent.name,
+        content: content
+      })
     end
   end
 
