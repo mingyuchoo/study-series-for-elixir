@@ -23,7 +23,7 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/elixir_gui_todo"
-import topbar from "../vendor/topbar"
+import topbar from "topbar"
 
 const setTheme = (theme) => {
   if (theme === "system") {

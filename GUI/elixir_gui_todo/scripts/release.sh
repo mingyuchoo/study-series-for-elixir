@@ -27,10 +27,10 @@ prepare_release() {
 build_installers() {
   case "$(uname -s)" in
     Linux)
-      cargo tauri build --bundles deb,rpm
+      npm exec -- tauri build --bundles deb,rpm
       ;;
     Darwin)
-      cargo tauri build --bundles dmg
+      npm exec -- tauri build --bundles dmg
       ;;
     *)
       printf 'Unsupported release platform: %s\n' "$(uname -s)" >&2

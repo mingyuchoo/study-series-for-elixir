@@ -20,7 +20,7 @@ function Prepare-Release {
 }
 
 function Build-Installers {
-  cargo tauri build --bundles msi
+  npm exec -- tauri build --bundles msi
 }
 
 $Command = if ($args.Count -gt 0) { $args[0] } else { "build" }
