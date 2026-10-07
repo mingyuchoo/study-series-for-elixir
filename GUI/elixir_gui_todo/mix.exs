@@ -41,12 +41,14 @@ defmodule ElixirGuiTodo.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.8.7"},
-      {:phoenix_ecto, "~> 4.5"},
+      # Includes the upstream Elixir 1.20 compiler deprecation fix, not yet released on Hex.
+      {:phoenix_ecto,
+       github: "phoenixframework/phoenix_ecto", ref: "d0b02063159762791982c0d44beff411b61cc5f7"},
       {:ecto_sql, "~> 3.13"},
       {:ecto_sqlite3, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.1.0"},
+      {:phoenix_live_view, "~> 1.2.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
@@ -59,9 +61,11 @@ defmodule ElixirGuiTodo.MixProject do
        depth: 1},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 1.0"},
+      # Includes the upstream Elixir 1.20 compiler fixes, not yet released on Hex.
+      {:gettext,
+       github: "elixir-gettext/gettext", ref: "3163e3cbf6c015d9e37efa08adf42dc3e907f58b"},
       {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.1"},
       {:bandit, "~> 1.5"}
     ]
   end
