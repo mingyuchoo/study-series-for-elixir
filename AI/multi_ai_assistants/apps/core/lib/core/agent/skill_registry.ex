@@ -68,7 +68,7 @@ defmodule Core.Agent.SkillRegistry do
   use GenServer
   require Logger
 
-  alias Core.Agent.FrontmatterParser
+  alias AgentDomain.FrontmatterParser
 
   @skills_dir "config/skills"
 

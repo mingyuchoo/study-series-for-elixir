@@ -6,12 +6,11 @@ defmodule Core.Contexts.VectorRags do
   import Ecto.Query, warn: false
 
   alias Core.Repo
+  alias AgentDomain.RagText
   alias Core.LLM.AzureOpenAI
   alias Core.Schema.{VectorRag, VectorRagChunk}
 
   @embedding_dim 384
-  @chunk_size 1_200
-  @chunk_overlap 180
   @default_k 4
 
   def list_vector_rags(user_id) when is_binary(user_id) do
@@ -37,7 +36,7 @@ defmodule Core.Contexts.VectorRags do
 
   def create_vector_rag(attrs, source, user_id) when is_binary(user_id) do
     with {:ok, content} <- read_source(source),
-         chunks when chunks != [] <- chunk_text(content),
+         chunks when chunks != [] <- RagText.chunk_text(content),
          {:ok, vectors, embedding_model} <- prepare_embeddings(chunks),
          embedding_dim = if(vectors, do: length(hd(vectors)), else: @embedding_dim),
          {:ok, vector_rag} <-
@@ -114,7 +113,7 @@ defmodule Core.Contexts.VectorRags do
     |> Enum.filter(&(vector_rag_status(&1) == :ready))
     |> filter_by_rag_name(rag_name)
     |> Enum.flat_map(fn rag ->
-      fuse_results(query_vector_rag(rag, query, k), query_lexical_rag(rag, query, k))
+      RagText.fuse_results(query_vector_rag(rag, query, k), query_lexical_rag(rag, query, k))
     end)
     |> Enum.sort_by(& &1.score, :desc)
     |> Enum.take(k)
@@ -248,7 +247,8 @@ defmodule Core.Contexts.VectorRags do
     end
   end
 
-  defp query_embedding(%VectorRag{embedding_model: nil}, query), do: {:ok, embed_text(query)}
+  defp query_embedding(%VectorRag{embedding_model: nil}, query),
+    do: {:ok, RagText.embed_text(query)}
 
   defp query_embedding(%VectorRag{embedding_model: model}, query) do
     case AzureOpenAI.embed_texts([query], model: model) do
@@ -284,22 +284,6 @@ defmodule Core.Contexts.VectorRags do
       |> Enum.take(k)
       |> Enum.map(&elem(&1, 0))
     end
-  end
-
-  defp fuse_results(vector_results, lexical_results) do
-    [vector_results, lexical_results]
-    |> Enum.reduce(%{}, fn results, acc ->
-      results
-      |> Enum.with_index(1)
-      |> Enum.reduce(acc, fn {result, rank}, scores ->
-        key = {result.rag_id, result.position}
-
-        Map.update(scores, key, Map.put(result, :score, 1 / (60 + rank)), fn existing ->
-          %{existing | score: existing.score + 1 / (60 + rank)}
-        end)
-      end)
-    end)
-    |> Map.values()
   end
 
   defp search_result_for_chunk({position, distance}, chunks, vector_rag) do
@@ -428,58 +412,6 @@ defmodule Core.Contexts.VectorRags do
   defp source_filename(%{client_name: client_name}), do: client_name
   defp source_filename(path) when is_binary(path), do: Path.basename(path)
   defp source_filename(_), do: nil
-
-  defp chunk_text(content) do
-    content
-    |> String.replace("\r\n", "\n")
-    |> String.replace(~r/[ \t]+/, " ")
-    |> String.trim()
-    |> do_chunk([])
-    |> Enum.reverse()
-  end
-
-  defp do_chunk("", acc), do: acc
-
-  defp do_chunk(text, acc) do
-    chunk = String.slice(text, 0, @chunk_size) |> String.trim()
-
-    remaining =
-      String.slice(text, max(String.length(chunk) - @chunk_overlap, 0), String.length(text))
-
-    cond do
-      chunk == "" -> acc
-      String.length(text) <= @chunk_size -> [chunk | acc]
-      true -> do_chunk(remaining, [chunk | acc])
-    end
-  end
-
-  defp embed_text(text) do
-    tokens =
-      Regex.scan(~r/[\p{L}\p{N}_-]+/u, String.downcase(text), capture: :first) |> List.flatten()
-
-    vector = List.duplicate(0.0, @embedding_dim)
-
-    tokens
-    |> Enum.reduce(vector, fn token, acc ->
-      index = :erlang.phash2(token, @embedding_dim)
-      weight = 1.0 + :math.log(String.length(token) + 1)
-      List.update_at(acc, index, &(&1 + weight))
-    end)
-    |> normalize()
-  end
-
-  defp normalize(vector) do
-    norm =
-      vector
-      |> Enum.reduce(0.0, &(&2 + &1 * &1))
-      |> :math.sqrt()
-
-    if norm == 0.0 do
-      vector
-    else
-      Enum.map(vector, &(&1 / norm))
-    end
-  end
 
   defp index_dir do
     Application.get_env(:core, :vector_rag_dir) ||

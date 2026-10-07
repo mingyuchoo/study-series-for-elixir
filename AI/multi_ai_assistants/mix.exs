@@ -23,6 +23,7 @@ defmodule MultiAiAssistants.MixProject do
       multi_ai_assistants: [
         version: "0.1.0",
         applications: [
+          agent_domain: :load,
           core: :permanent,
           web: :permanent
         ],

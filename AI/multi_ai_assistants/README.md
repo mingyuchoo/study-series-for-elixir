@@ -26,14 +26,17 @@ Azure OpenAI API(gpt-5-mini)와 다중 에이전트(Supervisor + Worker) 오케�
 - **AI**: Azure OpenAI API (gpt-5-mini)
 - **인증**: bcrypt_elixir
 - **프로토콜**: MCP (Model Context Protocol)
-- **프로젝트 구조**: Umbrella (`apps/core` + `apps/web`)
+- **프로젝트 구조**: Umbrella workspace (`apps/agent_domain` + `apps/core` + `apps/web`)
 
 ## 프로젝트 구조
 
 ```text
 multi_ai_assistants/
 ├── apps/
-│   ├── core/                    # 도메인 로직
+│   ├── agent_domain/            # 순수 규칙: 라우팅, 파싱, 정책, 계산, RAG/채팅 데이터 변환
+│   │   ├── lib/agent_domain/
+│   │   └── test/
+│   ├── core/                    # 애플리케이션 조정 및 외부 시스템 어댑터
 │   │   ├── lib/core/
 │   │   │   ├── agent/           # ReAct 패턴 에이전트
 │   │   │   ├── contexts/        # Accounts, Conversations, Agents, Mcps
@@ -54,6 +57,24 @@ multi_ai_assistants/
 │   └── *.exs
 └── mix.exs                      # releases 설정
 ```
+
+### 의존 방향
+
+`web → core → agent_domain` 순서로 의존합니다. `agent_domain`은 DB, 파일,
+네트워크, 로깅 또는 Phoenix에 접근하지 않습니다. 호출자가 라우팅 규칙과 Worker를
+값으로 전달하면 Worker 선택과 점수 계산을 수행합니다. 에이전트 설정 파싱,
+도구 권한 판단, 계산식 평가, RAG 텍스트 분할과 결과 병합, 그룹 채팅 메시지 파싱,
+LLM 메시지 형식 변환도 입력값만으로 결과를 반환합니다.
+
+`core`는 Ecto 저장소, 파일 로딩, 로그, 텔레메트리와 도구 실행을 담당합니다.
+`Core.Agent.TaskRouter`는 규칙을 DB에서 읽고 도메인 서비스에 전달합니다.
+`Core.Agent.ConfigLoader`는 설정 파일을 읽고 파싱 결과를 DB에 저장합니다.
+`web`은 Phoenix 입력과 화면을 처리합니다. 기존 `Core.Agent.*` 호출 API는
+유지되므로 다른 앱의 호출 경로는 바뀌지 않습니다.
+
+새로운 업무 규칙은 가능한 한 `agent_domain`에 입력과 결과만 다루는 함수로
+추가하고, 외부 시스템 접근은 `core`의 어댑터에서 처리하세요. 전체 검증은
+프로젝트 루트에서 `mix test`로 실행합니다.
 
 ## 설치 및 실행
 

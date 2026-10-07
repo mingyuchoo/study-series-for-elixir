@@ -36,6 +36,7 @@ defmodule Core.MixProject do
 
   defp deps do
     [
+      {:agent_domain, in_umbrella: true},
       {:ecto_sql, "~> 3.14"},
       {:ecto_sqlite3, "~> 0.25"},
       {:hnswlib, "~> 0.1.7"},

@@ -8,6 +8,7 @@ defmodule Core.Agent.ReactEngine do
 
   require Logger
   alias Core.Agent.ToolRegistry
+  alias AgentDomain.ChatProtocol
   alias Core.LLM.AzureOpenAI
 
   @type message :: %{
@@ -127,8 +128,8 @@ defmodule Core.Agent.ReactEngine do
   end
 
   defp agent_loop(messages, tools, iteration, max_iterations) do
-    formatted_messages = format_messages_for_api(messages)
-    formatted_tools = format_tools_for_api(tools)
+    formatted_messages = ChatProtocol.format_messages_for_api(messages)
+    formatted_tools = ChatProtocol.format_tools_for_api(tools)
 
     case AzureOpenAI.chat_completion(formatted_messages, tools: formatted_tools) do
       {:ok, %{tool_calls: nil, content: content}} ->
@@ -140,7 +141,7 @@ defmodule Core.Agent.ReactEngine do
           tool_call_id: nil
         }
 
-        {:ok, content, append_item(messages, assistant_message)}
+        {:ok, content, ChatProtocol.append_item(messages, assistant_message)}
 
       {:ok, %{tool_calls: tool_calls, content: content}} when is_list(tool_calls) ->
         # 도구 호출 존재 - 도구 실행 후 루프 계속
@@ -151,7 +152,7 @@ defmodule Core.Agent.ReactEngine do
           tool_call_id: nil
         }
 
-        messages_after_assistant = append_item(messages, assistant_message)
+        messages_after_assistant = ChatProtocol.append_item(messages, assistant_message)
 
         {messages_after_tools, _failed_tool_names} =
           execute_tool_calls(messages_after_assistant, tool_calls, tools)
@@ -172,8 +173,8 @@ defmodule Core.Agent.ReactEngine do
   end
 
   defp agent_loop_stream(messages, tools, stream_callback, iteration, max_iterations) do
-    formatted_messages = format_messages_for_api(messages)
-    formatted_tools = format_tools_for_api(tools)
+    formatted_messages = ChatProtocol.format_messages_for_api(messages)
+    formatted_tools = ChatProtocol.format_tools_for_api(tools)
 
     # 스트리밍 응답 수집을 위한 상태
     state = %{
@@ -224,7 +225,7 @@ defmodule Core.Agent.ReactEngine do
       tool_call_id: nil
     }
 
-    {:ok, content, append_item(messages, assistant_message)}
+    {:ok, content, ChatProtocol.append_item(messages, assistant_message)}
   end
 
   defp handle_stream_final_state(
@@ -244,7 +245,7 @@ defmodule Core.Agent.ReactEngine do
       tool_call_id: nil
     }
 
-    messages_after_assistant = append_item(messages, assistant_message)
+    messages_after_assistant = ChatProtocol.append_item(messages, assistant_message)
 
     {messages_after_tools, failed_tool_names} =
       execute_tool_calls(messages_after_assistant, tool_calls, tools)
@@ -347,11 +348,11 @@ defmodule Core.Agent.ReactEngine do
 
   defp process_tool_call_delta(%{"index" => index} = tc, state) do
     existing = Enum.at(state.tool_calls, index)
-    updated_tc = merge_tool_call_delta(existing, tc)
+    updated_tc = ChatProtocol.merge_tool_call_delta(existing, tc)
 
     tool_calls =
       if index >= Enum.count(state.tool_calls) do
-        append_item(state.tool_calls, updated_tc)
+        ChatProtocol.append_item(state.tool_calls, updated_tc)
       else
         List.replace_at(state.tool_calls, index, updated_tc)
       end
@@ -360,33 +361,6 @@ defmodule Core.Agent.ReactEngine do
   end
 
   defp process_tool_call_delta(_tc, state), do: state
-
-  defp merge_tool_call_delta(nil, tc) do
-    %{
-      "id" => tc["id"] || "",
-      "type" => tc["type"] || "function",
-      "function" => %{
-        "name" => get_in(tc, ["function", "name"]) || "",
-        "arguments" => get_in(tc, ["function", "arguments"]) || ""
-      }
-    }
-  end
-
-  defp merge_tool_call_delta(existing_tc, tc) do
-    func = existing_tc["function"]
-    new_func = tc["function"] || %{}
-
-    %{
-      existing_tc
-      | "id" => tc["id"] || existing_tc["id"],
-        "function" => %{
-          "name" => (new_func["name"] || "") <> (func["name"] || ""),
-          "arguments" => (func["arguments"] || "") <> (new_func["arguments"] || "")
-        }
-    }
-  end
-
-  defp append_item(list, item), do: List.insert_at(list, -1, item)
 
   defp execute_tool_calls(messages, tool_calls, tools) do
     allowed_tools = Enum.map(tools, & &1.name)
@@ -432,31 +406,4 @@ defmodule Core.Agent.ReactEngine do
 
     {messages ++ tool_messages, Enum.reverse(failed_tool_names)}
   end
-
-  defp format_messages_for_api(messages) do
-    Enum.map(messages, fn msg ->
-      base = %{role: msg.role, content: msg.content}
-
-      base
-      |> maybe_add(:tool_calls, msg[:tool_calls])
-      |> maybe_add(:tool_call_id, msg[:tool_call_id])
-    end)
-  end
-
-  defp format_tools_for_api(tools) do
-    Enum.map(tools, fn tool ->
-      %{
-        type: "function",
-        function: %{
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters
-        }
-      }
-    end)
-  end
-
-  defp maybe_add(map, _key, nil), do: map
-  defp maybe_add(map, _key, []), do: map
-  defp maybe_add(map, key, value), do: Map.put(map, key, value)
 end

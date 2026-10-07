@@ -19,6 +19,7 @@ defmodule Core.Agent.GroupChat do
   require Logger
 
   alias Core.Agent.{Coordinator, MemoryManager, RunStore, TaskRouter, Telemetry}
+  alias AgentDomain.GroupChatText
   alias Core.Contexts.VectorRags
   alias Core.LLM.AzureOpenAI
   alias Core.Repo
@@ -26,7 +27,6 @@ defmodule Core.Agent.GroupChat do
 
   @default_max_rounds 6
   # 모더레이터 프롬프트에 포함할 워커 발언 미리보기 길이
-  @transcript_excerpt_chars 800
 
   @type worker_entry :: {Core.Schema.Agent.t(), pid()}
 
@@ -63,7 +63,7 @@ defmodule Core.Agent.GroupChat do
           |> Map.merge(%{
             run_id: run.id,
             round: run.round,
-            transcript: restore_transcript(run.transcript)
+            transcript: GroupChatText.restore_transcript(run.transcript)
           })
 
         execute_state(state)
@@ -392,7 +392,7 @@ defmodule Core.Agent.GroupChat do
              max_completion_tokens: 1200
            ) do
         {:ok, %{content: content}} when is_binary(content) ->
-          parse_moderator_output(content)
+          GroupChatText.parse_moderator_output(content)
 
         {:ok, other} ->
           {:error, {:invalid_moderator_response, other}}
@@ -482,7 +482,7 @@ defmodule Core.Agent.GroupChat do
       end)
       |> Jason.encode!()
 
-    transcript_block = format_transcript_for_moderator(state.transcript)
+    transcript_block = GroupChatText.format_transcript_for_moderator(state.transcript)
     knowledge_block = format_available_knowledge(state.user_id)
 
     """
@@ -502,53 +502,6 @@ defmodule Core.Agent.GroupChat do
     DEBATE TRANSCRIPT SO FAR:
     #{transcript_block}
     """
-  end
-
-  defp format_transcript_for_moderator([]), do: "(아직 발언 없음 — 토론 시작)"
-
-  defp format_transcript_for_moderator(transcript) do
-    Enum.map_join(transcript, "\n\n", fn entry ->
-      content = String.slice(entry.content || "", 0, @transcript_excerpt_chars)
-
-      tag =
-        case entry.kind do
-          :moderator_pick -> "[모더레이터]"
-          :worker -> "[#{entry.display_name}]"
-          :worker_error -> "[#{entry.display_name} ERROR]"
-          :final -> "[최종]"
-          _ -> "[?]"
-        end
-
-      "라운드 #{entry.round} #{tag}: #{content}"
-    end)
-  end
-
-  defp parse_moderator_output(content) do
-    json_text =
-      content
-      |> String.trim()
-      |> strip_code_fences()
-
-    with {:ok, decoded} <- Jason.decode(json_text) do
-      decision = Map.get(decoded, "decision")
-
-      result = %{
-        decision: decision,
-        next_speaker: Map.get(decoded, "next_speaker"),
-        instruction: Map.get(decoded, "instruction"),
-        assignments: Map.get(decoded, "assignments"),
-        reasoning: Map.get(decoded, "reasoning") || "",
-        final_answer: Map.get(decoded, "final_answer")
-      }
-
-      {:ok, result}
-    end
-  end
-
-  defp strip_code_fences(text) do
-    text
-    |> String.replace(~r/^```(?:json)?\n/, "")
-    |> String.replace(~r/\n```\s*$/, "")
   end
 
   ## 워커 턴 실행
@@ -640,7 +593,7 @@ defmodule Core.Agent.GroupChat do
   end
 
   defp build_worker_request(state, instruction) do
-    transcript_text = format_transcript_for_worker(state.transcript)
+    transcript_text = GroupChatText.format_transcript_for_worker(state.transcript)
 
     """
     [그룹 채팅 라운드 #{state.round}/#{state.max_rounds}]
@@ -656,23 +609,6 @@ defmodule Core.Agent.GroupChat do
 
     당신의 역할 범위 안에서만 답하고, 다른 워커가 더 잘하는 일은 권유만 하세요.
     """
-  end
-
-  defp format_transcript_for_worker([]), do: "(아직 발언 없음)"
-
-  defp format_transcript_for_worker(transcript) do
-    transcript
-    |> Enum.filter(&(&1.kind == :worker))
-    |> case do
-      [] ->
-        "(워커 발언 아직 없음)"
-
-      entries ->
-        Enum.map_join(entries, "\n", fn entry ->
-          excerpt = String.slice(entry.content || "", 0, @transcript_excerpt_chars)
-          "- [#{entry.display_name}] #{excerpt}"
-        end)
-    end
   end
 
   defp format_available_knowledge(user_id) do
@@ -755,27 +691,6 @@ defmodule Core.Agent.GroupChat do
       message ->
         {:ok, Repo.preload(message, :agent)}
     end
-  end
-
-  defp restore_transcript(%{"entries" => entries}) when is_list(entries),
-    do: restore_entries(entries)
-
-  defp restore_transcript(%{entries: entries}) when is_list(entries), do: restore_entries(entries)
-  defp restore_transcript(_), do: []
-
-  defp restore_entries(entries) do
-    Enum.map(entries, fn entry ->
-      keys = [:kind, :round, :speaker, :display_name, :content, :reasoning, :instruction]
-
-      Map.new(keys, fn key ->
-        value = Map.get(entry, key) || Map.get(entry, Atom.to_string(key))
-
-        value =
-          if key == :kind and is_binary(value), do: String.to_existing_atom(value), else: value
-
-        {key, value}
-      end)
-    end)
   end
 
   ## 보조

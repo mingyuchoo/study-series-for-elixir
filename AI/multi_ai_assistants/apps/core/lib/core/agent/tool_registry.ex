@@ -8,7 +8,7 @@ defmodule Core.Agent.ToolRegistry do
 
   alias Core.Repo
   alias Core.Schema.Tool
-  alias Core.Agent.ToolPolicy
+  alias AgentDomain.ToolPolicy
   alias Core.Agent.Telemetry
 
   @tool_modules %{
