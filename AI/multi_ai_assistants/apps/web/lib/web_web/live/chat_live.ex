@@ -8,12 +8,6 @@ defmodule WebWeb.ChatLive do
 
   import Ecto.Query
 
-  @earmark_options %Earmark.Options{
-    code_class_prefix: "language-",
-    smartypants: false,
-    breaks: true
-  }
-
   @max_upload_entries 5
   # 10MB
   @max_upload_size 10_000_000
@@ -1321,7 +1315,7 @@ defmodule WebWeb.ChatLive do
 
   defp render_markdown(content) when is_binary(content) do
     content
-    |> Earmark.as_html!(@earmark_options)
+    |> MDEx.to_html!(render: [hardbreaks: true])
     |> Phoenix.HTML.raw()
   end
 

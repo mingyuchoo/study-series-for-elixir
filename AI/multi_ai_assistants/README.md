@@ -59,9 +59,9 @@ multi_ai_assistants/
 
 ### 1. 설정
 
-애플리케이션은 `.env` 파일 없이도 기본 설정으로 부팅됩니다. 민감정보나 환경별 값이 필요한 경우 OS 환경변수, 배포 시스템 secret, systemd `EnvironmentFile` 등 런타임 환경으로 주입하세요.
+애플리케이션은 `.env` 파일 없이도 기본 설정으로 부팅됩니다. `scripts/run.sh`는 프로젝트 루트에 `.env`가 있으면 이를 로드합니다. 직접 `mix`를 실행하거나 배포할 때는 OS 환경변수, 배포 시스템 secret, systemd `EnvironmentFile` 등 런타임 환경으로 주입하세요.
 
-`.env.example`은 참고용 템플릿이며 자동 로딩되지 않습니다.
+`.env.example`은 참고용 템플릿입니다. 로컬 실행용 설정은 `.env`에 저장하세요.
 
 주요 설정 항목:
 

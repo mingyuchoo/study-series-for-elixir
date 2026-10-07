@@ -76,7 +76,7 @@ defmodule Core.Agent.Tools.CodeExecutor do
   defp type_of(value) when is_list(value), do: "list"
   defp type_of(value) when is_map(value), do: "map"
   defp type_of(value) when is_tuple(value), do: "tuple"
-  defp type_of(value) when is_atom(value), do: "atom"
   defp type_of(value) when is_boolean(value), do: "boolean"
+  defp type_of(value) when is_atom(value), do: "atom"
   defp type_of(_), do: "unknown"
 end

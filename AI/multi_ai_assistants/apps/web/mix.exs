@@ -49,7 +49,7 @@ defmodule Web.MixProject do
        app: false,
        compile: false,
        depth: 1},
-      {:earmark, "~> 1.4"}
+      {:mdex, "~> 0.14"}
     ]
   end
 

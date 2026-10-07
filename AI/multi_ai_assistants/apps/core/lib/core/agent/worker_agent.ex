@@ -246,14 +246,6 @@ defmodule Core.Agent.WorkerAgent do
     |> Repo.update()
   end
 
-  defp update_task_status(task, status, _extra) do
-    attrs = %{status: status}
-
-    task
-    |> AgentTask.changeset(attrs)
-    |> Repo.update()
-  end
-
   defp run_task(state, task_attrs) do
     user_request = task_attrs[:user_request]
     context = task_attrs[:context]

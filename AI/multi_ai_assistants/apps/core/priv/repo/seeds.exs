@@ -5,8 +5,6 @@ alias Core.Contexts.Mcps
 alias Core.Agent.ConfigLoader
 alias Core.Schema.{Tool, User}
 
-require Logger
-
 # ------------------------------------------------------------------
 # 1) 초기 관리자 계정 생성 (ADMIN_EMAIL / ADMIN_PASSWORD 환경변수 사용)
 # ------------------------------------------------------------------

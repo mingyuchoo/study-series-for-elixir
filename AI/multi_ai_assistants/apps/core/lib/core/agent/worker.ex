@@ -4,7 +4,6 @@ defmodule Core.Agent.Worker do
   ReAct (Reasoning + Acting) 패턴을 구현합니다.
   """
   use GenServer
-  require Logger
 
   alias Core.Agent.{ReactEngine, ToolRegistry}
   alias Core.Repo

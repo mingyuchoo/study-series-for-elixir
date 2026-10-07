@@ -326,7 +326,7 @@ defmodule Core.Contexts.VectorRags do
     chunk = String.slice(text, 0, @chunk_size) |> String.trim()
 
     remaining =
-      String.slice(text, max(String.length(chunk) - @chunk_overlap, 0), String.length(text)) || ""
+      String.slice(text, max(String.length(chunk) - @chunk_overlap, 0), String.length(text))
 
     cond do
       chunk == "" -> acc

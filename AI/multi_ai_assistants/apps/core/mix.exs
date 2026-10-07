@@ -36,10 +36,10 @@ defmodule Core.MixProject do
 
   defp deps do
     [
-      {:ecto_sql, "~> 3.12"},
-      {:ecto_sqlite3, "~> 0.18"},
+      {:ecto_sql, "~> 3.14"},
+      {:ecto_sqlite3, "~> 0.25"},
       {:hnswlib, "~> 0.1.7"},
-      {:req, "~> 0.5"},
+      {:req, "~> 0.7"},
       {:jason, "~> 1.4"},
       {:bcrypt_elixir, "~> 3.0"}
     ]
